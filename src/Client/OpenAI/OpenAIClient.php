@@ -283,13 +283,13 @@ class OpenAIClient extends LLMBaseClient implements LLMBatchClient {
 
         $response = $this->getHttpClient()->post('https://api.openai.com/v1/batches', [
             'json' => [
-                'input_file_id' => json_decode($fileResponse->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR)['id'],
+                'input_file_id' => json_decode((string) $fileResponse->getBody(), true, 512, JSON_THROW_ON_ERROR)['id'],
                 'endpoint' => '/v1/chat/completions',
                 'completion_window' => '24h',
             ],
         ]);
 
-        return json_decode($response->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR)['id'];
+        return json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR)['id'];
     }
 
     public function retrieveBatch(string $batchId): ?array {
@@ -302,11 +302,11 @@ class OpenAIClient extends LLMBaseClient implements LLMBatchClient {
             if ($response['completed_at'] < time() - 3 * 24 * 60 * 60) {
                 return [];
             }
-            $file = $this->getHttpClient()->get('https://api.openai.com/v1/files/' . $response['error_file_id'] . '/content')->getBody()->getContents();
+            $file = (string) $this->getHttpClient()->get('https://api.openai.com/v1/files/' . $response['error_file_id'] . '/content')->getBody();
             throw new \RuntimeException('Batch failed: ' . substr($file, 0, 1000));
         }
 
-        $file = $this->getHttpClient()->get('https://api.openai.com/v1/files/' . $response['output_file_id'] . '/content')->getBody()->getContents();
+        $file = (string) $this->getHttpClient()->get('https://api.openai.com/v1/files/' . $response['output_file_id'] . '/content')->getBody();
         $results = explode("\n", trim($file));
         $responses = [];
         foreach ($results as $row) {

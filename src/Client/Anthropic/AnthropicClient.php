@@ -62,7 +62,7 @@ class AnthropicClient extends AnthropicBaseClient implements LLMBatchClient {
             'headers' => $this->getHeaders(),
             'json' => $data,
         ])->then(function (ResponseInterface $response) {
-            return new ModelResponse(json_decode($response->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR), (int) $response->getHeaderLine('X-Request-Duration'));
+            return new ModelResponse(json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR), (int) $response->getHeaderLine('X-Request-Duration'));
         });
     }
 
@@ -86,7 +86,7 @@ class AnthropicClient extends AnthropicBaseClient implements LLMBatchClient {
             ],
         ]);
 
-        return json_decode($response->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR)['id'];
+        return json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR)['id'];
     }
 
     public function retrieveBatch(string $batchId): ?array {
@@ -97,7 +97,7 @@ class AnthropicClient extends AnthropicBaseClient implements LLMBatchClient {
             return null;
         }
         if ($response['processing_status'] === 'ended') {
-            $results = explode("\n", trim($this->getHttpClient()->get($response['results_url'], ['headers' => $this->getHeaders()])->getBody()->getContents()));
+            $results = explode("\n", trim($this->getHttpClient()->get($response['results_url'], ['headers' => $this->getHeaders()])->getBody()));
             $responses = [];
             foreach ($results as $row) {
                 $result = json_decode($row, true, 512, JSON_THROW_ON_ERROR);
