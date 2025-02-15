@@ -13,24 +13,24 @@ class MarkdownFormatter {
         $markdown = '';
         foreach ($response->getMessages() as $message) {
             if ($message->isUser()) {
-                $markdown .= '#### User:' . "\n";
+                $markdown .= '## User:' . "\n";
             } elseif ($message->isAssistant()) {
-                $markdown .= '#### Response:' . "\n";
+                $markdown .= '## Assistant:' . "\n";
             } else {
                 throw new \RuntimeException('Unknown message role');
             }
             foreach ($message->getContents() as $content) {
                 if ($content instanceof LLMMessageText) {
-                    $markdown .= $content->getText();
+                    $markdown .= str_replace('<', '&lt;', str_replace('>', '&gt;', $content->getText()));
                 } elseif ($content instanceof LLMMessageImage) {
-                    $markdown .= '**Image** (' . $content->getMediaType() . ' ' . $this->formatByteSize(strlen(base64_decode($content->getData()))) . ')' . "\n";
+                    $markdown .= '**Image** (' . $content->getMediaType() . ' ' . $this->formatByteSize(strlen(base64_decode($content->getData()))) . ')';
                 } elseif ($content instanceof LLMMessagePdf) {
-                    $markdown .= '**PDF** ' . $this->formatByteSize(strlen(base64_decode($content->getData()))) . ')';
+                    $markdown .= '**PDF** (' . $this->formatByteSize(strlen(base64_decode($content->getData()))) . ')';
                 } elseif ($content instanceof LLMMessageToolUse) {
                     $markdown .= '**Tool use: ** ' . $content->getName() . ' (' . $content->getId() . ')' . "\n";
                     $markdown .= "```json\n";
                     $markdown .= json_encode($content->getInput(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n";
-                    $markdown .= "```\n";
+                    $markdown .= "```";
                 } elseif ($content instanceof LLMMessageToolResult) {
                     $markdown .= "**Tool use: ** " . $content->getId() . "\n";
                     $markdown .= "```\n";
@@ -40,10 +40,11 @@ class MarkdownFormatter {
                         $markdown .= json_encode($content->getContent(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n";
                     }
                     $markdown .= $content->getContent() . "\n";
-                    $markdown .= "```\n";
+                    $markdown .= "```";
                 } else {
                     throw new \RuntimeException('Unknown message content type');
                 }
+                $markdown .= "\n\n";
             }
         }
 
