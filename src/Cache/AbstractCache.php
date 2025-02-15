@@ -22,8 +22,11 @@ abstract class AbstractCache implements CacheInterface {
     }
 
     protected function responseToJson(ResponseInterface $response): string {
+        $body = $response->getBody()->getContents();
+        $response->getBody()->rewind();
+
         return json_encode([
-            'body' => $response->getBody()->getContents(),
+            'body' => $body,
             'status' => $response->getStatusCode(),
             'headers' => $response->getHeaders(),
         ], JSON_THROW_ON_ERROR);
