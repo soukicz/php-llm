@@ -15,6 +15,12 @@ class LLMRequest {
     /** @var ToolDefinition[] */
     private array $tools;
 
+    private int $previousTimeMs = 0;
+
+    private int $previousInputTokens = 0;
+    private int $previousOutputTokens = 0;
+    private int $previousMaximumOutputTokens = 0;
+
     private float $previousInputCostUSD = 0.0;
     private float $previousOutputCostUSD = 0.0;
 
@@ -79,6 +85,18 @@ class LLMRequest {
         return $clone;
     }
 
+    public function getPreviousInputTokens(): int {
+        return $this->previousInputTokens;
+    }
+
+    public function getPreviousOutputTokens(): int {
+        return $this->previousOutputTokens;
+    }
+
+    public function getPreviousMaximumOutputTokens(): int {
+        return $this->previousMaximumOutputTokens;
+    }
+
     public function getPreviousInputCostUSD(): float {
         return $this->previousInputCostUSD;
     }
@@ -87,10 +105,27 @@ class LLMRequest {
         return $this->previousOutputCostUSD;
     }
 
-    public function withCost(float $previousInputCostUSD, float $previousOutputCostUSD): self {
+    public function getPreviousTimeMs(): int {
+        return $this->previousTimeMs;
+    }
+
+    public function withCost(int $inputTokens, int $outputTokens, float $previousInputCostUSD, float $previousOutputCostUSD): self {
         $clone = clone $this;
+
+        $clone->previousInputTokens += $inputTokens;
+        $clone->previousOutputTokens += $outputTokens;
+        if ($outputTokens > $this->previousMaximumOutputTokens) {
+            $clone->previousMaximumOutputTokens = $outputTokens;
+        }
         $clone->previousInputCostUSD += $previousInputCostUSD;
         $clone->previousOutputCostUSD += $previousOutputCostUSD;
+
+        return $clone;
+    }
+
+    public function withTime(int $timeMs): self {
+        $clone = clone $this;
+        $clone->previousTimeMs += $timeMs;
 
         return $clone;
     }

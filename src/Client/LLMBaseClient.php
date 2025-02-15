@@ -21,8 +21,12 @@ abstract class LLMBaseClient implements LLMClient {
             $llmResponse = new LLMResponse(
                 $request->getMessages(),
                 $llmResponse->getStopReason(),
+                $llmResponse->getInputTokens(),
+                $llmResponse->getOutputTokens(),
+                $llmResponse->getMaximumOutputTokens(),
                 $llmResponse->getInputPriceUsd(),
                 $llmResponse->getOutputPriceUsd(),
+                $llmResponse->getTotalTimeMs()
             );
         }
 

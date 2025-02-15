@@ -7,6 +7,7 @@ use Aws\Credentials\Credentials;
 use Aws\Result;
 use GuzzleHttp\Promise\PromiseInterface;
 use Soukicz\PhpLlm\Cache\CacheInterface;
+use Soukicz\PhpLlm\Client\ModelResponse;
 use Soukicz\PhpLlm\Http\GuzzleHttpHandler;
 use Soukicz\PhpLlm\Http\HttpClientFactory;
 
@@ -43,7 +44,7 @@ class AnthropicBedrockClient extends AnthropicBaseClient {
             return json_decode($result->toArray()['body'], true, 512, JSON_THROW_ON_ERROR);
         })
             ->then(function (array $response) {
-                return $response;
+                return new ModelResponse($response, 0);
             });
     }
 

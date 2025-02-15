@@ -27,6 +27,8 @@ class HttpClientFactory {
             $handler->push($customMiddleware);
         }
 
+        self::addTimingMiddleware($handler);
+
         self::addCacheMiddleware($handler, $cache);
 
         self::addRetryMiddleware($handler);
@@ -34,6 +36,20 @@ class HttpClientFactory {
         $options['handler'] = $handler;
 
         return new Client($options);
+    }
+
+    private static function addTimingMiddleware(HandlerStack $handler): void {
+        $handler->push(function (callable $handler) {
+            return static function (RequestInterface $request, array $options) use ($handler) {
+                $startTime = microtime(true);
+
+                return $handler($request, $options)->then(function (ResponseInterface $response) use ($startTime) {
+                    $duration = (microtime(true) - $startTime) * 1000;
+
+                    return $response->withHeader('X-Request-Duration', round($duration, 2) . ' ms');
+                });
+            };
+        });
     }
 
     private static function addCacheMiddleware(HandlerStack $handler, ?CacheInterface $cache): void {

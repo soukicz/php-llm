@@ -168,8 +168,9 @@ class OpenAIClient extends LLMBaseClient implements LLMBatchClient {
             }
 
             if ($inputPrice) {
-                $request = $request->withCost($inputPrice, $outputPrice);
+                $request = $request->withCost($response['usage']['prompt_tokens'], $response['usage']['completion_tokens'], $inputPrice, $outputPrice);
             }
+            $request = $request->withTime((int) $httpResponse->getHeaderLine('x-request-duration'));
 
             $assistantMessage = $response['choices'][0]['message'];
             $responseContents = [];
@@ -215,7 +216,16 @@ class OpenAIClient extends LLMBaseClient implements LLMBatchClient {
                 return $this->sendPromptAsync($request);
             }
 
-            return $this->postProcessResponse($request, new LLMResponse($request->getMessages(), 'end_turn', $request->getPreviousInputCostUSD(), $request->getPreviousOutputCostUSD()));
+            return $this->postProcessResponse($request, new LLMResponse(
+                $request->getMessages(),
+                'end_turn',
+                $request->getPreviousInputTokens(),
+                $request->getPreviousOutputTokens(),
+                $request->getPreviousMaximumOutputTokens(),
+                $request->getPreviousInputCostUSD(),
+                $request->getPreviousOutputCostUSD(),
+                $request->getPreviousTimeMs()
+            ));
         });
     }
 

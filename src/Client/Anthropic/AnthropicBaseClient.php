@@ -3,6 +3,7 @@
 namespace Soukicz\PhpLlm\Client\Anthropic;
 
 use Soukicz\PhpLlm\Client\LLMBaseClient;
+use Soukicz\PhpLlm\Client\ModelResponse;
 use Soukicz\PhpLlm\Message\LLMMessage;
 use Soukicz\PhpLlm\Message\LLMMessageImage;
 use Soukicz\PhpLlm\Message\LLMMessagePdf;
@@ -106,7 +107,10 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
     abstract protected function invokeModel(array $data): PromiseInterface;
 
     public function sendPromptAsync(LLMRequest $request): PromiseInterface {
-        return $this->invokeModel($this->encodeRequest($request))->then(function (array $response) use ($request) {
+        return $this->invokeModel($this->encodeRequest($request))->then(function (ModelResponse $modelResponse) use ($request) {
+            $response = $modelResponse->getData();
+            $responseTimeMs = $modelResponse->getResponseTimeMs();
+
             $responseContents = [];
             foreach ($response['content'] as $content) {
                 if ($content['type'] === 'text') {
@@ -127,7 +131,9 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
                 $outputPrice = $response['usage']['output_tokens'] * (15 / 1000 / 1000);
             }
 
-            $request = $request->withCost($inputPrice, $outputPrice);
+            $request = $request
+                ->withCost($response['usage']['input_tokens'], $response['usage']['output_tokens'], $inputPrice, $outputPrice)
+                ->withTime($responseTimeMs);
 
             if ($response['stop_reason'] === 'tool_use') {
                 $toolResponseContents = [];
@@ -151,8 +157,12 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
             $llmResponse = new LLMResponse(
                 $request->getMessages(),
                 $response['stop_reason'],
+                $request->getPreviousInputTokens(),
+                $request->getPreviousOutputTokens(),
+                $request->getPreviousMaximumOutputTokens(),
                 $request->getPreviousInputCostUSD(),
-                $request->getPreviousOutputCostUSD()
+                $request->getPreviousOutputCostUSD(),
+                $request->getPreviousTimeMs(),
             );
 
             return $this->postProcessResponse($request, $llmResponse);

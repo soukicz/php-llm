@@ -6,17 +6,17 @@ use Soukicz\PhpLlm\Message\LLMMessage;
 use Soukicz\PhpLlm\Message\LLMMessageText;
 
 class LLMResponse implements \JsonSerializable {
-    /** @var LLMMessage[] */
-    private array $messages;
-    private string $stopReason;
-    private ?float $inputPriceUsd;
-    private ?float $outputPriceUsd;
+    /**
+     * @param LLMMessage[] $messages
+     */
+    public function __construct(private readonly array $messages, private readonly string $stopReason, private readonly int $inputTokens, private readonly int $outputTokens, private readonly int $maximumOutputTokens, private readonly ?float $inputPriceUsd, private readonly ?float $outputPriceUsd, private int $totalTimeMs) {
+    }
 
-    public function __construct(array $messages, string $stopReason, ?float $inputPriceUsd, ?float $outputPriceUsd) {
-        $this->messages = $messages;
-        $this->stopReason = $stopReason;
-        $this->inputPriceUsd = $inputPriceUsd;
-        $this->outputPriceUsd = $outputPriceUsd;
+    /**
+     * @return LLMMessage[]
+     */
+    public function getMessages(): array {
+        return $this->messages;
     }
 
     public function getLastText(): string {
@@ -34,6 +34,18 @@ class LLMResponse implements \JsonSerializable {
         return $this->stopReason;
     }
 
+    public function getInputTokens(): int {
+        return $this->inputTokens;
+    }
+
+    public function getOutputTokens(): int {
+        return $this->outputTokens;
+    }
+
+    public function getMaximumOutputTokens(): int {
+        return $this->maximumOutputTokens;
+    }
+
     public function getInputPriceUsd(): ?float {
         return $this->inputPriceUsd;
     }
@@ -42,12 +54,20 @@ class LLMResponse implements \JsonSerializable {
         return $this->outputPriceUsd;
     }
 
+    public function getTotalTimeMs(): int {
+        return $this->totalTimeMs;
+    }
+
     public function jsonSerialize(): array {
         return [
             'text' => $this->getLastText(),
             'stopReason' => $this->stopReason,
+            'inputTokens' => $this->inputTokens,
+            'outputTokens' => $this->outputTokens,
+            'maximumOutputTokens' => $this->maximumOutputTokens,
             'inputPriceUsd' => $this->inputPriceUsd,
             'outputPriceUsd' => $this->outputPriceUsd,
+            'totalTimeMs' => $this->totalTimeMs,
         ];
     }
 
@@ -59,8 +79,12 @@ class LLMResponse implements \JsonSerializable {
         return new LLMResponse(
             $inputMessages,
             $json['stopReason'],
+            $json['inputTokens'] ?? 0,
+            $json['outputTokens'] ?? 0,
+            $json['maximumOutputTokens'] ?? 0,
             $json['inputPriceUsd'] ?? null,
             $json['outputPriceUsd'] ?? null,
+            $json['totalTimeMs'] ?? 0
         );
     }
 }
