@@ -4,7 +4,7 @@ namespace Soukicz\PhpLlm\Message;
 
 class LLMMessageToolUse implements LLMMessageContent {
 
-    public function __construct(private readonly string $id, private readonly string $name, private readonly array $input) {
+    public function __construct(private readonly string $id, private readonly string $name, private readonly array $input, private readonly bool $cached = false) {
     }
 
     public function getId(): string {
@@ -17,6 +17,10 @@ class LLMMessageToolUse implements LLMMessageContent {
 
     public function getInput(): array {
         return $this->input;
+    }
+
+    public function isCached(): bool {
+        return $this->cached;
     }
 
 }

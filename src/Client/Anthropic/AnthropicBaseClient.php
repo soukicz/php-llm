@@ -5,6 +5,7 @@ namespace Soukicz\PhpLlm\Client\Anthropic;
 use Soukicz\PhpLlm\Client\LLMBaseClient;
 use Soukicz\PhpLlm\Client\ModelResponse;
 use Soukicz\PhpLlm\Message\LLMMessage;
+use Soukicz\PhpLlm\Message\LLMMessageContent;
 use Soukicz\PhpLlm\Message\LLMMessageImage;
 use Soukicz\PhpLlm\Message\LLMMessagePdf;
 use Soukicz\PhpLlm\Message\LLMMessageText;
@@ -22,6 +23,14 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
         return $this->sendPromptAsync($request)->wait();
     }
 
+    private function addCacheAttribute(LLMMessageContent $content, array $data): array {
+        if ($content->isCached()) {
+            $data['cache_control'] = ['type' => 'ephemeral'];
+        }
+
+        return $data;
+    }
+
     protected function encodeRequest(LLMRequest $request): array {
         $encodedMessages = [];
         foreach ($request->getMessages() as $message) {
@@ -29,44 +38,44 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
             $contents = [];
             foreach ($message->getContents() as $messageContent) {
                 if ($messageContent instanceof LLMMessageText) {
-                    $contents[] = [
+                    $contents[] = $this->addCacheAttribute($messageContent, [
                         'type' => 'text',
                         'text' => $messageContent->getText(),
-                    ];
+                    ]);
                 } elseif ($messageContent instanceof LLMMessageImage) {
-                    $contents[] = [
+                    $contents[] = $this->addCacheAttribute($messageContent, [
                         'type' => 'image',
                         'image_url' => [
                             'url' => $messageContent->getData(),
                         ],
-                    ];
+                    ]);
                 } elseif ($messageContent instanceof LLMMessagePdf) {
-                    $contents[] = [
+                    $contents[] = $this->addCacheAttribute($messageContent, [
                         'type' => 'document',
                         'source' => [
                             'type' => $messageContent->getEncoding(),
                             'media_type' => 'application/pdf',
                             'data' => $messageContent->getData(),
                         ],
-                    ];
+                    ]);
                 } elseif ($messageContent instanceof LLMMessageToolUse) {
-                    $contents[] = [
+                    $contents[] = $this->addCacheAttribute($messageContent, [
                         'type' => 'tool_use',
                         'id' => $messageContent->getId(),
                         'name' => $messageContent->getName(),
                         'input' => $messageContent->getInput(),
-                    ];
+                    ]);
                 } elseif ($messageContent instanceof LLMMessageToolResult) {
                     if (is_string($messageContent->getContent())) {
                         $content = $messageContent->getContent();
                     } else {
                         $content = json_encode($messageContent->getContent(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                     }
-                    $contents[] = [
+                    $contents[] = $this->addCacheAttribute($messageContent, [
                         'type' => 'tool_result',
                         'tool_use_id' => $messageContent->getId(),
                         'content' => $content,
-                    ];
+                    ]);
                 } else {
                     throw new \InvalidArgumentException('Unsupported message type ' . get_class($messageContent));
                 }
@@ -96,7 +105,7 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
                 $options['tools'][] = [
                     'name' => $tool->getName(),
                     'description' => $tool->getDescription(),
-                    'input_schema' => $tool->getInputSchema()
+                    'input_schema' => $tool->getInputSchema(),
                 ];
             }
         }
