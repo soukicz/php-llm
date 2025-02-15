@@ -3,10 +3,7 @@
 namespace Soukicz\PhpLlm\Message;
 
 class LLMMessageText implements LLMMessageContent {
-    private string $text;
-
-    public function __construct(string $text) {
-        $this->text = $text;
+    public function __construct(private string $text) {
     }
 
     public function getText(): string {

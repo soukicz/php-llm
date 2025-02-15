@@ -3,14 +3,8 @@
 namespace Soukicz\PhpLlm\Message;
 
 class LLMMessageToolUse implements LLMMessageContent {
-    private string $id;
-    private string $name;
-    private array $input;
 
-    public function __construct(string $id, string $name, array $input) {
-        $this->id = $id;
-        $this->name = $name;
-        $this->input = $input;
+    public function __construct(private readonly string $id, private readonly string $name, private readonly array $input) {
     }
 
     public function getId(): string {

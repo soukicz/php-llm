@@ -3,14 +3,8 @@
 namespace Soukicz\PhpLlm\Message;
 
 class LLMMessageImage implements LLMMessageContent {
-    private string $encoding;
-    private string $mediaType;
-    private string $data;
 
-    public function __construct(string $encoding, string $mediaType, string $data) {
-        $this->encoding = $encoding;
-        $this->mediaType = $mediaType;
-        $this->data = $data;
+    public function __construct(private readonly string $encoding, private readonly string $mediaType, private readonly string $data) {
     }
 
     public function getEncoding(): string {

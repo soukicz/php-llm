@@ -3,14 +3,7 @@
 namespace Soukicz\PhpLlm\Message;
 
 class LLMMessageToolResult implements LLMMessageContent {
-    private string $id;
-
-    /** @var mixed */
-    private $content;
-
-    public function __construct(string $id, $content) {
-        $this->id = $id;
-        $this->content = $content;
+    public function __construct(private readonly string $id, private readonly mixed $content) {
     }
 
     public function getId(): string {
