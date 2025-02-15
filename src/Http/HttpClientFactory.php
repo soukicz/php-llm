@@ -78,7 +78,7 @@ class HttpClientFactory {
     }
 
     private static function addRetryMiddleware(HandlerStack $handler): void {
-        $decider = static function (int $retries, RequestInterface $request, ResponseInterface $response = null): bool {
+        $decider = static function (int $retries, RequestInterface $request, ?ResponseInterface $response = null): bool {
             return
                 $retries < self::MAX_RETRIES
                 && null !== $response

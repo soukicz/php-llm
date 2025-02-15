@@ -44,7 +44,7 @@ class AnthropicClient extends AnthropicBaseClient implements LLMBatchClient {
         return $this->cachedHttpClient;
     }
 
-    private function getHeaders(string $betaFeature = null): array {
+    private function getHeaders(?string $betaFeature = null): array {
         $headers = [
             'accept-encoding' => 'gzip',
             'anthropic-version' => '2023-06-01',
