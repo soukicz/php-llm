@@ -46,6 +46,10 @@ class HttpClientFactory {
                 return $handler($request, $options)->then(function (ResponseInterface $response) use ($startTime) {
                     $duration = (microtime(true) - $startTime) * 1000;
 
+                    if ($response->hasHeader('X-Request-Duration')) {
+                        return $response;
+                    }
+
                     return $response->withHeader('X-Request-Duration', round($duration, 2) . ' ms');
                 });
             };
