@@ -58,7 +58,10 @@ class AnthropicClient extends AnthropicBaseClient implements LLMBatchClient {
     }
 
     protected function invokeModel(array $data): PromiseInterface {
-        return $this->getCachedHttpClient()->postAsync('https://api.anthropic.com/v1/messages', ['json' => $data])->then(function (ResponseInterface $response) {
+        return $this->getCachedHttpClient()->postAsync('https://api.anthropic.com/v1/messages', [
+            'headers' => $this->getHeaders(),
+            'json' => $data,
+        ])->then(function (ResponseInterface $response) {
             return new ModelResponse(json_decode($response->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR), (int) $response->getHeaderLine('X-Request-Duration'));
         });
     }
