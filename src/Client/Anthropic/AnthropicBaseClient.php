@@ -5,6 +5,7 @@ namespace Soukicz\PhpLlm\Client\Anthropic;
 use Soukicz\PhpLlm\Client\LLMBaseClient;
 use Soukicz\PhpLlm\Message\LLMMessage;
 use Soukicz\PhpLlm\Message\LLMMessageImage;
+use Soukicz\PhpLlm\Message\LLMMessagePdf;
 use Soukicz\PhpLlm\Message\LLMMessageText;
 use Soukicz\PhpLlm\Message\LLMMessageToolResult;
 use Soukicz\PhpLlm\Message\LLMMessageToolUse;
@@ -36,6 +37,15 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
                         'type' => 'image',
                         'image_url' => [
                             'url' => $messageContent->getData(),
+                        ],
+                    ];
+                } elseif ($messageContent instanceof LLMMessagePdf) {
+                    $contents[] = [
+                        'type' => 'document',
+                        'source' => [
+                            'type' => $messageContent->getEncoding(),
+                            'media_type' => 'application/pdf',
+                            'data' => $messageContent->getData(),
                         ],
                     ];
                 } elseif ($messageContent instanceof LLMMessageToolUse) {
