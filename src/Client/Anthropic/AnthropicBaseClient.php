@@ -132,16 +132,29 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
             }
             $request = $request->withMessage(LLMMessage::createFromAssistant($responseContents));
 
-            if (strpos($request->getModel(), 'haiku') !== false) {
-                $inputPrice = $response['usage']['input_tokens'] * (1 / 1000 / 1000);
-                $outputPrice = $response['usage']['output_tokens'] * (5 / 1000 / 1000);
+            $cacheInputTokens = $response['usage']['cache_creation_input_tokens'] ?? 0;
+            $cacheReadInputTokens = $response['usage']['cache_read_input_tokens'] ?? 0;
+            if (str_contains($request->getModel(), 'haiku')) {
+                $inputPrice = $response['usage']['input_tokens'] * (0.8 / 1000 / 1000);
+                $outputPrice = $response['usage']['output_tokens'] * (4 / 1000 / 1000);
+
+                $inputPrice += $cacheInputTokens * (1 / 100 / 1000);
+                $outputPrice += $cacheReadInputTokens * (0.08 / 1000 / 1000);
             } else {
                 $inputPrice = $response['usage']['input_tokens'] * (3 / 1000 / 1000);
                 $outputPrice = $response['usage']['output_tokens'] * (15 / 1000 / 1000);
+
+                $inputPrice += $cacheInputTokens * (3.75 / 100 / 1000);
+                $outputPrice += $cacheReadInputTokens * (0.3 / 1000 / 1000);
             }
 
             $request = $request
-                ->withCost($response['usage']['input_tokens'], $response['usage']['output_tokens'], $inputPrice, $outputPrice)
+                ->withCost(
+                    $response['usage']['input_tokens'] + $cacheInputTokens,
+                    $response['usage']['output_tokens'] + $cacheReadInputTokens,
+                    $inputPrice,
+                    $outputPrice
+                )
                 ->withTime($responseTimeMs);
 
             if ($response['stop_reason'] === 'tool_use') {
