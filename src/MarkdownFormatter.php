@@ -10,12 +10,12 @@ use Soukicz\PhpLlm\Message\LLMMessageToolUse;
 
 class MarkdownFormatter {
     public function responseToMarkdown(LLMRequest $request, LLMResponse $response): string {
-        $markdown = ' - **Model:** ' . $request->getModel() . "\n\n";
-        $markdown .= ' - **Temperature:** ' . $request->getTemperature() . "\n\n";
-        $markdown .= ' - **Max tokens:** ' . $request->getMaxTokens() . "\n\n";
+        $markdown = ' - **Model:** ' . $request->getModel() . "\n";
+        $markdown .= ' - **Temperature:** ' . $request->getTemperature() . "\n";
+        $markdown .= ' - **Max tokens:** ' . $request->getMaxTokens() . "\n";
         if ($request->getSystemPrompt() !== null) {
             $markdown .= "## System prompt\n\n";
-            $markdown .= "```\n" . $request->getSystemPrompt() . "```\n\n";
+            $markdown .= "```\n" . $request->getSystemPrompt() . "\n```\n\n";
         }
 
         foreach ($response->getMessages() as $message) {
