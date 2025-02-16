@@ -20,8 +20,9 @@ $openAI = new OpenAIClient(
 );
 
 $response = $openAI->sendPrompt(new LLMRequest(
-    [LLMMessage::createFromUser([new LLMMessageText('Hello, how are you?')])],
-    OpenAIClient::GPT_4o_MINI
+    model: OpenAIClient::GPT_4o_MINI,
+    systemPrompt: 'Write a message to a friend',
+    messages: [LLMMessage::createFromUser([new LLMMessageText('Hello, how are you?')])],
 ));
 
 echo $response->getLastText();

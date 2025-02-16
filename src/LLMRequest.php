@@ -19,9 +19,9 @@ class LLMRequest {
      * @param string[] $stopSequences
      */
     public function __construct(
-        private readonly array   $messages,
-        private readonly ?string $systemPrompt,
         private readonly string  $model,
+        private readonly ?string $systemPrompt,
+        private readonly array   $messages,
         private readonly float   $temperature = 0.0,
         private readonly int     $maxTokens = 4096,
         private readonly array   $tools = [],
