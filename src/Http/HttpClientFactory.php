@@ -53,7 +53,9 @@ class HttpClientFactory {
                     return $promise->then(
                         function (ResponseInterface $response) use ($request, $cache, $requestStart) {
                             $response = $response->withHeader('X-Request-Duration-ms', (string) round((microtime(true) - $requestStart) * 1000));
-                            $cache->store($request, $response);
+                            if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
+                                $cache->store($request, $response);
+                            }
 
                             return $response;
                         }
