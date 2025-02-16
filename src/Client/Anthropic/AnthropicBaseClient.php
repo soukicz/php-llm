@@ -141,13 +141,13 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
                 $inputPrice = $response['usage']['input_tokens'] * (0.8 / 1000 / 1000);
                 $outputPrice = $response['usage']['output_tokens'] * (4 / 1000 / 1000);
 
-                $inputPrice += $cacheInputTokens * (1 / 100 / 1000);
+                $inputPrice += $cacheInputTokens * (1 / 1000 / 1000);
                 $outputPrice += $cacheReadInputTokens * (0.08 / 1000 / 1000);
             } else {
                 $inputPrice = $response['usage']['input_tokens'] * (3 / 1000 / 1000);
                 $outputPrice = $response['usage']['output_tokens'] * (15 / 1000 / 1000);
 
-                $inputPrice += $cacheInputTokens * (3.75 / 100 / 1000);
+                $inputPrice += $cacheInputTokens * (3.75 / 1000 / 1000);
                 $outputPrice += $cacheReadInputTokens * (0.3 / 1000 / 1000);
             }
 
