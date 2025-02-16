@@ -6,16 +6,10 @@ class LLMMessage {
     private const TYPE_USER = 1;
     private const TYPE_ASSISTANT = 2;
 
-    private int $type;
-    /** @var LLMMessageContent[] */
-    private array $content;
-
-    private bool $continue;
-
-    private function __construct(int $type, array $content, bool $continue = false) {
-        $this->type = $type;
-        $this->content = $content;
-        $this->continue = $continue;
+    /**
+     * @param LLMMessageContent[] $content
+     */
+    private function __construct(private readonly int $type, private readonly array $content, private readonly bool $continue = false) {
     }
 
     /**

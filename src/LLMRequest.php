@@ -6,25 +6,6 @@ use Soukicz\PhpLlm\Message\LLMMessage;
 use Soukicz\PhpLlm\Message\LLMMessageText;
 
 class LLMRequest {
-    /** @var LLMMessage[] */
-    private array $messages;
-    private string $model;
-    private float $temperature;
-    private int $maxTokens;
-
-    /** @var ToolDefinition[] */
-    private array $tools;
-
-    private int $previousTimeMs = 0;
-
-    private int $previousInputTokens = 0;
-    private int $previousOutputTokens = 0;
-    private int $previousMaximumOutputTokens = 0;
-
-    private float $previousInputCostUSD = 0.0;
-    private float $previousOutputCostUSD = 0.0;
-
-    private array $stopSequences;
 
     /** @var ?callable */
     private $feedbackCallback;
@@ -32,13 +13,22 @@ class LLMRequest {
     /** @var ?callable */
     private $continuationCallback;
 
-    public function __construct(array $messages, private readonly ?string $systemPrompt, string $model, float $temperature = 0.0, int $maxTokens = 4096, array $tools = [], array $stopSequences = [], ?callable $feedbackCallback = null, ?callable $continuationCallback = null) {
-        $this->messages = $messages;
-        $this->model = $model;
-        $this->temperature = $temperature;
-        $this->maxTokens = $maxTokens;
-        $this->tools = $tools;
-        $this->stopSequences = $stopSequences;
+    /**
+     * @param LLMMessage[] $messages
+     * @param ToolDefinition[] $tools
+     * @param string[] $stopSequences
+     */
+    public function __construct(
+        private readonly array   $messages,
+        private readonly ?string $systemPrompt,
+        private readonly string  $model,
+        private readonly float   $temperature = 0.0,
+        private readonly int     $maxTokens = 4096,
+        private readonly array   $tools = [],
+        private readonly array   $stopSequences = [],
+        ?callable                $feedbackCallback = null,
+        ?callable                $continuationCallback = null
+    ) {
         $this->feedbackCallback = $feedbackCallback;
         $this->continuationCallback = $continuationCallback;
     }
