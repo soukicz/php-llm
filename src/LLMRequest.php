@@ -21,13 +21,19 @@ class LLMRequest {
     public function __construct(
         private readonly string  $model,
         private readonly ?string $systemPrompt,
-        private readonly array   $messages,
+        private array            $messages,
         private readonly float   $temperature = 0.0,
         private readonly int     $maxTokens = 4096,
         private readonly array   $tools = [],
         private readonly array   $stopSequences = [],
         ?callable                $feedbackCallback = null,
-        ?callable                $continuationCallback = null
+        ?callable                $continuationCallback = null,
+        private int              $previousInputTokens = 0,
+        private int              $previousOutputTokens = 0,
+        private int              $previousMaximumOutputTokens = 0,
+        private float            $previousInputCostUSD = 0.0,
+        private float            $previousOutputCostUSD = 0.0,
+        private int              $previousTimeMs = 0
     ) {
         $this->feedbackCallback = $feedbackCallback;
         $this->continuationCallback = $continuationCallback;
