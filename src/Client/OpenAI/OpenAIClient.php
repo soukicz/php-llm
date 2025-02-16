@@ -61,6 +61,12 @@ class OpenAIClient extends LLMBaseClient implements LLMBatchClient {
 
     private function encodeRequest(LLMRequest $request): array {
         $encodedMessages = [];
+        if ($request->getSystemPrompt() !== null) {
+            $encodedMessages[] = [
+                'role' => 'system',
+                'content' => $request->getSystemPrompt(),
+            ];
+        }
         foreach ($request->getMessages() as $message) {
             $role = $message->isUser() ? 'user' : 'assistant';
             $contents = [];

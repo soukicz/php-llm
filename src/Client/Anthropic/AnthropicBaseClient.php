@@ -92,6 +92,9 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
             'messages' => $encodedMessages,
             'model' => $request->getModel(),
         ];
+        if ($request->getSystemPrompt()) {
+            $options['system'] = $request->getSystemPrompt();
+        }
         if (!empty($request->getStopSequences())) {
             $options['stop_sequences'] = $request->getStopSequences();
         }

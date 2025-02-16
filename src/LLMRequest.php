@@ -32,7 +32,7 @@ class LLMRequest {
     /** @var ?callable */
     private $continuationCallback;
 
-    public function __construct(array $messages, string $model, float $temperature = 0.0, int $maxTokens = 4096, array $tools = [], array $stopSequences = [], ?callable $feedbackCallback = null, ?callable $continuationCallback = null) {
+    public function __construct(array $messages, private readonly ?string $systemPrompt, string $model, float $temperature = 0.0, int $maxTokens = 4096, array $tools = [], array $stopSequences = [], ?callable $feedbackCallback = null, ?callable $continuationCallback = null) {
         $this->messages = $messages;
         $this->model = $model;
         $this->temperature = $temperature;
@@ -49,6 +49,10 @@ class LLMRequest {
 
     public function getModel(): string {
         return $this->model;
+    }
+
+    public function getSystemPrompt(): ?string {
+        return $this->systemPrompt;
     }
 
     public function getTemperature(): float {
