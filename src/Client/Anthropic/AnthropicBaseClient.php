@@ -153,8 +153,8 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
 
             $request = $request
                 ->withCost(
-                    $response['usage']['input_tokens'] + $cacheInputTokens,
-                    $response['usage']['output_tokens'] + $cacheReadInputTokens,
+                    $response['usage']['input_tokens'],
+                    $response['usage']['output_tokens'],
                     $inputPrice,
                     $outputPrice
                 )
