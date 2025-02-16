@@ -176,7 +176,7 @@ class OpenAIClient extends LLMBaseClient implements LLMBatchClient {
             if ($inputPrice) {
                 $request = $request->withCost($response['usage']['prompt_tokens'], $response['usage']['completion_tokens'], $inputPrice, $outputPrice);
             }
-            $request = $request->withTime((int) $httpResponse->getHeaderLine('x-request-duration'));
+            $request = $request->withTime((int) $httpResponse->getHeaderLine('x-request-duration-ms'));
 
             $assistantMessage = $response['choices'][0]['message'];
             $responseContents = [];

@@ -62,7 +62,7 @@ class AnthropicClient extends AnthropicBaseClient implements LLMBatchClient {
             'headers' => $this->getHeaders(),
             'json' => $data,
         ])->then(function (ResponseInterface $response) {
-            return new ModelResponse(json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR), (int) $response->getHeaderLine('X-Request-Duration'));
+            return new ModelResponse(json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR), (int) $response->getHeaderLine('X-Request-Duration-ms'));
         });
     }
 
