@@ -33,8 +33,11 @@ abstract class LLMBaseClient implements LLMClient {
         $feedbackCallback = $request->getFeedbackCallback();
         if ($feedbackCallback) {
             $feedback = $feedbackCallback($llmResponse);
-            if (!empty($feedback)) {
-                $request = $request->withMessage(LLMMessage::createFromUser([new LLMMessageText($feedback)]));
+            if ($feedback !== null) {
+                if (!$feedback instanceof LLMMessage) {
+                    throw new \InvalidArgumentException('Feedback callback must return an instance of LLMMessage');
+                }
+                $request = $request->withMessage($feedback);
 
                 return $this->sendPromptAsync($request);
             }
