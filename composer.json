@@ -13,7 +13,7 @@
         }
     ],
     "require": {
-        "aws/aws-sdk-php": "^3.339",
+        "aws/aws-sdk-php": "^3.337",
         "psr/http-message": "^2.0",
         "guzzlehttp/guzzle": "^7.9",
         "guzzlehttp/promises": "^2.0",
