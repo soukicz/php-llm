@@ -15,6 +15,7 @@ abstract class LLMBaseClient implements LLMClient {
         if ($llmResponse->getStopReason() === 'max_tokens' && $request->getContinuationCallback()) {
             $continuationCallback = $request->getContinuationCallback();
             $request = $continuationCallback($request);
+
             if (!$request->getLastMessage()->isAssistant()) {
                 return $this->sendPromptAsync($request);
             }
@@ -46,13 +47,13 @@ abstract class LLMBaseClient implements LLMClient {
         return Create::promiseFor($llmResponse);
     }
 
-    public static function continueFileResponse(LLMRequest $request, array $outputTags): LLMRequest {
+    public static function continueTagResponse(LLMRequest $request, array $outputTags, string $continueMessageText = 'Continue'): LLMRequest {
         $request = $request->withMergedMessages();
-        $request->withPostProcessLastMessageText(function (string $text) use ($outputTags) {
+        $request = $request->withPostProcessLastMessageText(function (string $text) use ($outputTags) {
             return self::removeIncompleteOutputTags($outputTags, $text);
         });
 
-        return $request->withMessage(LLMMessage::createFromUserContinue(new LLMMessageText('Continue')));
+        return $request->withMessage(LLMMessage::createFromUserContinue(new LLMMessageText($continueMessageText)));
     }
 
     private static function removeIncompleteOutputTags(array $outputTags, string $response): string {

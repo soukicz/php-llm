@@ -132,14 +132,15 @@ class LLMRequest {
 
     public function withMergedMessages(): self {
         $messages = [];
-        $skip = null;
-        foreach (array_values($this->messages) as $i => $message) {
-            if ($message === $skip) {
+        /** @var ?LLMMessage $previous */
+        $previous = null;
+        $lastWasContinue = false;
+        foreach ($this->messages as $message) {
+            if ($message->isContinue()) {
+                $lastWasContinue = true;
                 continue;
             }
-            if ($message->isContinue()) {
-                /** @var LLMMessage $previous */
-                $previous = $messages[count($messages) - 1];
+            if ($previous && $lastWasContinue) {
                 foreach ($previous->getContents() as $content) {
                     if ($content instanceof LLMMessageText) {
                         $firstContent = $message->getContents()[0];
@@ -148,10 +149,11 @@ class LLMRequest {
                         }
                     }
                 }
-                $skip = $messages[$i + 1];
             } else {
                 $messages[] = $message;
+                $previous = $message;
             }
+            $lastWasContinue = false;
         }
 
         $clone = clone $this;
