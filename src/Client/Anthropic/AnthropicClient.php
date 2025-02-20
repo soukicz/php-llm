@@ -1,13 +1,13 @@
 <?php
 
-namespace Soukicz\PhpLlm\Client\Anthropic;
+namespace Soukicz\Llm\Client\Anthropic;
 
 use GuzzleHttp\Client;
-use Soukicz\PhpLlm\Cache\CacheInterface;
-use Soukicz\PhpLlm\Client\LLMBatchClient;
-use Soukicz\PhpLlm\Client\ModelResponse;
-use Soukicz\PhpLlm\Http\HttpClientFactory;
-use Soukicz\PhpLlm\LLMRequest;
+use Soukicz\Llm\Cache\CacheInterface;
+use Soukicz\Llm\Client\LLMBatchClient;
+use Soukicz\Llm\Client\ModelResponse;
+use Soukicz\Llm\Http\HttpClientFactory;
+use Soukicz\Llm\LLMRequest;
 use GuzzleHttp\Promise\PromiseInterface;
 use Psr\Http\Message\ResponseInterface;
 

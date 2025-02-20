@@ -1,6 +1,6 @@
 <?php
 
-namespace Soukicz\PhpLlm\Http;
+namespace Soukicz\Llm\Http;
 
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Promise\PromiseInterface;

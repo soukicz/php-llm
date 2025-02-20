@@ -1,6 +1,6 @@
 <?php
 
-namespace Soukicz\PhpLlm\Client\OpenAI;
+namespace Soukicz\Llm\Client\OpenAI;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise\PromiseInterface;
@@ -8,18 +8,18 @@ use GuzzleHttp\Promise\Utils;
 use GuzzleHttp\Psr7\Request;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use Soukicz\PhpLlm\Cache\CacheInterface;
-use Soukicz\PhpLlm\Client\LLMBaseClient;
-use Soukicz\PhpLlm\Client\LLMBatchClient;
-use Soukicz\PhpLlm\Http\HttpClientFactory;
-use Soukicz\PhpLlm\Message\LLMMessage;
-use Soukicz\PhpLlm\Message\LLMMessageImage;
-use Soukicz\PhpLlm\Message\LLMMessageText;
-use Soukicz\PhpLlm\Message\LLMMessageToolResult;
-use Soukicz\PhpLlm\Message\LLMMessageToolUse;
-use Soukicz\PhpLlm\LLMRequest;
-use Soukicz\PhpLlm\LLMResponse;
-use Soukicz\PhpLlm\ToolResponse;
+use Soukicz\Llm\Cache\CacheInterface;
+use Soukicz\Llm\Client\LLMBaseClient;
+use Soukicz\Llm\Client\LLMBatchClient;
+use Soukicz\Llm\Http\HttpClientFactory;
+use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageImage;
+use Soukicz\Llm\Message\LLMMessageText;
+use Soukicz\Llm\Message\LLMMessageToolResult;
+use Soukicz\Llm\Message\LLMMessageToolUse;
+use Soukicz\Llm\LLMRequest;
+use Soukicz\Llm\LLMResponse;
+use Soukicz\Llm\ToolResponse;
 
 class OpenAIClient extends LLMBaseClient implements LLMBatchClient {
 

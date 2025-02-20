@@ -1,13 +1,13 @@
 <?php
 
-namespace Soukicz\PhpLlm\Client;
+namespace Soukicz\Llm\Client;
 
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
-use Soukicz\PhpLlm\Message\LLMMessage;
-use Soukicz\PhpLlm\Message\LLMMessageText;
-use Soukicz\PhpLlm\LLMRequest;
-use Soukicz\PhpLlm\LLMResponse;
+use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageText;
+use Soukicz\Llm\LLMRequest;
+use Soukicz\Llm\LLMResponse;
 
 abstract class LLMBaseClient implements LLMClient {
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace Soukicz\PhpLlm;
+namespace Soukicz\Llm;
 
 class ToolResponse {
     private string $id;

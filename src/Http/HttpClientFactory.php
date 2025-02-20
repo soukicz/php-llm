@@ -1,6 +1,6 @@
 <?php
 
-namespace Soukicz\PhpLlm\Http;
+namespace Soukicz\Llm\Http;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\HandlerStack;
@@ -10,7 +10,7 @@ use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\RetryMiddleware;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use Soukicz\PhpLlm\Cache\CacheInterface;
+use Soukicz\Llm\Cache\CacheInterface;
 
 class HttpClientFactory {
     private const MAX_RETRIES = 3;

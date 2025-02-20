@@ -1,12 +1,12 @@
 <?php
 
-namespace Soukicz\PhpLlm;
+namespace Soukicz\Llm;
 
-use Soukicz\PhpLlm\Message\LLMMessageImage;
-use Soukicz\PhpLlm\Message\LLMMessagePdf;
-use Soukicz\PhpLlm\Message\LLMMessageText;
-use Soukicz\PhpLlm\Message\LLMMessageToolResult;
-use Soukicz\PhpLlm\Message\LLMMessageToolUse;
+use Soukicz\Llm\Message\LLMMessageImage;
+use Soukicz\Llm\Message\LLMMessagePdf;
+use Soukicz\Llm\Message\LLMMessageText;
+use Soukicz\Llm\Message\LLMMessageToolResult;
+use Soukicz\Llm\Message\LLMMessageToolUse;
 
 class MarkdownFormatter {
     public function responseToMarkdown(LLMRequest $request, LLMResponse $response): string {

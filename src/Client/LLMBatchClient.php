@@ -1,8 +1,8 @@
 <?php
 
-namespace Soukicz\PhpLlm\Client;
+namespace Soukicz\Llm\Client;
 
-use Soukicz\PhpLlm\LLMRequest;
+use Soukicz\Llm\LLMRequest;
 
 interface LLMBatchClient extends LLMClient {
 

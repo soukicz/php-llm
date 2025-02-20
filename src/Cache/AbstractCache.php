@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Soukicz\PhpLlm\Cache;
+namespace Soukicz\Llm\Cache;
 
 use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\RequestInterface;

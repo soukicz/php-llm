@@ -1,6 +1,6 @@
 <?php
 
-namespace Soukicz\PhpLlm\Client;
+namespace Soukicz\Llm\Client;
 
 class ModelResponse {
     public function __construct(private readonly array $data, private readonly int $responseTimeMs) {

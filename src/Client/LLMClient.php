@@ -1,10 +1,10 @@
 <?php
 
-namespace Soukicz\PhpLlm\Client;
+namespace Soukicz\Llm\Client;
 
 use GuzzleHttp\Promise\PromiseInterface;
-use Soukicz\PhpLlm\LLMRequest;
-use Soukicz\PhpLlm\LLMResponse;
+use Soukicz\Llm\LLMRequest;
+use Soukicz\Llm\LLMResponse;
 
 interface LLMClient {
     public function sendPrompt(LLMRequest $request): LLMResponse;

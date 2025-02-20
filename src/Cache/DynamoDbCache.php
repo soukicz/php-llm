@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Soukicz\PhpLlm\Cache;
+namespace Soukicz\Llm\Cache;
 
 use Aws\DynamoDb\DynamoDbClient;
 use Psr\Http\Message\RequestInterface;

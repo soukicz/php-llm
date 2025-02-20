@@ -1,6 +1,6 @@
 <?php
 
-namespace Soukicz\PhpLlm\Message;
+namespace Soukicz\Llm\Message;
 
 interface LLMMessageContent {
     public function isCached(): bool;

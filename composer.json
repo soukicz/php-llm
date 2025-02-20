@@ -1,9 +1,9 @@
 {
-    "name": "soukicz/php-llm",
+    "name": "soukicz/llm",
     "type": "library",
     "autoload": {
         "psr-4": {
-            "Soukicz\\PhpLlm\\": "src/"
+            "Soukicz\\Llm\\": "src/"
         }
     },
     "authors": [

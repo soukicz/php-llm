@@ -1,6 +1,6 @@
 <?php
 
-namespace Soukicz\PhpLlm\Message;
+namespace Soukicz\Llm\Message;
 
 class LLMMessage {
     private const TYPE_USER = 1;

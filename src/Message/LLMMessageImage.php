@@ -1,6 +1,6 @@
 <?php
 
-namespace Soukicz\PhpLlm\Message;
+namespace Soukicz\Llm\Message;
 
 class LLMMessageImage implements LLMMessageContent {
 

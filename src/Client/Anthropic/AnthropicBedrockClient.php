@@ -1,15 +1,15 @@
 <?php
 
-namespace Soukicz\PhpLlm\Client\Anthropic;
+namespace Soukicz\Llm\Client\Anthropic;
 
 use Aws\BedrockRuntime\BedrockRuntimeClient;
 use Aws\Credentials\Credentials;
 use Aws\Result;
 use GuzzleHttp\Promise\PromiseInterface;
-use Soukicz\PhpLlm\Cache\CacheInterface;
-use Soukicz\PhpLlm\Client\ModelResponse;
-use Soukicz\PhpLlm\Http\GuzzleHttpHandler;
-use Soukicz\PhpLlm\Http\HttpClientFactory;
+use Soukicz\Llm\Cache\CacheInterface;
+use Soukicz\Llm\Client\ModelResponse;
+use Soukicz\Llm\Http\GuzzleHttpHandler;
+use Soukicz\Llm\Http\HttpClientFactory;
 
 class AnthropicBedrockClient extends AnthropicBaseClient {
 

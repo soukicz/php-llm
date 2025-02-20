@@ -1,6 +1,6 @@
 <?php
 
-namespace Soukicz\PhpLlm\Message;
+namespace Soukicz\Llm\Message;
 
 class LLMMessageText implements LLMMessageContent {
     public function __construct(private string $text, private readonly bool $cached = false) {

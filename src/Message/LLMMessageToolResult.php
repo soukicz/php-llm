@@ -1,6 +1,6 @@
 <?php
 
-namespace Soukicz\PhpLlm\Message;
+namespace Soukicz\Llm\Message;
 
 class LLMMessageToolResult implements LLMMessageContent {
     public function __construct(private readonly string $id, private readonly mixed $content, private readonly bool $cached = false) {

@@ -3,11 +3,11 @@
 #### OpenAI
 
 ```php
-use Soukicz\PhpLlm\Cache\FileCache;
-use Soukicz\PhpLlm\Client\OpenAI\OpenAIClient;
-use Soukicz\PhpLlm\Message\LLMMessage;
-use Soukicz\PhpLlm\Message\LLMMessageText;
-use Soukicz\PhpLlm\LLMRequest;
+use Soukicz\Llm\Cache\FileCache;
+use Soukicz\Llm\Client\OpenAI\OpenAIClient;
+use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageText;
+use Soukicz\Llm\LLMRequest;
 
 require_once __DIR__ . '/vendor/autoload.php';
 

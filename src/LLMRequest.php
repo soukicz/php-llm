@@ -1,9 +1,9 @@
 <?php
 
-namespace Soukicz\PhpLlm;
+namespace Soukicz\Llm;
 
-use Soukicz\PhpLlm\Message\LLMMessage;
-use Soukicz\PhpLlm\Message\LLMMessageText;
+use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageText;
 
 class LLMRequest {
 

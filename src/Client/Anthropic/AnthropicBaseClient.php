@@ -1,19 +1,19 @@
 <?php
 
-namespace Soukicz\PhpLlm\Client\Anthropic;
+namespace Soukicz\Llm\Client\Anthropic;
 
-use Soukicz\PhpLlm\Client\LLMBaseClient;
-use Soukicz\PhpLlm\Client\ModelResponse;
-use Soukicz\PhpLlm\Message\LLMMessage;
-use Soukicz\PhpLlm\Message\LLMMessageContent;
-use Soukicz\PhpLlm\Message\LLMMessageImage;
-use Soukicz\PhpLlm\Message\LLMMessagePdf;
-use Soukicz\PhpLlm\Message\LLMMessageText;
-use Soukicz\PhpLlm\Message\LLMMessageToolResult;
-use Soukicz\PhpLlm\Message\LLMMessageToolUse;
-use Soukicz\PhpLlm\LLMRequest;
-use Soukicz\PhpLlm\LLMResponse;
-use Soukicz\PhpLlm\ToolResponse;
+use Soukicz\Llm\Client\LLMBaseClient;
+use Soukicz\Llm\Client\ModelResponse;
+use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageContent;
+use Soukicz\Llm\Message\LLMMessageImage;
+use Soukicz\Llm\Message\LLMMessagePdf;
+use Soukicz\Llm\Message\LLMMessageText;
+use Soukicz\Llm\Message\LLMMessageToolResult;
+use Soukicz\Llm\Message\LLMMessageToolUse;
+use Soukicz\Llm\LLMRequest;
+use Soukicz\Llm\LLMResponse;
+use Soukicz\Llm\ToolResponse;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Promise\Utils;
 
