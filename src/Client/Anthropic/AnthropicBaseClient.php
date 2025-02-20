@@ -45,8 +45,10 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
                 } elseif ($messageContent instanceof LLMMessageImage) {
                     $contents[] = $this->addCacheAttribute($messageContent, [
                         'type' => 'image',
-                        'image_url' => [
-                            'url' => $messageContent->getData(),
+                        'source' => [
+                            'type' => $messageContent->getEncoding(),
+                            'media_type' => $messageContent->getMediaType(),
+                            'data' => $messageContent->getData(),
                         ],
                     ]);
                 } elseif ($messageContent instanceof LLMMessagePdf) {
