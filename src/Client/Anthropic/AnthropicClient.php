@@ -22,7 +22,7 @@ class AnthropicClient extends AnthropicBaseClient implements LLMBatchClient {
     private ?Client $httpClient = null;
     private ?Client $cachedHttpClient = null;
 
-    public function __construct(private readonly string $apiKey, private readonly ?CacheInterface $cache = null, private $customHttpMiddleware = null) {
+    public function __construct(private readonly string $apiKey, private readonly ?CacheInterface $cache = null, private $customHttpMiddleware = null, private readonly array $betaFeatures = []) {
 
     }
 
@@ -45,14 +45,14 @@ class AnthropicClient extends AnthropicBaseClient implements LLMBatchClient {
         return $this->cachedHttpClient;
     }
 
-    private function getHeaders(?string $betaFeature = null): array {
+    private function getHeaders(): array {
         $headers = [
             'accept-encoding' => 'gzip',
             'anthropic-version' => '2023-06-01',
             'x-api-key' => $this->apiKey,
         ];
-        if ($betaFeature) {
-            $headers['anthropic-beta'] = $betaFeature;
+        if (!empty($this->betaFeatures)) {
+            $headers['anthropic-beta'] = implode(',', $this->betaFeatures);
         }
 
         return $headers;
