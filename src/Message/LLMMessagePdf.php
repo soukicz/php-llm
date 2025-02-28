@@ -18,4 +18,16 @@ class LLMMessagePdf implements LLMMessageContent {
     public function isCached(): bool {
         return $this->cached;
     }
+
+    public function jsonSerialize(): array {
+        return [
+            'encoding' => $this->encoding,
+            'data' => $this->data,
+            'cached' => $this->cached,
+        ];
+    }
+
+    public static function fromJson(array $data): self {
+        return new self($data['encoding'], $data['data'], $data['cached']);
+    }
 }

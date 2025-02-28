@@ -23,4 +23,21 @@ class LLMMessageImage implements LLMMessageContent {
         return $this->cached;
     }
 
+    public function jsonSerialize(): array {
+        return [
+            'encoding' => $this->encoding,
+            'mediaType' => $this->mediaType,
+            'data' => $this->data,
+            'cached' => $this->cached,
+        ];
+    }
+
+    public static function fromJson(array $data): self {
+        return new self(
+            $data['encoding'],
+            $data['mediaType'],
+            $data['data'],
+            $data['cached'],
+        );
+    }
 }

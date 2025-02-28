@@ -18,7 +18,7 @@ class MarkdownFormatter {
             $markdown .= "```\n" . $request->getSystemPrompt() . "\n```\n\n";
         }
 
-        foreach ($response->getMessages() as $message) {
+        foreach ($response->getConversation()->getMessages() as $message) {
             if ($message->isUser()) {
                 $markdown .= '## User:' . "\n";
             } elseif ($message->isAssistant()) {

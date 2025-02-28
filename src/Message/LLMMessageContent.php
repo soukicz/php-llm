@@ -2,6 +2,8 @@
 
 namespace Soukicz\Llm\Message;
 
-interface LLMMessageContent {
+use Soukicz\Llm\JsonDeserializable;
+
+interface LLMMessageContent extends JsonDeserializable {
     public function isCached(): bool;
 }

@@ -6,6 +6,7 @@ use Soukicz\Llm\Config\ReasoningConfig;
 use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageText;
+use Soukicz\Llm\Tool\ToolDefinition;
 
 class LLMRequest {
 
@@ -16,14 +17,13 @@ class LLMRequest {
     private $continuationCallback;
 
     /**
-     * @param LLMMessage[] $messages
      * @param ToolDefinition[] $tools
      * @param string[] $stopSequences
      */
     public function __construct(
         private readonly string  $model,
         private readonly ?string $systemPrompt,
-        private array            $messages,
+        private LLMConversation  $conversation,
         private readonly float   $temperature = 0.0,
         private readonly int     $maxTokens = 4096,
         private readonly array   $tools = [],
@@ -42,8 +42,8 @@ class LLMRequest {
         $this->continuationCallback = $continuationCallback;
     }
 
-    public function getMessages(): array {
-        return $this->messages;
+    public function getConversation(): LLMConversation {
+        return $this->conversation;
     }
 
     public function getModel(): string {
@@ -83,7 +83,7 @@ class LLMRequest {
 
     public function withMessage(LLMMessage $message): self {
         $clone = clone $this;
-        $clone->messages[] = $message;
+        $clone->conversation = $this->conversation->withMessage($message);
 
         return $clone;
     }
@@ -138,7 +138,7 @@ class LLMRequest {
         /** @var ?LLMMessage $previous */
         $previous = null;
         $lastWasContinue = false;
-        foreach ($this->messages as $message) {
+        foreach ($this->getConversation()->getMessages() as $message) {
             if ($message->isContinue()) {
                 $lastWasContinue = true;
                 continue;
@@ -160,13 +160,13 @@ class LLMRequest {
         }
 
         $clone = clone $this;
-        $clone->messages = $messages;
+        $clone->conversation = new LLMConversation($messages);
 
         return $clone;
     }
 
     public function withPostProcessLastMessageText(callable $callback): self {
-        $messages = $this->messages;
+        $messages = $this->getConversation()->getMessages();
         $lastMessage = array_pop($messages);
         $contents = [];
         foreach ($lastMessage->getContents() as $content) {
@@ -183,13 +183,13 @@ class LLMRequest {
         }
 
         $clone = clone $this;
-        $clone->messages = $messages;
+        $clone->conversation = new LLMConversation($messages);
 
         return $clone;
     }
 
     public function getLastMessage(): LLMMessage {
-        return $this->messages[count($this->messages) - 1];
+        return $this->getConversation()->getMessages()[count($this->getConversation()->getMessages()) - 1];
     }
 
     public function getReasoningConfig(): ReasoningConfig|ReasoningEffort|null {

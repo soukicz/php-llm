@@ -1,6 +1,6 @@
 <?php
 
-namespace Soukicz\Llm;
+namespace Soukicz\Llm\Tool;
 
 use GuzzleHttp\Promise\PromiseInterface;
 

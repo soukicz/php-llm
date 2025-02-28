@@ -10,5 +10,4 @@ class ReasoningBudget implements ReasoningConfig {
         return $this->maxTokens;
     }
 
-
 }

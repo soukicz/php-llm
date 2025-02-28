@@ -19,4 +19,15 @@ class LLMMessageText implements LLMMessageContent {
     public function isCached(): bool {
         return $this->cached;
     }
+
+    public function jsonSerialize(): array {
+        return [
+            'text' => $this->text,
+            'cached' => $this->cached,
+        ];
+    }
+
+    public static function fromJson(array $data): self {
+        return new self($data['text'], $data['cached']);
+    }
 }

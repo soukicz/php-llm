@@ -23,4 +23,17 @@ class LLMMessageToolUse implements LLMMessageContent {
         return $this->cached;
     }
 
+    public function jsonSerialize(): array {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'input' => $this->input,
+            'cached' => $this->cached,
+        ];
+    }
+
+    public static function fromJson(array $data): self {
+        return new self($data['id'], $data['name'], $data['input'], $data['cached']);
+    }
+
 }

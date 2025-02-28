@@ -15,9 +15,9 @@ use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
-use Soukicz\Llm\ToolResponse;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Promise\Utils;
+use Soukicz\Llm\Tool\ToolResponse;
 
 abstract class AnthropicBaseClient extends LLMBaseClient {
 
@@ -35,7 +35,7 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
 
     protected function encodeRequest(LLMRequest $request): array {
         $encodedMessages = [];
-        foreach ($request->getMessages() as $message) {
+        foreach ($request->getConversation()->getMessages() as $message) {
             $role = $message->isUser() ? 'user' : 'assistant';
             $contents = [];
             foreach ($message->getContents() as $messageContent) {
@@ -206,7 +206,7 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
             }
 
             $llmResponse = new LLMResponse(
-                $request->getMessages(),
+                $request->getConversation(),
                 $response['stop_reason'],
                 $request->getPreviousInputTokens(),
                 $request->getPreviousOutputTokens(),

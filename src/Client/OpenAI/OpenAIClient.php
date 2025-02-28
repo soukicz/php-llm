@@ -20,7 +20,7 @@ use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
-use Soukicz\Llm\ToolResponse;
+use Soukicz\Llm\Tool\ToolResponse;
 
 class OpenAIClient extends LLMBaseClient implements LLMBatchClient {
 
@@ -68,7 +68,7 @@ class OpenAIClient extends LLMBaseClient implements LLMBatchClient {
                 'content' => $request->getSystemPrompt(),
             ];
         }
-        foreach ($request->getMessages() as $message) {
+        foreach ($request->getConversation()->getMessages() as $message) {
             $role = $message->isUser() ? 'user' : 'assistant';
             $contents = [];
             foreach ($message->getContents() as $messageContent) {
@@ -233,7 +233,7 @@ class OpenAIClient extends LLMBaseClient implements LLMBatchClient {
             }
 
             return $this->postProcessResponse($request, new LLMResponse(
-                $request->getMessages(),
+                $request->getConversation(),
                 'end_turn',
                 $request->getPreviousInputTokens(),
                 $request->getPreviousOutputTokens(),

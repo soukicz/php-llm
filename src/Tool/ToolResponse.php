@@ -1,8 +1,10 @@
 <?php
 
-namespace Soukicz\Llm;
+namespace Soukicz\Llm\Tool;
 
-class ToolResponse {
+use Soukicz\Llm\JsonDeserializable;
+
+class ToolResponse implements JsonDeserializable {
     private string $id;
     private $data;
 
@@ -20,5 +22,16 @@ class ToolResponse {
      */
     public function getData() {
         return $this->data;
+    }
+
+    public function jsonSerialize(): array {
+        return [
+            'id' => $this->id,
+            'data' => $this->data,
+        ];
+    }
+
+    public static function fromJson(array $data): self {
+        return new self($data['id'], $data['data']);
     }
 }
