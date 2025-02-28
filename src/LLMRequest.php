@@ -2,6 +2,8 @@
 
 namespace Soukicz\Llm;
 
+use Soukicz\Llm\Config\ReasoningConfig;
+use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageText;
 
@@ -26,6 +28,7 @@ class LLMRequest {
         private readonly int     $maxTokens = 4096,
         private readonly array   $tools = [],
         private readonly array   $stopSequences = [],
+        private readonly ReasoningConfig|ReasoningEffort|null $reasoningConfig = null,
         ?callable                $feedbackCallback = null,
         ?callable                $continuationCallback = null,
         private int              $previousInputTokens = 0,
@@ -187,6 +190,10 @@ class LLMRequest {
 
     public function getLastMessage(): LLMMessage {
         return $this->messages[count($this->messages) - 1];
+    }
+
+    public function getReasoningConfig(): ReasoningConfig|ReasoningEffort|null {
+        return $this->reasoningConfig;
     }
 
 }

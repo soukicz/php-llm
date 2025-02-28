@@ -11,6 +11,7 @@ use Psr\Http\Message\ResponseInterface;
 use Soukicz\Llm\Cache\CacheInterface;
 use Soukicz\Llm\Client\LLMBaseClient;
 use Soukicz\Llm\Client\LLMBatchClient;
+use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\Http\HttpClientFactory;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageImage;
@@ -126,6 +127,15 @@ class OpenAIClient extends LLMBaseClient implements LLMBatchClient {
             'max_tokens' => $request->getMaxTokens(),
             'temperature' => $request->getTemperature(),
         ];
+
+        $reasoningConfig = $request->getReasoningConfig();
+        if ($reasoningConfig) {
+            if ($reasoningConfig instanceof ReasoningEffort) {
+                $requestData['reasoning_effort'] = $reasoningConfig->value;
+            } else {
+                throw new \InvalidArgumentException('Unsupported reasoning config type');
+            }
+        }
 
         if (!empty($request->getStopSequences())) {
             $requestData['stop'] = $request->getStopSequences();

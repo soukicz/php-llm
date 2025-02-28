@@ -13,8 +13,9 @@ use Psr\Http\Message\ResponseInterface;
 
 class AnthropicClient extends AnthropicBaseClient implements LLMBatchClient {
 
-    public const MODEL_SONNET_35 = 'claude-3-5-sonnet-20241022';
-    public const MODEL_HAIKU_35 = 'claude-3-5-haiku-20241022';
+    public const MODEL_SONNET_37_20250219 = 'claude-3-7-sonnet-20250219';
+    public const MODEL_SONNET_35_20241022 = 'claude-3-5-sonnet-20241022';
+    public const MODEL_HAIKU_35_20241022 = 'claude-3-5-haiku-20241022';
 
     public const CODE = 'anthropic';
 

@@ -4,10 +4,12 @@ namespace Soukicz\Llm\Client\Anthropic;
 
 use Soukicz\Llm\Client\LLMBaseClient;
 use Soukicz\Llm\Client\ModelResponse;
+use Soukicz\Llm\Config\ReasoningBudget;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageContent;
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessagePdf;
+use Soukicz\Llm\Message\LLMMessageReasoning;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
@@ -41,6 +43,12 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
                     $contents[] = $this->addCacheAttribute($messageContent, [
                         'type' => 'text',
                         'text' => $messageContent->getText(),
+                    ]);
+                } elseif ($messageContent instanceof LLMMessageReasoning) {
+                    $contents[] = $this->addCacheAttribute($messageContent, [
+                        'type' => 'thinking',
+                        'thinking' => $messageContent->getText(),
+                        'signature' => $messageContent->getSignature(),
                     ]);
                 } elseif ($messageContent instanceof LLMMessageImage) {
                     $contents[] = $this->addCacheAttribute($messageContent, [
@@ -94,6 +102,19 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
             'messages' => $encodedMessages,
             'model' => $request->getModel(),
         ];
+
+        $reasoningConfig = $request->getReasoningConfig();
+        if ($reasoningConfig) {
+            if ($reasoningConfig instanceof ReasoningBudget) {
+                $options['thinking'] = [
+                    'type' => 'enabled',
+                    'budget_tokens' => $reasoningConfig->getMaxTokens(),
+                ];
+            } else {
+                throw new \InvalidArgumentException('Unsupported reasoning config type');
+            }
+        }
+
         if ($request->getSystemPrompt()) {
             $options['system'] = $request->getSystemPrompt();
         }
@@ -129,9 +150,12 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
             foreach ($response['content'] as $content) {
                 if ($content['type'] === 'text') {
                     $responseContents[] = new LLMMessageText($content['text']);
+                } elseif ($content['type'] === 'thinking') {
+                    $responseContents[] = new LLMMessageReasoning($content['thinking'], $content['signature']);
                 } elseif ($content['type'] === 'tool_use') {
                     $responseContents[] = new LLMMessageToolUse($content['id'], $content['name'], $content['input']);
                 } else {
+                    print_r($content);
                     throw new \InvalidArgumentException('Unsupported message type');
                 }
             }
