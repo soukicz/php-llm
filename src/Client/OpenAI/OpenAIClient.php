@@ -62,14 +62,16 @@ class OpenAIClient extends LLMBaseClient implements LLMBatchClient {
 
     private function encodeRequest(LLMRequest $request): array {
         $encodedMessages = [];
-        if ($request->getSystemPrompt() !== null) {
-            $encodedMessages[] = [
-                'role' => 'system',
-                'content' => $request->getSystemPrompt(),
-            ];
-        }
         foreach ($request->getConversation()->getMessages() as $message) {
-            $role = $message->isUser() ? 'user' : 'assistant';
+            if ($message->isUser()) {
+                $role = 'user';
+            } elseif ($message->isAssistant()) {
+                $role = 'assistant';
+            } elseif ($message->isSystem()) {
+                $role = 'system';
+            } else {
+                throw new \InvalidArgumentException('Unsupported message role');
+            }
             $contents = [];
             foreach ($message->getContents() as $messageContent) {
                 if ($messageContent instanceof LLMMessageText) {

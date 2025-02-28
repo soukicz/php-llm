@@ -5,6 +5,7 @@ namespace Soukicz\Llm\Message;
 use Soukicz\Llm\JsonDeserializable;
 
 class LLMMessage implements JsonDeserializable {
+    private const TYPE_SYSTEM = 'system';
     private const TYPE_USER = 'user';
     private const TYPE_ASSISTANT = 'assistant';
 
@@ -29,6 +30,10 @@ class LLMMessage implements JsonDeserializable {
         return $this->type === self::TYPE_ASSISTANT;
     }
 
+    public function isSystem(): bool {
+        return $this->type === self::TYPE_SYSTEM;
+    }
+
     public function isContinue(): bool {
         return $this->continue;
     }
@@ -49,6 +54,13 @@ class LLMMessage implements JsonDeserializable {
      */
     public static function createFromAssistant(array $content): LLMMessage {
         return new self(self::TYPE_ASSISTANT, $content);
+    }
+
+    /**
+     * @param LLMMessageContent[] $content
+     */
+    public static function createFromSystem(array $content): LLMMessage {
+        return new self(self::TYPE_SYSTEM, $content);
     }
 
     public function jsonSerialize(): array {

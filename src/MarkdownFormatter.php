@@ -14,13 +14,11 @@ class MarkdownFormatter {
         $markdown = ' - **Model:** ' . $request->getModel() . "\n";
         $markdown .= ' - **Temperature:** ' . $request->getTemperature() . "\n";
         $markdown .= ' - **Max tokens:** ' . $request->getMaxTokens() . "\n";
-        if ($request->getSystemPrompt() !== null) {
-            $markdown .= "## System prompt\n\n";
-            $markdown .= "```\n" . $request->getSystemPrompt() . "\n```\n\n";
-        }
 
         foreach ($response->getConversation()->getMessages() as $message) {
             if ($message->isUser()) {
+                $markdown .= '## User:' . "\n";
+            } elseif ($message->isSystem()) {
                 $markdown .= '## User:' . "\n";
             } elseif ($message->isAssistant()) {
                 $markdown .= '## Assistant:' . "\n";

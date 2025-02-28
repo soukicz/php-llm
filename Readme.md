@@ -22,7 +22,6 @@ $openAI = new OpenAIClient(
 
 $response = $openAI->sendPrompt(new LLMRequest(
     model: OpenAIClient::GPT_4o_MINI,
-    systemPrompt: 'Write a message to a friend',
     conversation: new LLMConversation([LLMMessage::createFromUser([new LLMMessageText('Hello, how are you?')])]),
 ));
 

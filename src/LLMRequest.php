@@ -50,10 +50,6 @@ class LLMRequest {
         return $this->model;
     }
 
-    public function getSystemPrompt(): ?string {
-        return $this->systemPrompt;
-    }
-
     public function getTemperature(): float {
         return $this->temperature;
     }

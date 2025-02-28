@@ -34,9 +34,31 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
     }
 
     protected function encodeRequest(LLMRequest $request): array {
+        $systemPrompt = null;
         $encodedMessages = [];
         foreach ($request->getConversation()->getMessages() as $message) {
-            $role = $message->isUser() ? 'user' : 'assistant';
+            if ($message->isUser()) {
+                $role = 'user';
+            } elseif ($message->isAssistant()) {
+                $role = 'assistant';
+            } elseif ($message->isSystem()) {
+                if ($systemPrompt !== null) {
+                    throw new \InvalidArgumentException('Multiple system messages');
+                }
+                if (count($message->getContents()) !== 1) {
+                    throw new \InvalidArgumentException('System message supports only one content block');
+                }
+                $content = $message->getContents()[0];
+                if ($content instanceof LLMMessageText) {
+                    $systemPrompt = $content->getText();
+                } else {
+                    throw new \InvalidArgumentException('Unsupported system message type');
+                }
+                continue;
+            } else {
+                throw new \InvalidArgumentException('Unsupported message role');
+            }
+
             $contents = [];
             foreach ($message->getContents() as $messageContent) {
                 if ($messageContent instanceof LLMMessageText) {
@@ -115,8 +137,8 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
             }
         }
 
-        if ($request->getSystemPrompt()) {
-            $options['system'] = $request->getSystemPrompt();
+        if ($systemPrompt !== null) {
+            $options['system'] = $systemPrompt;
         }
         if (!empty($request->getStopSequences())) {
             $options['stop_sequences'] = $request->getStopSequences();
