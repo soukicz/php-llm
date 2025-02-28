@@ -4,6 +4,7 @@ namespace Soukicz\Llm;
 
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessagePdf;
+use Soukicz\Llm\Message\LLMMessageReasoning;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
@@ -29,6 +30,8 @@ class MarkdownFormatter {
             foreach ($message->getContents() as $content) {
                 if ($content instanceof LLMMessageText) {
                     $markdown .= str_replace('<', '&lt;', str_replace('>', '&gt;', $content->getText()));
+                } elseif ($content instanceof LLMMessageReasoning) {
+                    $markdown .= "**Reasoning:**\n\n" . $content->getText();
                 } elseif ($content instanceof LLMMessageImage) {
                     $markdown .= '**Image** (' . $content->getMediaType() . ' ' . $this->formatByteSize(strlen(base64_decode($content->getData()))) . ')';
                 } elseif ($content instanceof LLMMessagePdf) {
