@@ -16,6 +16,12 @@ This package is highly experimental. I am actively testing different approaches,
  - OpenAI (GPT)
  - AWS Bedrock (package `soukicz/llm-aws-bedrock`)
 
+## Installation
+
+```bash
+composer require soukicz/llm
+```
+
 ## Caching
 
 All clients support caching. You can use the provided `FileCache` or implement your own cache by extending `CacheInterface`. A DynamoDB cache implementation is also available in the `soukicz/llm-cache-dynamodb` package.
