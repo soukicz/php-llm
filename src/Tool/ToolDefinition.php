@@ -2,6 +2,7 @@
 
 namespace Soukicz\Llm\Tool;
 
+use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
 
 class ToolDefinition {
@@ -39,8 +40,13 @@ class ToolDefinition {
     }
 
     public function handle(string $id, array $input): PromiseInterface {
-        return ($this->handler)($input)->then(static function ($data) use ($id) {
-            return new ToolResponse($id, $data);
-        });
+        $result = ($this->handler)($input);
+        if ($result instanceof PromiseInterface) {
+            return $result->then(static function ($data) use ($id) {
+                return new ToolResponse($id, $data);
+            });
+        }
+
+        return Create::promiseFor(new ToolResponse($id, $result));
     }
 }
