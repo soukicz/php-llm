@@ -27,7 +27,9 @@ class LLMChainClient {
             $request = $continuationCallback($llmResponse);
 
             if (!$request->getLastMessage()->isAssistant()) {
-                return $LLMClient->sendPromptAsync($request);
+                return $LLMClient->sendPromptAsync($request)->then(function (LLMResponse $continuedResponse) use ($LLMClient, $continuationCallback, $feedbackCallback) {
+                    return $this->postProcessResponse($continuedResponse, $LLMClient, $continuationCallback, $feedbackCallback);
+                });
             }
             $llmResponse = new LLMResponse(
                 $request,
