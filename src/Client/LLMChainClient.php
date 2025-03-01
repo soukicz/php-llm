@@ -24,7 +24,7 @@ class LLMChainClient {
     private function postProcessResponse(LLMResponse $llmResponse, LLMClient $LLMClient, ?callable $continuationCallback, ?callable $feedbackCallback): PromiseInterface {
         $request = $llmResponse->getRequest();
         if ($continuationCallback && $llmResponse->getStopReason() === 'max_tokens') {
-            $request = $continuationCallback($request);
+            $request = $continuationCallback($llmResponse);
 
             if (!$request->getLastMessage()->isAssistant()) {
                 return $LLMClient->sendPromptAsync($request);
@@ -42,7 +42,7 @@ class LLMChainClient {
         }
 
         if ($feedbackCallback) {
-            $feedback = $feedbackCallback($llmResponse, $request);
+            $feedback = $feedbackCallback($llmResponse);
             if ($feedback !== null) {
                 if (!$feedback instanceof LLMMessage) {
                     throw new \InvalidArgumentException('Feedback callback must return an instance of LLMMessage');
