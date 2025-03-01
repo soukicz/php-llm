@@ -10,13 +10,13 @@ class LLMMessage implements JsonDeserializable {
     private const TYPE_ASSISTANT = 'assistant';
 
     /**
-     * @param LLMMessageContent[] $content
+     * @param array<LLMMessageContent> $content
      */
     private function __construct(private readonly string $type, private readonly array $content, private readonly bool $continue = false) {
     }
 
     /**
-     * @return LLMMessageContent[]
+     * @return array<LLMMessageContent>
      */
     public function getContents(): array {
         return $this->content;
@@ -39,7 +39,7 @@ class LLMMessage implements JsonDeserializable {
     }
 
     /**
-     * @param LLMMessageContent[] $content
+     * @param array<LLMMessageContent> $content
      */
     public static function createFromUser(array $content): LLMMessage {
         return new self(self::TYPE_USER, $content);
@@ -50,14 +50,14 @@ class LLMMessage implements JsonDeserializable {
     }
 
     /**
-     * @param LLMMessageContent[] $content
+     * @param array<LLMMessageContent> $content
      */
     public static function createFromAssistant(array $content): LLMMessage {
         return new self(self::TYPE_ASSISTANT, $content);
     }
 
     /**
-     * @param LLMMessageContent[] $content
+     * @param array<LLMMessageContent> $content
      */
     public static function createFromSystem(array $content): LLMMessage {
         return new self(self::TYPE_SYSTEM, $content);
@@ -72,16 +72,23 @@ class LLMMessage implements JsonDeserializable {
     }
 
     public static function fromJson(array $data): self {
-        /** @var LLMMessageContent[] $content */
+        /** @var array<LLMMessageContent> $content */
         $content = [];
         foreach ($data['content'] as $item) {
             $class = $item['class'];
             if (!is_subclass_of($class, LLMMessageContent::class)) {
                 throw new \InvalidArgumentException("Class $class does not implement LLMMessageContent");
             }
-            $content[] = $class::fromJson($item['data']);
+            $result = $class::fromJson($item['data']);
+            
+            // Ensure the result implements LLMMessageContent
+            if (!($result instanceof LLMMessageContent)) {
+                throw new \InvalidArgumentException("Class $class::fromJson() does not return LLMMessageContent");
+            }
+            
+            $content[] = $result;
         }
-
+        
         return new self($data['type'], $content, $data['continue']);
     }
 }
