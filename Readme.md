@@ -1,15 +1,15 @@
 ## DISCLAIMER - HIGHLY EXPERIMENTAL!
 
-This package is highly experimental - I am still trying different approaches and API is wildly changing. Use at your own risk.
+This package is highly experimental. I am actively testing different approaches, and the API is frequently changing. Use it at your own risk.
 
 ## Features
 
-- universal API for multiple language models
-- tool support
-- caching
-- async requests
-- feedback loop handling
-- token limit handling (auto continue)
+ - Unified API for multiple language models
+ - Tool integration
+ - Response caching
+ - Asynchronous requests
+ - Feedback loop handling
+ - Automatic token limit handling (continuation support)
 
 ## Supported models
  - Anthropic (Claude)
@@ -18,17 +18,17 @@ This package is highly experimental - I am still trying different approaches and
 
 ### Caching
 
-All clients support caching. You can use the provided FileCache or implement your own cache by implementing the CacheInterface. There is also DynamoDB cache implementation in the `soukicz/llm-cache-dynamodb` package.
+All clients support caching. You can use the provided `FileCache` or implement your own cache by extending `CacheInterface`. A DynamoDB cache implementation is also available in the `soukicz/llm-cache-dynamodb` package.
 
-Cache is handled on HTTP level - it's important to use specific model names instead of "latest" to avoid using cached responses from older models. Responses are reporting original response times regardless of cache usage.
+Caching operates at the HTTP request level. To ensure correct caching behavior, always specify exact model names instead of using general terms like "latest," to prevent cached responses from older models. Cached responses still report the original response time.
 
-### Debug
-There is MarkdownDebugFormatter that will convert LLMRequest or LLMResponse to markdown. This is useful for debugging and logging.
+### Debugging
+Use `MarkdownDebugFormatter` to convert `LLMRequest` or `LLMResponse` objects to markdown format, aiding debugging and logging.
 
-LLM clients also have optional argument for Guzzle middleware that can be used for http logging.
+LLM clients also support an optional Guzzle middleware for HTTP-level logging.
 
 ### Saving state
-LLMConversation object supports JSON serialization and also has static method for deserialization. This can be used to save conversation state and continue conversation later.
+The `LLMConversation  object supports JSON serialization and deserialization. This allows you to save conversation states and resume them later.
 
 ### Basic usage
 
@@ -122,10 +122,7 @@ echo $response->getLastText();
 
 ### Feedback loop handling
 
-Use LLMChainClient to handle feedback loop. Define callback that will be called after each response and decide if the response is valid or not. If not, return a message that will be sent back to LLM.
-LLMChainClient will loop conversation until feedback loop returns null.
-
-You should always include counter to block infinite loops.
+`LLMChainClient` manages feedback loops. Define a callback function to validate responses and optionally request a retry. Always include a loop counter to prevent infinite loops.
 
 ```php
 use Soukicz\Llm\Cache\FileCache;
@@ -169,7 +166,7 @@ echo $response->getLastText();
 
 ### Feedback loop handling - nested LLM
 
-It is also possible to call LLM in feedback loop. This is useful to check task without easily validatable output. In this example, we are checking if the work was completed by checking the response with the nested LLM.
+You can use nested LLM calls within a feedback loop to validate complex responses through an additional LLM evaluation step.
 
 ```php
 
@@ -235,9 +232,7 @@ echo $response->getLastText();
 
 ### Token limit handling
 
-It is possible to handle long outputs by providing continuationCallback. This callback will be called if response was cutoff due to token limit. You can manipulate conversation history by merging relevant parts of the conversation and removing "Continue" messages.
-
-There is also a helper method `LLMChainClient::continueTagResponse` that will handle common use case of merging content split to multiple parts by wrapping it in a tag.
+Handle long responses using `continuationCallback`. The helper method `LLMChainClient::continueTagResponse` simplifies splitting long outputs into multiple parts.
 
 ```php
 use Soukicz\Llm\Cache\FileCache;
