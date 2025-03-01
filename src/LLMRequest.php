@@ -10,27 +10,18 @@ use Soukicz\Llm\Tool\ToolDefinition;
 
 class LLMRequest {
 
-    /** @var ?callable */
-    private $feedbackCallback;
-
-    /** @var ?callable */
-    private $continuationCallback;
-
     /**
      * @param ToolDefinition[] $tools
      * @param string[] $stopSequences
      */
     public function __construct(
         private readonly string  $model,
-        private readonly ?string $systemPrompt,
         private LLMConversation  $conversation,
         private readonly float   $temperature = 0.0,
         private readonly int     $maxTokens = 4096,
         private readonly array   $tools = [],
         private readonly array   $stopSequences = [],
         private readonly ReasoningConfig|ReasoningEffort|null $reasoningConfig = null,
-        ?callable                $feedbackCallback = null,
-        ?callable                $continuationCallback = null,
         private int              $previousInputTokens = 0,
         private int              $previousOutputTokens = 0,
         private int              $previousMaximumOutputTokens = 0,
@@ -38,8 +29,6 @@ class LLMRequest {
         private float            $previousOutputCostUSD = 0.0,
         private int              $previousTimeMs = 0
     ) {
-        $this->feedbackCallback = $feedbackCallback;
-        $this->continuationCallback = $continuationCallback;
     }
 
     public function getConversation(): LLMConversation {
@@ -56,14 +45,6 @@ class LLMRequest {
 
     public function getMaxTokens(): int {
         return $this->maxTokens;
-    }
-
-    public function getFeedbackCallback(): ?callable {
-        return $this->feedbackCallback;
-    }
-
-    public function getContinuationCallback(): ?callable {
-        return $this->continuationCallback;
     }
 
     public function getStopSequences(): array {

@@ -9,18 +9,28 @@ use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
 
-abstract class LLMBaseClient implements LLMClient {
+class LLMChainClient {
 
-    protected function postProcessResponse(LLMRequest $request, LLMResponse $llmResponse): PromiseInterface {
-        if ($llmResponse->getStopReason() === 'max_tokens' && $request->getContinuationCallback()) {
-            $continuationCallback = $request->getContinuationCallback();
+    public function run(LLMClient $LLMClient, LLMRequest $LLMRequest, ?callable $continuationCallback = null, ?callable $feedbackCallback = null): LLMResponse {
+        return $this->runAsync($LLMClient, $LLMRequest, $continuationCallback, $feedbackCallback)->wait();
+    }
+
+    public function runAsync(LLMClient $LLMClient, LLMRequest $LLMRequest, ?callable $continuationCallback = null, ?callable $feedbackCallback = null): PromiseInterface {
+        return $LLMClient->sendPromptAsync($LLMRequest)->then(function (LLMResponse $response) use ($LLMClient, $continuationCallback, $feedbackCallback) {
+            return $this->postProcessResponse($response, $LLMClient, $continuationCallback, $feedbackCallback);
+        });
+    }
+
+    private function postProcessResponse(LLMResponse $llmResponse, LLMClient $LLMClient, ?callable $continuationCallback, ?callable $feedbackCallback): PromiseInterface {
+        $request = $llmResponse->getRequest();
+        if ($continuationCallback && $llmResponse->getStopReason() === 'max_tokens') {
             $request = $continuationCallback($request);
 
             if (!$request->getLastMessage()->isAssistant()) {
-                return $this->sendPromptAsync($request);
+                return $LLMClient->sendPromptAsync($request);
             }
             $llmResponse = new LLMResponse(
-                $request->getMessages(),
+                $request,
                 $llmResponse->getStopReason(),
                 $llmResponse->getInputTokens(),
                 $llmResponse->getOutputTokens(),
@@ -31,7 +41,6 @@ abstract class LLMBaseClient implements LLMClient {
             );
         }
 
-        $feedbackCallback = $request->getFeedbackCallback();
         if ($feedbackCallback) {
             $feedback = $feedbackCallback($llmResponse, $request);
             if ($feedback !== null) {
@@ -40,7 +49,7 @@ abstract class LLMBaseClient implements LLMClient {
                 }
                 $request = $request->withMessage($feedback);
 
-                return $this->sendPromptAsync($request);
+                return $LLMClient->sendPromptAsync($request);
             }
         }
 

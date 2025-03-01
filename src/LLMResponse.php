@@ -5,11 +5,15 @@ namespace Soukicz\Llm;
 use Soukicz\Llm\Message\LLMMessageText;
 
 class LLMResponse {
-    public function __construct(private readonly LLMConversation $conversation, private readonly string $stopReason, private readonly int $inputTokens, private readonly int $outputTokens, private readonly int $maximumOutputTokens, private readonly ?float $inputPriceUsd, private readonly ?float $outputPriceUsd, private int $totalTimeMs) {
+    public function __construct(private readonly LLMRequest $request, private readonly string $stopReason, private readonly int $inputTokens, private readonly int $outputTokens, private readonly int $maximumOutputTokens, private readonly ?float $inputPriceUsd, private readonly ?float $outputPriceUsd, private int $totalTimeMs) {
     }
 
     public function getConversation(): LLMConversation {
-        return $this->conversation;
+        return $this->request->getConversation();
+    }
+
+    public function getRequest(): LLMRequest {
+        return $this->request;
     }
 
     public function getLastText(): string {

@@ -10,8 +10,9 @@ use Soukicz\Llm\Http\HttpClientFactory;
 use Soukicz\Llm\LLMRequest;
 use GuzzleHttp\Promise\PromiseInterface;
 use Psr\Http\Message\ResponseInterface;
+use Soukicz\Llm\LLMResponse;
 
-class AnthropicClient extends AnthropicBaseClient implements LLMBatchClient {
+class AnthropicClient extends AnthropicEncoder implements LLMBatchClient {
 
     public const MODEL_SONNET_37_20250219 = 'claude-3-7-sonnet-20250219';
     public const MODEL_SONNET_35_20241022 = 'claude-3-5-sonnet-20241022';
@@ -24,6 +25,10 @@ class AnthropicClient extends AnthropicBaseClient implements LLMBatchClient {
 
     public function __construct(private readonly string $apiKey, private readonly ?CacheInterface $cache = null, private $customHttpMiddleware = null, private readonly array $betaFeatures = []) {
 
+    }
+
+    public function sendPrompt(LLMRequest $request): LLMResponse {
+        return $this->sendPromptAsync($request)->wait();
     }
 
     private function getHttpClient(): Client {
@@ -58,12 +63,23 @@ class AnthropicClient extends AnthropicBaseClient implements LLMBatchClient {
         return $headers;
     }
 
-    protected function invokeModel(array $data): PromiseInterface {
+    private function invokeModel(array $data): PromiseInterface {
         return $this->getCachedHttpClient()->postAsync('https://api.anthropic.com/v1/messages', [
             'headers' => $this->getHeaders(),
             'json' => $data,
         ])->then(function (ResponseInterface $response) {
             return new ModelResponse(json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR), (int) $response->getHeaderLine('X-Request-Duration-ms'));
+        });
+    }
+
+    public function sendPromptAsync(LLMRequest $request): PromiseInterface {
+        return $this->invokeModel($this->encodeRequest($request))->then(function (ModelResponse $modelResponse) use ($request): LLMResponse|PromiseInterface {
+            $encodedResponseOrRequest = $this->decodeResponse($request, $modelResponse);
+            if ($encodedResponseOrRequest instanceof LLMResponse) {
+                return $encodedResponseOrRequest;
+            }
+
+            return $this->sendPromptAsync($encodedResponseOrRequest);
         });
     }
 

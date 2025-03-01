@@ -2,7 +2,7 @@
 
 namespace Soukicz\Llm\Client\Anthropic;
 
-use Soukicz\Llm\Client\LLMBaseClient;
+use Soukicz\Llm\Client\ModelEncoder;
 use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Config\ReasoningBudget;
 use Soukicz\Llm\Message\LLMMessage;
@@ -15,15 +15,10 @@ use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
-use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Promise\Utils;
 use Soukicz\Llm\Tool\ToolResponse;
 
-abstract class AnthropicBaseClient extends LLMBaseClient {
-
-    public function sendPrompt(LLMRequest $request): LLMResponse {
-        return $this->sendPromptAsync($request)->wait();
-    }
+class AnthropicEncoder implements ModelEncoder {
 
     private function addCacheAttribute(LLMMessageContent $content, array $data): array {
         if ($content->isCached()) {
@@ -33,7 +28,7 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
         return $data;
     }
 
-    protected function encodeRequest(LLMRequest $request): array {
+    public function encodeRequest(LLMRequest $request): array {
         $systemPrompt = null;
         $encodedMessages = [];
         foreach ($request->getConversation()->getMessages() as $message) {
@@ -161,84 +156,76 @@ abstract class AnthropicBaseClient extends LLMBaseClient {
         return $options;
     }
 
-    abstract protected function invokeModel(array $data): PromiseInterface;
+    public function decodeResponse(LLMRequest $request, ModelResponse $modelResponse): LLMRequest|LLMResponse {
+        $response = $modelResponse->getData();
+        $responseTimeMs = $modelResponse->getResponseTimeMs();
 
-    public function sendPromptAsync(LLMRequest $request): PromiseInterface {
-        return $this->invokeModel($this->encodeRequest($request))->then(function (ModelResponse $modelResponse) use ($request) {
-            $response = $modelResponse->getData();
-            $responseTimeMs = $modelResponse->getResponseTimeMs();
-
-            $responseContents = [];
-            foreach ($response['content'] as $content) {
-                if ($content['type'] === 'text') {
-                    $responseContents[] = new LLMMessageText($content['text']);
-                } elseif ($content['type'] === 'thinking') {
-                    $responseContents[] = new LLMMessageReasoning($content['thinking'], $content['signature']);
-                } elseif ($content['type'] === 'tool_use') {
-                    $responseContents[] = new LLMMessageToolUse($content['id'], $content['name'], $content['input']);
-                } else {
-                    print_r($content);
-                    throw new \InvalidArgumentException('Unsupported message type');
-                }
-            }
-            $request = $request->withMessage(LLMMessage::createFromAssistant($responseContents));
-
-            $cacheInputTokens = $response['usage']['cache_creation_input_tokens'] ?? 0;
-            $cacheReadInputTokens = $response['usage']['cache_read_input_tokens'] ?? 0;
-            if (str_contains($request->getModel(), 'haiku')) {
-                $inputPrice = $response['usage']['input_tokens'] * (0.8 / 1000 / 1000);
-                $outputPrice = $response['usage']['output_tokens'] * (4 / 1000 / 1000);
-
-                $inputPrice += $cacheInputTokens * (1 / 1000 / 1000);
-                $outputPrice += $cacheReadInputTokens * (0.08 / 1000 / 1000);
+        $responseContents = [];
+        foreach ($response['content'] as $content) {
+            if ($content['type'] === 'text') {
+                $responseContents[] = new LLMMessageText($content['text']);
+            } elseif ($content['type'] === 'thinking') {
+                $responseContents[] = new LLMMessageReasoning($content['thinking'], $content['signature']);
+            } elseif ($content['type'] === 'tool_use') {
+                $responseContents[] = new LLMMessageToolUse($content['id'], $content['name'], $content['input']);
             } else {
-                $inputPrice = $response['usage']['input_tokens'] * (3 / 1000 / 1000);
-                $outputPrice = $response['usage']['output_tokens'] * (15 / 1000 / 1000);
-
-                $inputPrice += $cacheInputTokens * (3.75 / 1000 / 1000);
-                $outputPrice += $cacheReadInputTokens * (0.3 / 1000 / 1000);
+                throw new \InvalidArgumentException('Unsupported message type');
             }
+        }
+        $request = $request->withMessage(LLMMessage::createFromAssistant($responseContents));
 
-            $request = $request
-                ->withCost(
-                    $response['usage']['input_tokens'],
-                    $response['usage']['output_tokens'],
-                    $inputPrice,
-                    $outputPrice
-                )
-                ->withTime($responseTimeMs);
+        $cacheInputTokens = $response['usage']['cache_creation_input_tokens'] ?? 0;
+        $cacheReadInputTokens = $response['usage']['cache_read_input_tokens'] ?? 0;
+        if (str_contains($request->getModel(), 'haiku')) {
+            $inputPrice = $response['usage']['input_tokens'] * (0.8 / 1000 / 1000);
+            $outputPrice = $response['usage']['output_tokens'] * (4 / 1000 / 1000);
 
-            if ($response['stop_reason'] === 'tool_use') {
-                $toolResponseContents = [];
+            $inputPrice += $cacheInputTokens * (1 / 1000 / 1000);
+            $outputPrice += $cacheReadInputTokens * (0.08 / 1000 / 1000);
+        } else {
+            $inputPrice = $response['usage']['input_tokens'] * (3 / 1000 / 1000);
+            $outputPrice = $response['usage']['output_tokens'] * (15 / 1000 / 1000);
 
-                foreach ($response['content'] as $content) {
-                    if ($content['type'] === 'tool_use') {
-                        foreach ($request->getTools() as $tool) {
-                            if ($tool->getName() === $content['name']) {
-                                $toolResponseContents[] = $tool->handle($content['id'], $content['input'])->then(static function (ToolResponse $response) {
-                                    return new LLMMessageToolResult($response->getId(), $response->getData());
-                                });
-                            }
+            $inputPrice += $cacheInputTokens * (3.75 / 1000 / 1000);
+            $outputPrice += $cacheReadInputTokens * (0.3 / 1000 / 1000);
+        }
+
+        $request = $request
+            ->withCost(
+                $response['usage']['input_tokens'],
+                $response['usage']['output_tokens'],
+                $inputPrice,
+                $outputPrice
+            )
+            ->withTime($responseTimeMs);
+
+        if ($response['stop_reason'] === 'tool_use') {
+            $toolResponseContents = [];
+
+            foreach ($response['content'] as $content) {
+                if ($content['type'] === 'tool_use') {
+                    foreach ($request->getTools() as $tool) {
+                        if ($tool->getName() === $content['name']) {
+                            $toolResponseContents[] = $tool->handle($content['id'], $content['input'])->then(static function (ToolResponse $response) {
+                                return new LLMMessageToolResult($response->getId(), $response->getData());
+                            });
                         }
                     }
                 }
-                $request = $request->withMessage(LLMMessage::createFromUser(Utils::unwrap($toolResponseContents)));
-
-                return $this->sendPromptAsync($request);
             }
 
-            $llmResponse = new LLMResponse(
-                $request->getConversation(),
-                $response['stop_reason'],
-                $request->getPreviousInputTokens(),
-                $request->getPreviousOutputTokens(),
-                $request->getPreviousMaximumOutputTokens(),
-                $request->getPreviousInputCostUSD(),
-                $request->getPreviousOutputCostUSD(),
-                $request->getPreviousTimeMs(),
-            );
+            return $request->withMessage(LLMMessage::createFromUser(Utils::unwrap($toolResponseContents)));
+        }
 
-            return $this->postProcessResponse($request, $llmResponse);
-        });
+        return new LLMResponse(
+            $request,
+            $response['stop_reason'],
+            $request->getPreviousInputTokens(),
+            $request->getPreviousOutputTokens(),
+            $request->getPreviousMaximumOutputTokens(),
+            $request->getPreviousInputCostUSD(),
+            $request->getPreviousOutputCostUSD(),
+            $request->getPreviousTimeMs(),
+        );
     }
 }
