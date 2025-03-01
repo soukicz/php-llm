@@ -16,23 +16,21 @@ This package is highly experimental. I am actively testing different approaches,
  - OpenAI (GPT)
  - AWS Bedrock (package `soukicz/llm-aws-bedrock`)
 
-### Caching
+## Caching
 
 All clients support caching. You can use the provided `FileCache` or implement your own cache by extending `CacheInterface`. A DynamoDB cache implementation is also available in the `soukicz/llm-cache-dynamodb` package.
 
 Caching operates at the HTTP request level. To ensure correct caching behavior, always specify exact model names instead of using general terms like "latest," to prevent cached responses from older models. Cached responses still report the original response time.
 
-### Debugging
+## Debugging
 Use `MarkdownDebugFormatter` to convert `LLMRequest` or `LLMResponse` objects to markdown format, aiding debugging and logging.
 
 LLM clients also support an optional Guzzle middleware for HTTP-level logging.
 
-### Saving state
+## Saving state
 The `LLMConversation  object supports JSON serialization and deserialization. This allows you to save conversation states and resume them later.
 
-### Basic usage
-
-#### Simple request and response
+## Simple request and response
 
 ```php
 use Soukicz\Llm\Cache\FileCache;
@@ -120,7 +118,7 @@ $response = $anthropic->sendPrompt(new LLMRequest(
 echo $response->getLastText();
 ```
 
-### Feedback loop handling
+## Feedback loop handling
 
 `LLMChainClient` manages feedback loops. Define a callback function to validate responses and optionally request a retry. Always include a loop counter to prevent infinite loops.
 
@@ -164,7 +162,7 @@ $response = $chainClient->run(
 echo $response->getLastText();
 ```
 
-### Feedback loop handling - nested LLM
+## Feedback loop handling - nested LLM
 
 You can use nested LLM calls within a feedback loop to validate complex responses through an additional LLM evaluation step.
 
@@ -230,7 +228,7 @@ EOT
 echo $response->getLastText();
 ```
 
-### Token limit handling
+## Token limit handling
 
 Handle long responses using `continuationCallback`. The helper method `LLMChainClient::continueTagResponse` simplifies splitting long outputs into multiple parts.
 
