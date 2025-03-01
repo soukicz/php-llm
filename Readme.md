@@ -28,7 +28,7 @@ Use `MarkdownDebugFormatter` to convert `LLMRequest` or `LLMResponse` objects to
 LLM clients also support an optional Guzzle middleware for HTTP-level logging.
 
 ## Saving state
-The `LLMConversation  object supports JSON serialization and deserialization. This allows you to save conversation states and resume them later.
+The `LLMConversation` object supports JSON serialization and deserialization. This allows you to save conversation states and resume them later.
 
 ## Simple request and response
 
@@ -64,7 +64,7 @@ $anthropic->sendPromptAsync(new LLMRequest(
 });
 ```
 
-#### Tools
+### Tools
 
 ```php
 
