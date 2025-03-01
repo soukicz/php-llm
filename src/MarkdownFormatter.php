@@ -10,12 +10,20 @@ use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 
 class MarkdownFormatter {
-    public function responseToMarkdown(LLMRequest $request, LLMResponse $response): string {
+    public function responseToMarkdown(LLMRequest|LLMResponse $requestOrResponse): string {
+        if ($requestOrResponse instanceof LLMRequest) {
+            $request = $requestOrResponse;
+            $response = null;
+        } else {
+            $request = $requestOrResponse->getRequest();
+            $response = $requestOrResponse;
+        }
+
         $markdown = ' - **Model:** ' . $request->getModel() . "\n";
         $markdown .= ' - **Temperature:** ' . $request->getTemperature() . "\n";
         $markdown .= ' - **Max tokens:** ' . $request->getMaxTokens() . "\n";
 
-        foreach ($response->getConversation()->getMessages() as $message) {
+        foreach ($request->getConversation()->getMessages() as $message) {
             if ($message->isUser()) {
                 $markdown .= '## User:' . "\n";
             } elseif ($message->isSystem()) {
@@ -57,18 +65,21 @@ class MarkdownFormatter {
         }
 
         $markdown .= "\n\n";
-        $markdown .= '----------------------';
-        $markdown .= "\n\n";
 
-        $price = $response->getInputPriceUsd() + $response->getOutputPriceUsd();
-        $markdown .= "##### Total stats\n\n";
-        $markdown .= 'Finished in ' . number_format($response->getTotalTimeMs() / 1000, 3, '.') . 's' .
-            ', prompt tokens: ' . $response->getInputTokens() .
-            ', completion tokens: ' . $response->getOutputTokens() .
-            ', maximum completion tokens: ' . $response->getMaximumOutputTokens() .
-            ', total tokens: ' . ($response->getInputTokens() + $response->getOutputTokens()) .
-            ', price: ' . $this->formatPrice($price) .
-            "\n\n";
+        if (isset($response)) {
+            $markdown .= '----------------------';
+            $markdown .= "\n\n";
+
+            $price = $response->getInputPriceUsd() + $response->getOutputPriceUsd();
+            $markdown .= "##### Total stats\n\n";
+            $markdown .= 'Finished in ' . number_format($response->getTotalTimeMs() / 1000, 3, '.') . 's' .
+                ', prompt tokens: ' . $response->getInputTokens() .
+                ', completion tokens: ' . $response->getOutputTokens() .
+                ', maximum completion tokens: ' . $response->getMaximumOutputTokens() .
+                ', total tokens: ' . ($response->getInputTokens() + $response->getOutputTokens()) .
+                ', price: ' . $this->formatPrice($price) .
+                "\n\n";
+        }
 
         return $markdown;
 
