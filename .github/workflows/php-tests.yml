@@ -61,13 +61,7 @@ jobs:
         run: composer install --prefer-dist --no-progress
 
       - name: Run tests
-        run: XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-clover=coverage.xml
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.xml
-          fail_ci_if_error: false
+        run: XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-text
 
   test-lowest-dependencies:
     name: Test with lowest dependencies (PHP 8.1)
