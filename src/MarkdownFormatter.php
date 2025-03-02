@@ -55,7 +55,11 @@ class MarkdownFormatter {
                     } else {
                         $markdown .= json_encode($content->getContent(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n";
                     }
-                    $markdown .= $content->getContent() . "\n";
+                    if (is_string($content->getContent())) {
+                        $markdown .= $content->getContent() . "\n";
+                    } else {
+                        $markdown .= json_encode($content->getContent(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n";
+                    }
                     $markdown .= "```";
                 } else {
                     throw new \RuntimeException('Unknown message content type');
