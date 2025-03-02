@@ -86,12 +86,16 @@ class AnthropicEncoder implements ModelEncoder {
                         ],
                     ]);
                 } elseif ($messageContent instanceof LLMMessageToolUse) {
-                    $contents[] = $this->addCacheAttribute($messageContent, [
+                    $input = [
                         'type' => 'tool_use',
                         'id' => $messageContent->getId(),
                         'name' => $messageContent->getName(),
                         'input' => $messageContent->getInput(),
-                    ]);
+                    ];
+                    if (empty($input['input'])) {
+                        $input['input'] = new \stdClass();
+                    }
+                    $contents[] = $this->addCacheAttribute($messageContent, $input);
                 } elseif ($messageContent instanceof LLMMessageToolResult) {
                     if (is_string($messageContent->getContent())) {
                         $content = $messageContent->getContent();
@@ -145,10 +149,14 @@ class AnthropicEncoder implements ModelEncoder {
             $options['tools'] = [];
 
             foreach ($request->getTools() as $tool) {
+                $schema = $tool->getInputSchema();
+                if (empty($schema['properties'])) {
+                    $schema['properties'] = new \stdClass();
+                }
                 $options['tools'][] = [
                     'name' => $tool->getName(),
                     'description' => $tool->getDescription(),
-                    'input_schema' => $tool->getInputSchema(),
+                    'input_schema' => $schema,
                 ];
             }
         }
