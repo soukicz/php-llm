@@ -31,14 +31,6 @@ class ToolDefinition {
         return $this->inputSchema;
     }
 
-    public function getDefinition(): array {
-        return [
-            'name' => $this->name,
-            'description' => $this->description,
-            'input_schema' => $this->inputSchema,
-        ];
-    }
-
     public function handle(string $id, array $input): PromiseInterface {
         $result = ($this->handler)($input);
         if ($result instanceof PromiseInterface) {

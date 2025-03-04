@@ -4,6 +4,7 @@ namespace Soukicz\Llm\Client\Anthropic;
 
 use Soukicz\Llm\Client\ModelEncoder;
 use Soukicz\Llm\Client\ModelResponse;
+use Soukicz\Llm\Client\StopReason;
 use Soukicz\Llm\Config\ReasoningBudget;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageContent;
@@ -207,27 +208,16 @@ class AnthropicEncoder implements ModelEncoder {
             )
             ->withTime($responseTimeMs);
 
-        if ($response['stop_reason'] === 'tool_use') {
-            $toolResponseContents = [];
-
-            foreach ($response['content'] as $content) {
-                if ($content['type'] === 'tool_use') {
-                    foreach ($request->getTools() as $tool) {
-                        if ($tool->getName() === $content['name']) {
-                            $toolResponseContents[] = $tool->handle($content['id'], $content['input'])->then(static function (ToolResponse $response) {
-                                return new LLMMessageToolResult($response->getId(), $response->getData());
-                            });
-                        }
-                    }
-                }
-            }
-
-            return $request->withMessage(LLMMessage::createFromUser(Utils::unwrap($toolResponseContents)));
-        }
+        $stopReason = match ($response['stop_reason']) {
+            'end_turn' => StopReason::FINISHED,
+            'max_tokens' => StopReason::LENGTH,
+            'tool_use' => StopReason::TOOL_USE,
+            default => throw new \InvalidArgumentException('Unsupported stop reason "' . $response['stop_reason'] . '"'),
+        };
 
         return new LLMResponse(
             $request,
-            $response['stop_reason'],
+            $stopReason,
             $request->getPreviousInputTokens(),
             $request->getPreviousOutputTokens(),
             $request->getPreviousMaximumOutputTokens(),

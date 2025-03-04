@@ -7,7 +7,8 @@ use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
 
 interface LLMClient {
-    public function sendPrompt(LLMRequest $request): LLMResponse;
-
-    public function sendPromptAsync(LLMRequest $request): PromiseInterface;
+    /**
+     * @return PromiseInterface<LLMResponse>
+     */
+    public function sendRequestAsync(LLMRequest $request): PromiseInterface;
 }

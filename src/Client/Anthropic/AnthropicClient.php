@@ -27,10 +27,6 @@ class AnthropicClient extends AnthropicEncoder implements LLMBatchClient {
 
     }
 
-    public function sendPrompt(LLMRequest $request): LLMResponse {
-        return $this->sendPromptAsync($request)->wait();
-    }
-
     private function getHttpClient(): Client {
         if (!$this->httpClient) {
             $this->httpClient = HttpClientFactory::createClient($this->customHttpMiddleware);
@@ -72,14 +68,14 @@ class AnthropicClient extends AnthropicEncoder implements LLMBatchClient {
         });
     }
 
-    public function sendPromptAsync(LLMRequest $request): PromiseInterface {
+    public function sendRequestAsync(LLMRequest $request): PromiseInterface {
         return $this->invokeModel($this->encodeRequest($request))->then(function (ModelResponse $modelResponse) use ($request): LLMResponse|PromiseInterface {
             $encodedResponseOrRequest = $this->decodeResponse($request, $modelResponse);
             if ($encodedResponseOrRequest instanceof LLMResponse) {
                 return $encodedResponseOrRequest;
             }
 
-            return $this->sendPromptAsync($encodedResponseOrRequest);
+            return $this->sendRequestAsync($encodedResponseOrRequest);
         });
     }
 

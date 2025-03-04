@@ -52,24 +52,20 @@ class OpenAIClient extends OpenAIEncoder implements LLMBatchClient {
         return $this->cachedHttpClient;
     }
 
-    public function sendPrompt(LLMRequest $request): LLMResponse {
-        return $this->sendPromptAsync($request)->wait();
-    }
-
     private function sendCachedRequestAsync(RequestInterface $httpRequest): PromiseInterface {
         return $this->getCachedHttpClient()->sendAsync($httpRequest)->then(function (ResponseInterface $response) {
             return new ModelResponse(json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR), (int) $response->getHeaderLine('X-Request-Duration-ms'));
         });
     }
 
-    public function sendPromptAsync(LLMRequest $request): PromiseInterface {
+    public function sendRequestAsync(LLMRequest $request): PromiseInterface {
         return $this->sendCachedRequestAsync($this->getChatRequest($request))->then(function (ModelResponse $modelResponse) use ($request) {
             $encodedResponseOrRequest = $this->decodeResponse($request, $modelResponse);
             if ($encodedResponseOrRequest instanceof LLMResponse) {
                 return $encodedResponseOrRequest;
             }
 
-            return $this->sendPromptAsync($encodedResponseOrRequest);
+            return $this->sendRequestAsync($encodedResponseOrRequest);
         });
     }
 

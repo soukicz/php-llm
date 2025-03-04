@@ -5,6 +5,7 @@ namespace Soukicz\Llm\Client\OpenAI;
 use GuzzleHttp\Promise\Utils;
 use Soukicz\Llm\Client\ModelEncoder;
 use Soukicz\Llm\Client\ModelResponse;
+use Soukicz\Llm\Client\StopReason;
 use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageImage;
@@ -157,30 +158,16 @@ class OpenAIEncoder implements ModelEncoder {
 
         $request = $request->withMessage(LLMMessage::createFromAssistant($responseContents));
 
-        if ($response['choices'][0]['finish_reason'] === 'tool_calls') {
-            $toolResponseContents = [];
-
-            foreach ($assistantMessage['tool_calls'] as $toolCall) {
-                if ($toolCall['type'] === 'function') {
-                    foreach ($request->getTools() as $tool) {
-                        if ($tool->getName() === $toolCall['function']['name']) {
-                            $toolResponseContents[] = $tool->handle(
-                                $toolCall['id'],
-                                json_decode($toolCall['function']['arguments'], true, 512, JSON_THROW_ON_ERROR)
-                            )->then(static function (ToolResponse $response) {
-                                return new LLMMessageToolResult($response->getId(), $response->getData());
-                            });
-                        }
-                    }
-                }
-            }
-
-            return $request->withMessage(LLMMessage::createFromUser(Utils::unwrap($toolResponseContents)));
-        }
+        $stopReason = match ($response['finish_reason']) {
+            'stop' => StopReason::FINISHED,
+            'length' => StopReason::LENGTH,
+            'tool_calls' => StopReason::TOOL_USE,
+            default => throw new \InvalidArgumentException('Unsupported finish reason "' . $response['finish_reason'] . '"'),
+        };
 
         return new LLMResponse(
             $request,
-            'end_turn',
+            $stopReason,
             $request->getPreviousInputTokens(),
             $request->getPreviousOutputTokens(),
             $request->getPreviousMaximumOutputTokens(),

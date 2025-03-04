@@ -2,10 +2,11 @@
 
 namespace Soukicz\Llm;
 
+use Soukicz\Llm\Client\StopReason;
 use Soukicz\Llm\Message\LLMMessageText;
 
 class LLMResponse {
-    public function __construct(private readonly LLMRequest $request, private readonly string $stopReason, private readonly int $inputTokens, private readonly int $outputTokens, private readonly int $maximumOutputTokens, private readonly ?float $inputPriceUsd, private readonly ?float $outputPriceUsd, private int $totalTimeMs) {
+    public function __construct(private readonly LLMRequest $request, private readonly StopReason $stopReason, private readonly int $inputTokens, private readonly int $outputTokens, private readonly int $maximumOutputTokens, private readonly ?float $inputPriceUsd, private readonly ?float $outputPriceUsd, private int $totalTimeMs) {
     }
 
     public function getConversation(): LLMConversation {
@@ -27,7 +28,7 @@ class LLMResponse {
         throw new \RuntimeException('No text message found');
     }
 
-    public function getStopReason(): string {
+    public function getStopReason(): StopReason {
         return $this->stopReason;
     }
 

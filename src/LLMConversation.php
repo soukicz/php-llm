@@ -37,4 +37,7 @@ class LLMConversation implements JsonDeserializable {
         return new self(array_map(static fn(array $message) => LLMMessage::fromJson($message), $data['messages']));
     }
 
+    public function getLastMessage(): LLMMessage {
+        return $this->messages[array_key_last($this->messages)];
+    }
 }

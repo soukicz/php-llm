@@ -4,30 +4,59 @@ namespace Soukicz\Llm\Client;
 
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
+use GuzzleHttp\Promise\Utils;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
+use Soukicz\Llm\Message\LLMMessageToolResult;
+use Soukicz\Llm\Message\LLMMessageToolUse;
+use Soukicz\Llm\Tool\ToolResponse;
 
 class LLMChainClient {
 
-    public function run(LLMClient $LLMClient, LLMRequest $LLMRequest, ?callable $continuationCallback = null, ?callable $feedbackCallback = null): LLMResponse {
-        return $this->runAsync($LLMClient, $LLMRequest, $continuationCallback, $feedbackCallback)->wait();
+    public function run(LLMClient $client, LLMRequest $request, ?callable $continuationCallback = null, ?callable $feedbackCallback = null): LLMResponse {
+        return $this->runAsync($client, $request, $continuationCallback, $feedbackCallback)->wait();
     }
 
-    public function runAsync(LLMClient $LLMClient, LLMRequest $LLMRequest, ?callable $continuationCallback = null, ?callable $feedbackCallback = null): PromiseInterface {
-        return $LLMClient->sendPromptAsync($LLMRequest)->then(function (LLMResponse $response) use ($LLMClient, $continuationCallback, $feedbackCallback) {
-            return $this->postProcessResponse($response, $LLMClient, $continuationCallback, $feedbackCallback);
+    /**
+     * @return PromiseInterface<LLMResponse>
+     */
+    public function runAsync(LLMClient $client, LLMRequest $request, ?callable $continuationCallback = null, ?callable $feedbackCallback = null): PromiseInterface {
+        return $client->sendRequestAsync($request)->then(function (LLMResponse $response) use ($client, $continuationCallback, $feedbackCallback) {
+            return $this->postProcessResponse($response, $client, $continuationCallback, $feedbackCallback);
+        })->then(function (LLMResponse $response) use ($client, $request, $continuationCallback, $feedbackCallback): LLMResponse|PromiseInterface {
+            if ($response->getStopReason() === StopReason::TOOL_USE) {
+                $toolResponseContents = [];
+
+                foreach ($response->getConversation()->getLastMessage()->getContents() as $content) {
+                    if ($content instanceof LLMMessageToolUse) {
+                        foreach ($request->getTools() as $tool) {
+                            if ($tool->getName() === $content->getName()) {
+                                $toolResponseContents[] = $tool->handle($content->getId(), $content->getInput())->then(static function (ToolResponse $response) {
+                                    return new LLMMessageToolResult($response->getId(), $response->getData());
+                                });
+                            }
+                        }
+                    }
+                }
+
+                $newRequest = $response->getRequest()->withMessage(LLMMessage::createFromUser(Utils::unwrap($toolResponseContents)));
+
+                return $this->runAsync($client, $newRequest, $continuationCallback, $feedbackCallback);
+            }
+
+            return $response;
         });
     }
 
     private function postProcessResponse(LLMResponse $llmResponse, LLMClient $LLMClient, ?callable $continuationCallback, ?callable $feedbackCallback): PromiseInterface {
         $request = $llmResponse->getRequest();
-        if ($continuationCallback && $llmResponse->getStopReason() === 'max_tokens') {
+        if ($continuationCallback && $llmResponse->getStopReason() === StopReason::LENGTH) {
             $request = $continuationCallback($llmResponse);
 
             if (!$request->getLastMessage()->isAssistant()) {
-                return $LLMClient->sendPromptAsync($request)->then(function (LLMResponse $continuedResponse) use ($LLMClient, $continuationCallback, $feedbackCallback) {
+                return $LLMClient->sendRequestAsync($request)->then(function (LLMResponse $continuedResponse) use ($LLMClient, $continuationCallback, $feedbackCallback) {
                     return $this->postProcessResponse($continuedResponse, $LLMClient, $continuationCallback, $feedbackCallback);
                 });
             }
@@ -51,7 +80,7 @@ class LLMChainClient {
                 }
                 $request = $request->withMessage($feedback);
 
-                return $LLMClient->sendPromptAsync($request)->then(function (LLMResponse $continuedResponse) use ($LLMClient, $continuationCallback, $feedbackCallback) {
+                return $LLMClient->sendRequestAsync($request)->then(function (LLMResponse $continuedResponse) use ($LLMClient, $continuationCallback, $feedbackCallback) {
                     return $this->postProcessResponse($continuedResponse, $LLMClient, $continuationCallback, $feedbackCallback);
                 });
             }
