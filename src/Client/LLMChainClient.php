@@ -5,7 +5,6 @@ namespace Soukicz\Llm\Client;
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Promise\Utils;
-use Ramsey\Uuid\Uuid;
 use Soukicz\Llm\Log\LLMLogger;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageText;
@@ -28,12 +27,10 @@ class LLMChainClient {
      * @return PromiseInterface<LLMResponse>
      */
     public function runAsync(LLMClient $client, LLMRequest $request, ?callable $continuationCallback = null, ?callable $feedbackCallback = null): PromiseInterface {
-        $uuid = Uuid::uuid7();
-        $this->logger?->requestStarted($request, $uuid);
-        $startTime = microtime(true);
+        $this->logger?->requestStarted($request);
 
-        return $client->sendRequestAsync($request)->then(function (LLMResponse $response) use ($client, $continuationCallback, $feedbackCallback, $startTime, $uuid) {
-            $this->logger?->requestFinished($response, $uuid, \DateTimeImmutable::createFromFormat('U.u', (string) ($startTime + $response->getTotalTimeMs() / 1000)));
+        return $client->sendRequestAsync($request)->then(function (LLMResponse $response) use ($client, $continuationCallback, $feedbackCallback, $startTime) {
+            $this->logger?->requestFinished($response);
 
             return $this->postProcessResponse($response, $client, $continuationCallback, $feedbackCallback);
         })->then(function (LLMResponse $response) use ($client, $request, $continuationCallback, $feedbackCallback): LLMResponse|PromiseInterface {
