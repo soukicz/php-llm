@@ -17,7 +17,8 @@
         "guzzlehttp/guzzle": "^7.9",
         "guzzlehttp/promises": "^2.0",
         "guzzlehttp/psr7": "^2.7",
-        "ext-zlib": "*"
+        "ext-zlib": "*",
+        "ramsey/uuid": "^4.7"
     },
     "require-dev": {
         "phpstan/phpstan": "^2.1",
