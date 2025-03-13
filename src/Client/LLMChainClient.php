@@ -29,43 +29,55 @@ class LLMChainClient {
     public function runAsync(LLMClient $client, LLMRequest $request, ?callable $continuationCallback = null, ?callable $feedbackCallback = null): PromiseInterface {
         $this->logger?->requestStarted($request);
 
+        return $this->sendAndProcessRequest($client, $request, $continuationCallback, $feedbackCallback);
+    }
+    
+    /**
+     * Helper method that handles the full request-response flow including tool use
+     * 
+     * @return PromiseInterface<LLMResponse>
+     */
+    private function sendAndProcessRequest(LLMClient $client, LLMRequest $request, ?callable $continuationCallback, ?callable $feedbackCallback): PromiseInterface {
         return $client->sendRequestAsync($request)->then(function (LLMResponse $response) use ($client, $continuationCallback, $feedbackCallback) {
             $this->logger?->requestFinished($response);
-
+            
+            // First process the response (handle continuation, feedback)
             return $this->postProcessResponse($response, $client, $continuationCallback, $feedbackCallback);
         })->then(function (LLMResponse $response) use ($client, $request, $continuationCallback, $feedbackCallback): LLMResponse|PromiseInterface {
-            return $this->handleToolUse($response, $client, $request, $continuationCallback, $feedbackCallback);
+            // Then check for and handle any tool use
+            if ($response->getStopReason() === StopReason::TOOL_USE) {
+                return $this->processToolUseResponse($response, $client, $request, $continuationCallback, $feedbackCallback);
+            }
+            
+            return $response;
         });
     }
 
     /**
-     * Handles tool use requests recursively
-     *
-     * @return LLMResponse|PromiseInterface<LLMResponse>
+     * Process a response that contains tool use requests
+     * 
+     * @return PromiseInterface<LLMResponse>
      */
-    private function handleToolUse(LLMResponse $response, LLMClient $client, LLMRequest $request, ?callable $continuationCallback, ?callable $feedbackCallback): LLMResponse|PromiseInterface {
-        if ($response->getStopReason() === StopReason::TOOL_USE) {
-            $toolResponseContents = [];
+    private function processToolUseResponse(LLMResponse $response, LLMClient $client, LLMRequest $request, ?callable $continuationCallback, ?callable $feedbackCallback): PromiseInterface {
+        $toolResponseContents = [];
 
-            foreach ($response->getConversation()->getLastMessage()->getContents() as $content) {
-                if ($content instanceof LLMMessageToolUse) {
-                    foreach ($request->getTools() as $tool) {
-                        if ($tool->getName() === $content->getName()) {
-                            $toolResponseContents[] = $tool->handle($content->getId(), $content->getInput())->then(static function (ToolResponse $response) {
-                                return new LLMMessageToolResult($response->getId(), $response->getData());
-                            });
-                        }
+        foreach ($response->getConversation()->getLastMessage()->getContents() as $content) {
+            if ($content instanceof LLMMessageToolUse) {
+                foreach ($request->getTools() as $tool) {
+                    if ($tool->getName() === $content->getName()) {
+                        $toolResponseContents[] = $tool->handle($content->getId(), $content->getInput())->then(static function (ToolResponse $response) {
+                            return new LLMMessageToolResult($response->getId(), $response->getData());
+                        });
                     }
                 }
             }
-
-            $newRequest = $response->getRequest()->withMessage(LLMMessage::createFromUser(Utils::unwrap($toolResponseContents)));
-
-            // Process the tool response and handle any subsequent tool uses recursively
-            return $this->runAsync($client, $newRequest, $continuationCallback, $feedbackCallback);
         }
 
-        return $response;
+        $newRequest = $response->getRequest()->withMessage(LLMMessage::createFromUser(Utils::unwrap($toolResponseContents)));
+        $this->logger?->requestStarted($newRequest);
+
+        // Use sendAndProcessRequest to ensure full processing of the response, including potential nested tool uses
+        return $this->sendAndProcessRequest($client, $newRequest, $continuationCallback, $feedbackCallback);
     }
 
     private function postProcessResponse(LLMResponse $llmResponse, LLMClient $LLMClient, ?callable $continuationCallback, ?callable $feedbackCallback): PromiseInterface {
