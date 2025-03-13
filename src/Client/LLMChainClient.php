@@ -38,18 +38,16 @@ class LLMChainClient {
      * @return PromiseInterface<LLMResponse>
      */
     private function sendAndProcessRequest(LLMClient $client, LLMRequest $request, ?callable $continuationCallback, ?callable $feedbackCallback): PromiseInterface {
-        return $client->sendRequestAsync($request)->then(function (LLMResponse $response) use ($client, $continuationCallback, $feedbackCallback) {
+        return $client->sendRequestAsync($request)->then(function (LLMResponse $response) use ($client, $request, $continuationCallback, $feedbackCallback) {
             $this->logger?->requestFinished($response);
             
-            // First process the response (handle continuation, feedback)
-            return $this->postProcessResponse($response, $client, $continuationCallback, $feedbackCallback);
-        })->then(function (LLMResponse $response) use ($client, $request, $continuationCallback, $feedbackCallback): LLMResponse|PromiseInterface {
-            // Then check for and handle any tool use
+            // First check for and handle any tool use - this has highest priority
             if ($response->getStopReason() === StopReason::TOOL_USE) {
                 return $this->processToolUseResponse($response, $client, $request, $continuationCallback, $feedbackCallback);
             }
             
-            return $response;
+            // If no tool use, then process other response types (continuation, feedback)
+            return $this->postProcessResponse($response, $client, $continuationCallback, $feedbackCallback);
         });
     }
 
