@@ -48,13 +48,8 @@ class MarkdownFormatter {
                     $markdown .= json_encode($content->getInput(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n";
                     $markdown .= "```";
                 } elseif ($content instanceof LLMMessageToolResult) {
-                    $markdown .= "**Tool use: ** " . $content->getId() . "\n";
+                    $markdown .= "**Tool result: ** " . $content->getId() . "\n";
                     $markdown .= "```\n";
-                    if (is_string($content->getContent())) {
-                        $markdown .= $content->getContent() . "\n";
-                    } else {
-                        $markdown .= json_encode($content->getContent(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n";
-                    }
                     if (is_string($content->getContent())) {
                         $markdown .= $content->getContent() . "\n";
                     } else {
