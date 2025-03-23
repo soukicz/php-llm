@@ -36,7 +36,7 @@ class OpenAIEncoderTextTest extends TestCase {
 
         // Verify encoded structure
         $this->assertEquals('gpt-4o-2024-08-06', $encoded['model']);
-        $this->assertEquals(1000, $encoded['max_tokens']);
+        $this->assertEquals(1000, $encoded['max_completion_tokens']);
         $this->assertEquals(0.7, $encoded['temperature']);
 
         // Verify messages structure
