@@ -9,6 +9,7 @@ use Soukicz\Llm\Client\StopReason;
 use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageImage;
+use Soukicz\Llm\Message\LLMMessagePdf;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
@@ -44,6 +45,14 @@ class OpenAIEncoder implements ModelEncoder {
                             'type' => $messageContent->getEncoding(),
                             'media_type' => $messageContent->getMediaType(),
                             'data' => $messageContent->getData(),
+                        ],
+                    ];
+                } elseif ($messageContent instanceof LLMMessagePdf) {
+                    $contents[] = [
+                        'type' => 'file',
+                        'file' => [
+                            'file_data' => 'data:application/pdf;base64,' . $messageContent->getData(),
+                            'filename' => 'file.pdf',
                         ],
                     ];
                 } elseif ($messageContent instanceof LLMMessageToolUse) {
@@ -158,11 +167,11 @@ class OpenAIEncoder implements ModelEncoder {
 
         $request = $request->withMessage(LLMMessage::createFromAssistant($responseContents));
 
-        $stopReason = match ($response['finish_reason']) {
+        $stopReason = match ($response['choices'][0]['finish_reason']) {
             'stop' => StopReason::FINISHED,
             'length' => StopReason::LENGTH,
             'tool_calls' => StopReason::TOOL_USE,
-            default => throw new \InvalidArgumentException('Unsupported finish reason "' . $response['finish_reason'] . '"'),
+            default => throw new \InvalidArgumentException('Unsupported finish reason "' . $response['choices'][0]['finish_reason'] . '"'),
         };
 
         return new LLMResponse(

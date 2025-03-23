@@ -18,7 +18,8 @@ class OpenAIClient extends OpenAIEncoder implements LLMBatchClient {
 
     public const CODE = 'openai';
 
-    public const GPT_4o_MINI = 'gpt-4o-mini-2024-07-18';
+    public const GPT_4O_MINI_2024_07_18 = 'gpt-4o-mini-2024-07-18';
+    public const GPT_4O_2024_11_20 = 'gpt-4o-2024-11-20';
 
     private ?Client $httpClient = null;
     private ?Client $cachedHttpClient = null;
