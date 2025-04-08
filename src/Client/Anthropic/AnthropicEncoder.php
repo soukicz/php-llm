@@ -16,8 +16,6 @@ use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
-use GuzzleHttp\Promise\Utils;
-use Soukicz\Llm\Tool\ToolResponse;
 
 class AnthropicEncoder implements ModelEncoder {
 

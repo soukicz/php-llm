@@ -5,16 +5,10 @@ namespace Soukicz\Llm\Tool;
 use Soukicz\Llm\JsonDeserializable;
 
 class ToolResponse implements JsonDeserializable {
-    private string $id;
-    private $data;
+    private mixed $data;
 
-    public function __construct(string $id, $data) {
-        $this->id = $id;
+    public function __construct(mixed $data) {
         $this->data = $data;
-    }
-
-    public function getId(): string {
-        return $this->id;
     }
 
     /**
@@ -26,12 +20,11 @@ class ToolResponse implements JsonDeserializable {
 
     public function jsonSerialize(): array {
         return [
-            'id' => $this->id,
             'data' => $this->data,
         ];
     }
 
     public static function fromJson(array $data): self {
-        return new self($data['id'], $data['data']);
+        return new self($data['data']);
     }
 }

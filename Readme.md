@@ -92,7 +92,7 @@ use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
-use Soukicz\Llm\Tool\ToolDefinition;
+use Soukicz\Llm\Tool\CallbackToolDefinition;
 
 require_once __DIR__ . '/vendor/autoload.php';
 
@@ -100,7 +100,7 @@ $cache = new FileCache(sys_get_temp_dir());
 $anthropic = new AnthropicClient('sk-xxxxxx', $cache);
 $chainClient = new LLMChainClient();
 
-$currencyTool = new ToolDefinition(
+$currencyTool = new CallbackToolDefinition(
     name: 'currency_rates',
     description: 'Tool for getting current currency rates. Required input is currency code of source currency and currency code of target currency.',
     inputSchema: [

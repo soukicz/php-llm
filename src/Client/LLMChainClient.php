@@ -15,7 +15,6 @@ use Soukicz\Llm\Message\LLMMessageToolUse;
 use Soukicz\Llm\Tool\ToolResponse;
 
 class LLMChainClient {
-
     public function __construct(private readonly ?LLMLogger $logger = null) {
     }
 
@@ -31,21 +30,21 @@ class LLMChainClient {
 
         return $this->sendAndProcessRequest($client, $request, $continuationCallback, $feedbackCallback);
     }
-    
+
     /**
      * Helper method that handles the full request-response flow including tool use
-     * 
+     *
      * @return PromiseInterface<LLMResponse>
      */
     private function sendAndProcessRequest(LLMClient $client, LLMRequest $request, ?callable $continuationCallback, ?callable $feedbackCallback): PromiseInterface {
         return $client->sendRequestAsync($request)->then(function (LLMResponse $response) use ($client, $request, $continuationCallback, $feedbackCallback) {
             $this->logger?->requestFinished($response);
-            
+
             // First check for and handle any tool use - this has highest priority
             if ($response->getStopReason() === StopReason::TOOL_USE) {
                 return $this->processToolUseResponse($response, $client, $request, $continuationCallback, $feedbackCallback);
             }
-            
+
             // If no tool use, then process other response types (continuation, feedback)
             return $this->postProcessResponse($response, $client, $continuationCallback, $feedbackCallback);
         });
@@ -53,7 +52,7 @@ class LLMChainClient {
 
     /**
      * Process a response that contains tool use requests
-     * 
+     *
      * @return PromiseInterface<LLMResponse>
      */
     private function processToolUseResponse(LLMResponse $response, LLMClient $client, LLMRequest $request, ?callable $continuationCallback, ?callable $feedbackCallback): PromiseInterface {
@@ -63,8 +62,12 @@ class LLMChainClient {
             if ($content instanceof LLMMessageToolUse) {
                 foreach ($request->getTools() as $tool) {
                     if ($tool->getName() === $content->getName()) {
-                        $toolResponseContents[] = $tool->handle($content->getId(), $content->getInput())->then(static function (ToolResponse $response) {
-                            return new LLMMessageToolResult($response->getId(), $response->getData());
+                        $toolResponse = $tool->handle($content->getInput());
+                        if ($toolResponse instanceof ToolResponse) {
+                            $toolResponse = Create::promiseFor($toolResponse);
+                        }
+                        $toolResponseContents[] = $toolResponse->then(function (ToolResponse $response) use ($content) {
+                            return new LLMMessageToolResult($content->getId(), $response->getData());
                         });
                     }
                 }
@@ -134,8 +137,8 @@ class LLMChainClient {
             $lastClosingTagPos = strrpos($response, '</' . $tag . '>');
 
             // If there's an opening tag after the last closing tag, or if there's an opening tag but no closing tag
-            if (($lastOpeningTagPos !== false && $lastClosingTagPos === false) ||
-                ($lastOpeningTagPos !== false && $lastClosingTagPos !== false && $lastOpeningTagPos > $lastClosingTagPos)) {
+            if (($lastOpeningTagPos !== false && $lastClosingTagPos === false)
+                || ($lastOpeningTagPos !== false && $lastClosingTagPos !== false && $lastOpeningTagPos > $lastClosingTagPos)) {
                 // Remove everything from the last opening tag to the end of the string
                 $response = substr($response, 0, $lastOpeningTagPos);
             }
