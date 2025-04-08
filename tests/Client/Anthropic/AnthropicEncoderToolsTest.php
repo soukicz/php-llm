@@ -14,6 +14,7 @@ use Soukicz\Llm\Message\LLMMessageReasoning;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
+use Soukicz\Llm\Tool\CallbackToolDefinition;
 use Soukicz\Llm\Tool\ToolDefinition;
 
 class AnthropicEncoderToolsTest extends TestCase {
@@ -21,7 +22,7 @@ class AnthropicEncoderToolsTest extends TestCase {
         $encoder = new AnthropicEncoder();
 
         // Define a tool
-        $weatherTool = new ToolDefinition(
+        $weatherTool = new CallbackToolDefinition(
             'weather',
             'Get current weather',
             [
@@ -34,7 +35,7 @@ class AnthropicEncoderToolsTest extends TestCase {
                 ],
                 'required' => ['location'],
             ],
-            fn() => [] // Empty handler for test
+            fn () => [] // Empty handler for test
         );
 
         // Create a simple request with tool

@@ -17,6 +17,7 @@ use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
+use Soukicz\Llm\Tool\CallbackToolDefinition;
 use Soukicz\Llm\Tool\ToolDefinition;
 
 class LLMChainClientTest extends TestCase {
@@ -25,7 +26,7 @@ class LLMChainClientTest extends TestCase {
      */
     public function testSingleToolUse(): void {
         // Create a simple calculator tool for testing
-        $calculatorTool = new ToolDefinition(
+        $calculatorTool = new CallbackToolDefinition(
             'calculator',
             'Basic calculator for math operations',
             [
@@ -81,7 +82,7 @@ class LLMChainClientTest extends TestCase {
      */
     public function testMultiTurnToolUse(): void {
         // Create a calculator tool
-        $calculatorTool = new ToolDefinition(
+        $calculatorTool = new CallbackToolDefinition(
             'calculator',
             'Basic calculator for math operations',
             [
@@ -102,7 +103,7 @@ class LLMChainClientTest extends TestCase {
         );
 
         // Create a weather tool
-        $weatherTool = new ToolDefinition(
+        $weatherTool = new CallbackToolDefinition(
             'weather',
             'Get weather information',
             [
@@ -208,7 +209,7 @@ class LLMChainClientTest extends TestCase {
      */
     public function testContinuation(): void {
         // Create a calculator tool
-        $calculatorTool = new ToolDefinition(
+        $calculatorTool = new CallbackToolDefinition(
             'calculator',
             'Basic calculator',
             [
@@ -239,13 +240,13 @@ class LLMChainClientTest extends TestCase {
         // Instead of mixing LENGTH and TOOL_USE, which would be complex with our new order
         // of operations, let's test them separately. Here we'll focus on continuation only.
         $response1 = $this->createLengthResponse($request, 'This is a very long response that gets cut off...');
-        
+
         // After continuation, a request with final answer
         $continuationRequest = $request->withMessage(
             LLMMessage::createFromUserContinue(new LLMMessageText('Continue'))
         );
         $response2 = $this->createFinalResponse($continuationRequest, 'The answer is 4.');
-        
+
         // Create the mock client with the chain of responses
         $mockClient = $this->createMockLLMClient([$response1, $response2]);
 
@@ -292,9 +293,9 @@ class LLMChainClientTest extends TestCase {
      */
     private function createToolUseResponse(
         LLMRequest $request,
-        string     $toolId,
-        string     $toolName,
-        array      $toolInput
+        string $toolId,
+        string $toolName,
+        array $toolInput
     ): LLMResponse {
         $updatedConversation = $request->getConversation()->withMessage(
             LLMMessage::createFromAssistant([
@@ -349,10 +350,9 @@ class LLMChainClientTest extends TestCase {
     /**
      * Test that tool use is prioritized over continuation when both are applicable
      */
-    public function testToolUsePrioritizedOverContinuation(): void
-    {
+    public function testToolUsePrioritizedOverContinuation(): void {
         // Create a calculator tool
-        $calculatorTool = new ToolDefinition(
+        $calculatorTool = new CallbackToolDefinition(
             'calculator',
             'Basic calculator',
             [
@@ -383,35 +383,36 @@ class LLMChainClientTest extends TestCase {
         // Create a response that has both TOOL_USE and LENGTH (which would trigger continuation)
         // This is artificial for testing purposes but mimics the priority ordering
         $combinedResponse = $this->createToolUseAndLengthResponse($request, 'tool-123', 'calculator', ['expression' => '2+2']);
-        
+
         // Create request with tool result
         $toolResultRequest = $combinedResponse->getRequest()->withMessage(
             LLMMessage::createFromUser([new LLMMessageToolResult('tool-123', ['result' => 4])])
         );
-        
+
         // Final response after tool handling
         $finalResponse = $this->createFinalResponse($toolResultRequest, 'The answer is 4.');
-        
+
         // Mock client
         $mockClient = $this->createMockLLMClient([$combinedResponse, $finalResponse]);
-        
+
         // Create continuation callback that would be triggered if LENGTH was handled
         $continuationCalled = false;
         $continuationCallback = function (LLMResponse $response) use (&$continuationCalled) {
             $continuationCalled = true;
+
             return LLMChainClient::continueTagResponse($response->getRequest(), [], 'Continue');
         };
-        
+
         // Create the chain client and run the request
         $chainClient = new LLMChainClient();
         $result = $chainClient->run($mockClient, $request, $continuationCallback);
-        
+
         // Verify that tool use was handled (we got the final answer) and continuation was NOT triggered
         $this->assertEquals(StopReason::FINISHED, $result->getStopReason());
         $this->assertEquals('The answer is 4.', $result->getLastText());
         $this->assertFalse($continuationCalled, 'Continuation callback should not have been called');
     }
-    
+
     /**
      * Create a special response that has both TOOL_USE and LENGTH characteristics
      * This is used to test priority ordering of handlers
@@ -425,16 +426,16 @@ class LLMChainClientTest extends TestCase {
         $updatedConversation = $request->getConversation()->withMessage(
             LLMMessage::createFromAssistant([
                 new LLMMessageText('This response is incomplete and would trigger continuation...'),
-                new LLMMessageToolUse($toolId, $toolName, $toolInput)
+                new LLMMessageToolUse($toolId, $toolName, $toolInput),
             ])
         );
-        
+
         $updatedRequest = new LLMRequest(
             model: $request->getModel(),
             conversation: $updatedConversation,
             tools: $request->getTools()
         );
-        
+
         // Using TOOL_USE as the primary stop reason since that's what we're testing for priority
         return new LLMResponse(
             $updatedRequest,
@@ -447,7 +448,7 @@ class LLMChainClientTest extends TestCase {
             500 // time in ms
         );
     }
-    
+
     /**
      * Create a response with LENGTH stop reason
      */

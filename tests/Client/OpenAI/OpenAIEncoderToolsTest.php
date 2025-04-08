@@ -13,6 +13,7 @@ use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
+use Soukicz\Llm\Tool\CallbackToolDefinition;
 use Soukicz\Llm\Tool\ToolDefinition;
 
 class OpenAIEncoderToolsTest extends TestCase {
@@ -24,7 +25,7 @@ class OpenAIEncoderToolsTest extends TestCase {
 
     public function testToolDefinitions(): void {
         // Define a tool
-        $weatherTool = new ToolDefinition(
+        $weatherTool = new CallbackToolDefinition(
             'weather',
             'Get current weather information',
             [
@@ -37,7 +38,7 @@ class OpenAIEncoderToolsTest extends TestCase {
                 ],
                 'required' => ['location'],
             ],
-            fn() => [] // Empty handler for test
+            fn () => [] // Empty handler for test
         );
 
         // Create a simple request with tool
