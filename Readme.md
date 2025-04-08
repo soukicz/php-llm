@@ -14,6 +14,7 @@ This package is highly experimental. I am actively testing different approaches,
 ## Supported models
  - Anthropic (Claude)
  - OpenAI (GPT)
+ - Google (Gemini)
  - AWS Bedrock (package `soukicz/llm-aws-bedrock`)
 
 ## Installation
