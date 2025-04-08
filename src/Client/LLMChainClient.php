@@ -13,6 +13,7 @@ use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 use Soukicz\Llm\Tool\ToolResponse;
+use Swaggest\JsonSchema\Schema;
 
 class LLMChainClient {
     public function __construct(private readonly ?LLMLogger $logger = null) {
@@ -62,7 +63,16 @@ class LLMChainClient {
             if ($content instanceof LLMMessageToolUse) {
                 foreach ($request->getTools() as $tool) {
                     if ($tool->getName() === $content->getName()) {
-                        $toolResponse = $tool->handle($content->getInput());
+                        $input = $content->getInput();
+
+                        try {
+                            Schema::import(json_decode(json_encode($tool->getInputSchema())))->in(json_decode(json_encode($input)));
+                        } catch (\Exception $e) {
+                            $toolResponseContents[] = Create::promiseFor(new LLMMessageToolResult($content->getId(), 'ERROR: Input is not matching expected schema: ' . $e->getMessage()));
+                            continue;
+                        }
+
+                        $toolResponse = $tool->handle($input);
                         if ($toolResponse instanceof ToolResponse) {
                             $toolResponse = Create::promiseFor($toolResponse);
                         }
