@@ -130,12 +130,21 @@ class OpenAIEncoder implements ModelEncoder {
     public function decodeResponse(LLMRequest $request, ModelResponse $modelResponse): LLMRequest|LLMResponse {
         $response = $modelResponse->getData();
 
-        if ($request->getModel() === 'gpt-4o-2024-08-06') {
+        if ($request->getModel() === OpenAIClient::GPT_4O_2024_11_20) {
             $inputPrice = $response['usage']['prompt_tokens'] * (2.5 / 1_000_000);
             $outputPrice = $response['usage']['completion_tokens'] * (10 / 1_000_000);
-        } elseif ($request->getModel() === 'gpt-4o-mini-2024-07-18') {
+        } elseif ($request->getModel() === OpenAIClient::GPT_4O_MINI_2024_07_18) {
             $inputPrice = $response['usage']['prompt_tokens'] * (0.150 / 1_000_000);
             $outputPrice = $response['usage']['completion_tokens'] * (0.6 / 1_000_000);
+        } elseif ($request->getModel() === OpenAIClient::GPT_41_2025_04_14) {
+            $inputPrice = $response['usage']['prompt_tokens'] * (2 / 1_000_000);
+            $outputPrice = $response['usage']['completion_tokens'] * (8 / 1_000_000);
+        } elseif ($request->getModel() === OpenAIClient::GPT_41_MINI_2025_04_14) {
+            $inputPrice = $response['usage']['prompt_tokens'] * (0.4 / 1_000_000);
+            $outputPrice = $response['usage']['completion_tokens'] * (1.6 / 1_000_000);
+        } elseif ($request->getModel() === OpenAIClient::GPT_41_NANO_2025_04_14) {
+            $inputPrice = $response['usage']['prompt_tokens'] * (0.1 / 1_000_000);
+            $outputPrice = $response['usage']['completion_tokens'] * (0.4 / 1_000_000);
         } else {
             $inputPrice = null;
             $outputPrice = null;
