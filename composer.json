@@ -1,6 +1,9 @@
 {
     "name": "soukicz/llm",
+    "description": "LLM client with support for cache, tools and async requests",
+    "keywords": ["llm", "ai", "openai", "anthropic"],
     "type": "library",
+    "license": ["BSD-3-Clause"],
     "autoload": {
         "psr-4": {
             "Soukicz\\Llm\\": "src/"

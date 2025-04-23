@@ -1,7 +1,3 @@
-## DISCLAIMER - HIGHLY EXPERIMENTAL!
-
-This package is highly experimental. I am actively testing different approaches, and the API is frequently changing. Use it at your own risk.
-
 ## Features
 
  - Unified API for multiple language models
