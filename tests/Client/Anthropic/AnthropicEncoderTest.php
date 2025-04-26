@@ -6,6 +6,7 @@ namespace Soukicz\Llm\Tests\Client\Anthropic;
 
 use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Client\Anthropic\AnthropicEncoder;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude35Sonnet;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
@@ -26,7 +27,7 @@ class AnthropicEncoderTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'claude-3-sonnet-20240229',
+            model: new AnthropicClaude35Sonnet(AnthropicClaude35Sonnet::VERSION_20241022),
             conversation: $conversation,
             temperature: 0.5,
             maxTokens: 500,
@@ -36,7 +37,7 @@ class AnthropicEncoderTest extends TestCase {
         $encoded = $this->encoder->encodeRequest($request);
 
         // Basic structure checks
-        $this->assertEquals('claude-3-sonnet-20240229', $encoded['model']);
+        $this->assertEquals('claude-3-5-sonnet-20241022', $encoded['model']);
         $this->assertEquals(500, $encoded['max_tokens']);
         $this->assertEquals(0.5, $encoded['temperature']);
         $this->assertEquals('System instruction', $encoded['system']);

@@ -38,6 +38,7 @@ The `LLMConversation` object supports JSON serialization and deserialization. Th
 ```php
 use Soukicz\Llm\Cache\FileCache;
 use Soukicz\Llm\Client\Anthropic\AnthropicClient;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
 use Soukicz\Llm\Client\LLMChainClient;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageText;
@@ -56,7 +57,7 @@ $chainClient = new LLMChainClient();
 $response = $chainClient->run(
     client: $anthropic,
     request: new LLMRequest(
-        model: AnthropicClient::MODEL_SONNET_37_20250219,
+        model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
         conversation: new LLMConversation([LLMMessage::createFromUser([new LLMMessageText('Hello, how are you?')])]),
     )
 );
@@ -67,7 +68,7 @@ echo $response->getLastText();
 $response = $chainClient->runAsync(
     client: $anthropic,
     request: new LLMRequest(
-        model: AnthropicClient::MODEL_SONNET_37_20250219,
+        model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
         conversation: new LLMConversation([LLMMessage::createFromUser([new LLMMessageText('Hello, how are you?')])]),
     )
 )->then(function (LLMResponse $response) {
@@ -84,6 +85,7 @@ use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Psr7\Response;
 use Soukicz\Llm\Cache\FileCache;
 use Soukicz\Llm\Client\Anthropic\AnthropicClient;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
 use Soukicz\Llm\Client\LLMChainClient;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageText;
@@ -126,7 +128,7 @@ $currencyTool = new CallbackToolDefinition(
 $response = $chainClient->run(
     client:$anthropic,
     request: new LLMRequest(
-        model: AnthropicClient::MODEL_SONNET_37_20250219,
+        model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
         conversation: new LLMConversation([LLMMessage::createFromUser([new LLMMessageText('How much is 100 USD in EUR today?')])]),
         tools: [$currencyTool],
     )
@@ -141,6 +143,7 @@ echo $response->getLastText();
 ```php
 use Soukicz\Llm\Cache\FileCache;
 use Soukicz\Llm\Client\Anthropic\AnthropicClient;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
 use Soukicz\Llm\Client\LLMChainClient;
 use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Message\LLMMessage;
@@ -157,7 +160,7 @@ $chainClient = new LLMChainClient();
 $response = $chainClient->run(
     client: $anthropic,
     request: new LLMRequest(
-        model: AnthropicClient::MODEL_SONNET_37_20250219,
+        model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
         conversation: new LLMConversation([LLMMessage::createFromUser([new LLMMessageText('List 5 animals in JSON array and wrap this array in XML tag named "animals"')])]),
     ),
     feedbackCallback: function (LLMResponse $llmResponse): ?LLMMessage {
@@ -186,6 +189,8 @@ You can use nested LLM calls within a feedback loop to validate complex response
 
 use Soukicz\Llm\Cache\FileCache;
 use Soukicz\Llm\Client\Anthropic\AnthropicClient;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude35Haiku;
 use Soukicz\Llm\Client\LLMChainClient;
 use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Message\LLMMessage;
@@ -202,7 +207,7 @@ $chainClient = new LLMChainClient();
 $response = $chainClient->run(
     client: $anthropic,
     request: new LLMRequest(
-        model: AnthropicClient::MODEL_SONNET_37_20250219,
+        model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
         conversation: new LLMConversation([LLMMessage::createFromUser([new LLMMessageText('List all US states in JSON array and wrap this array in XML tag named "states"')])]),
     ),
     feedbackCallback: function (LLMResponse $llmResponse) use ($anthropic, $chainClient): ?LLMMessage {
@@ -215,7 +220,7 @@ $response = $chainClient->run(
             $checkResponse = $chainClient->run(
                 client: $anthropic,
                 request: new LLMRequest(
-                    model: AnthropicClient::MODEL_HAIKU_35_20241022, // use cheap and fast model for this simple task
+                    model: new AnthropicClaude35Haiku(AnthropicClaude35Haiku::VERSION_20241022), // use cheap and fast model for this simple task
                     conversation: new LLMConversation([
                         LLMMessage::createFromUser([
                             new LLMMessageText(<<<EOT
@@ -254,6 +259,7 @@ Handle long responses using `continuationCallback`. The helper method `LLMChainC
 ```php
 use Soukicz\Llm\Cache\FileCache;
 use Soukicz\Llm\Client\Anthropic\AnthropicClient;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
 use Soukicz\Llm\Client\LLMChainClient;
 use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Message\LLMMessage;
@@ -270,7 +276,7 @@ $chainClient = new LLMChainClient();
 $response = $chainClient->run(
     client: $anthropic,
     request: new LLMRequest(
-        model: AnthropicClient::MODEL_SONNET_37_20250219,
+        model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
         conversation: new LLMConversation([LLMMessage::createFromUser([new LLMMessageText('List all US states. Batch output by 5 states and output each batch as JSON array and wrap this array in XML tag named "states"')])]),
         maxTokens: 55
     ),

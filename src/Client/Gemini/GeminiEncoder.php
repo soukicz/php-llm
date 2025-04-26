@@ -14,7 +14,6 @@ use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
-use Soukicz\Llm\Tool\ToolResponse;
 
 class GeminiEncoder implements ModelEncoder {
     public function encodeRequest(LLMRequest $request): array {
@@ -158,31 +157,23 @@ class GeminiEncoder implements ModelEncoder {
 
     public function decodeResponse(LLMRequest $request, ModelResponse $modelResponse): LLMRequest|LLMResponse {
         $response = $modelResponse->getData();
+        $model = $request->getModel();
 
-        if ($request->getModel() === GeminiClient::MODEL_GEMINI_2_5_PRO_PREVIEW_03_25) {
-            $inputPrice = $response['usageMetadata']['promptTokenCount'] * (1.25 / 1_000_000);
-            $outputPrice = $response['usageMetadata']['candidatesTokenCount'] * (10 / 1_000_000);
+        if (isset($response['usageMetadata'])) {
+            $promptTokenCount = $response['usageMetadata']['promptTokenCount'];
+            $outputTokenCount = $response['usageMetadata']['candidatesTokenCount'];
 
-        } elseif ($request->getModel() === GeminiClient::MODEL_GEMINI_2_0_FLASH) {
-            $inputPrice = $response['usageMetadata']['promptTokenCount'] * (0.10 / 1_000_000);
-            $outputPrice = $response['usageMetadata']['candidatesTokenCount'] * (0.40 / 1_000_000);
+            $inputPrice = $promptTokenCount * ($model->getInputPricePerMillionTokens() / 1_000_000);
+            $outputPrice = $outputTokenCount * ($model->getOutputPricePerMillionTokens() / 1_000_000);
 
-        } elseif ($request->getModel() === GeminiClient::MODEL_GEMINI_2_0_FLASH_LITE) {
-            $inputPrice = $response['usageMetadata']['promptTokenCount'] * (0.075 / 1_000_000);
-            $outputPrice = $response['usageMetadata']['candidatesTokenCount'] * (0.30 / 1_000_000);
-        } else {
-            $inputPrice = null;
-            $outputPrice = null;
-        }
-
-        if ($inputPrice !== null) {
             $request = $request->withCost(
-                $response['usageMetadata']['promptTokenCount'],
-                $response['usageMetadata']['candidatesTokenCount'],
+                $promptTokenCount,
+                $outputTokenCount,
                 $inputPrice,
                 $outputPrice
             );
         }
+
         $request = $request->withTime((int) $modelResponse->getResponseTimeMs());
 
         $candidate = $response['candidates'][0];

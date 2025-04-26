@@ -9,6 +9,7 @@ use GuzzleHttp\Promise\PromiseInterface;
 use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Client\LLMChainClient;
 use Soukicz\Llm\Client\LLMClient;
+use Soukicz\Llm\Client\OpenAI\Model\GPT41;
 use Soukicz\Llm\Client\StopReason;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
@@ -18,7 +19,6 @@ use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 use Soukicz\Llm\Tool\CallbackToolDefinition;
-use Soukicz\Llm\Tool\ToolDefinition;
 
 class LLMChainClientTest extends TestCase {
     /**
@@ -51,7 +51,7 @@ class LLMChainClientTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'test-model',
+            model: new GPT41(GPT41::VERSION_2025_04_14),
             conversation: $conversation,
             tools: [$calculatorTool]
         );
@@ -131,7 +131,7 @@ class LLMChainClientTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'test-model',
+            model: new GPT41(GPT41::VERSION_2025_04_14),
             conversation: $conversation,
             tools: [$calculatorTool, $weatherTool]
         );
@@ -232,7 +232,7 @@ class LLMChainClientTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'test-model',
+            model: new GPT41(GPT41::VERSION_2025_04_14),
             conversation: $conversation,
             tools: [$calculatorTool]
         );
@@ -375,7 +375,7 @@ class LLMChainClientTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'test-model',
+            model: new GPT41(GPT41::VERSION_2025_04_14),
             conversation: $conversation,
             tools: [$calculatorTool]
         );

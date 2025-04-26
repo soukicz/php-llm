@@ -11,6 +11,7 @@ use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Client\Gemini\GeminiClient;
+use Soukicz\Llm\Client\Gemini\Model\Gemini20Flash;
 use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
@@ -67,7 +68,7 @@ class GeminiClientTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: GeminiClient::MODEL_GEMINI_2_0_FLASH,
+            model: new Gemini20Flash(),
             conversation: $conversation
         );
 

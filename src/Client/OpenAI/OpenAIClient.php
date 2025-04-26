@@ -10,21 +10,30 @@ use Psr\Http\Message\ResponseInterface;
 use Soukicz\Llm\Cache\CacheInterface;
 use Soukicz\Llm\Client\LLMBatchClient;
 use Soukicz\Llm\Client\ModelResponse;
+use Soukicz\Llm\Client\OpenAI\Model\GPT4o;
+use Soukicz\Llm\Client\OpenAI\Model\GPT4oMini;
+use Soukicz\Llm\Client\OpenAI\Model\GPT41;
+use Soukicz\Llm\Client\OpenAI\Model\GPT41Mini;
+use Soukicz\Llm\Client\OpenAI\Model\GPT41Nano;
 use Soukicz\Llm\Http\HttpClientFactory;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
 
 class OpenAIClient extends OpenAIEncoder implements LLMBatchClient {
-
     public const CODE = 'openai';
 
     public const GPT_4O_MINI_2024_07_18 = 'gpt-4o-mini-2024-07-18';
+
     public const GPT_4O_2024_11_20 = 'gpt-4o-2024-11-20';
+
     public const GPT_41_2025_04_14 = 'gpt-4.1-2025-04-14';
+
     public const GPT_41_MINI_2025_04_14 = 'gpt-4.1-mini-2025-04-14';
+
     public const GPT_41_NANO_2025_04_14 = 'gpt-4.1-nano-2025-04-14';
 
     private ?Client $httpClient = null;
+
     private ?Client $cachedHttpClient = null;
 
     public function __construct(private readonly string $apiKey, private readonly string $apiOrganization, private readonly ?CacheInterface $cache = null, private $customHttpMiddleware = null) {
@@ -125,15 +134,15 @@ class OpenAIClient extends OpenAIEncoder implements LLMBatchClient {
             ],
         ]);
 
-        $response = $this->getHttpClient()->post('https://api.openai.com/v1/batches', [
+        $file = json_decode((string) $fileResponse->getBody(), true, 512, JSON_THROW_ON_ERROR);
+
+        $batchResult = $this->getHttpClient()->post('https://api.openai.com/v1/batches', [
             'json' => [
-                'input_file_id' => json_decode((string) $fileResponse->getBody(), true, 512, JSON_THROW_ON_ERROR)['id'],
-                'endpoint' => '/v1/chat/completions',
-                'completion_window' => '24h',
+                'file_id' => $file['id'],
             ],
         ]);
 
-        return json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR)['id'];
+        return json_decode((string) $batchResult->getBody(), true, 512, JSON_THROW_ON_ERROR)['id'];
     }
 
     public function retrieveBatch(string $batchId): ?array {
@@ -147,6 +156,7 @@ class OpenAIClient extends OpenAIEncoder implements LLMBatchClient {
                 return [];
             }
             $file = (string) $this->getHttpClient()->get('https://api.openai.com/v1/files/' . $response['error_file_id'] . '/content')->getBody();
+
             throw new \RuntimeException('Batch failed: ' . substr($file, 0, 1000));
         }
 

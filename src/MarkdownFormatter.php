@@ -19,7 +19,7 @@ class MarkdownFormatter {
             $response = $requestOrResponse;
         }
 
-        $markdown = ' - **Model:** ' . $request->getModel() . "\n";
+        $markdown = ' - **Model:** ' . $request->getModel()->getCode() . "\n";
         $markdown .= ' - **Temperature:** ' . $request->getTemperature() . "\n";
         $markdown .= ' - **Max tokens:** ' . $request->getMaxTokens() . "\n";
 
@@ -81,7 +81,6 @@ class MarkdownFormatter {
         }
 
         return $markdown;
-
     }
 
     private function formatPrice(float $price): string {

@@ -6,6 +6,7 @@ namespace Soukicz\Llm\Tests\Client\Anthropic;
 
 use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Client\Anthropic\AnthropicEncoder;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude35Sonnet;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
@@ -24,7 +25,7 @@ class AnthropicEncoderErrorsTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'claude-3-sonnet-20240229',
+            model: new AnthropicClaude35Sonnet(AnthropicClaude35Sonnet::VERSION_20241022),
             conversation: $conversation
         );
 
@@ -44,7 +45,7 @@ class AnthropicEncoderErrorsTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'claude-3-sonnet-20240229',
+            model: new AnthropicClaude35Sonnet(AnthropicClaude35Sonnet::VERSION_20241022),
             conversation: $conversation
         );
 
@@ -67,7 +68,7 @@ class AnthropicEncoderErrorsTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'claude-3-sonnet-20240229',
+            model: new AnthropicClaude35Sonnet(AnthropicClaude35Sonnet::VERSION_20241022),
             conversation: $conversation
         );
 

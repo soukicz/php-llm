@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Soukicz\Llm\Tests\Client\OpenAI;
 
 use PHPUnit\Framework\TestCase;
+use Soukicz\Llm\Client\OpenAI\Model\GPT41;
 use Soukicz\Llm\Client\OpenAI\OpenAIEncoder;
 use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\LLMConversation;
@@ -14,7 +15,6 @@ use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 use Soukicz\Llm\Tool\CallbackToolDefinition;
-use Soukicz\Llm\Tool\ToolDefinition;
 
 class OpenAIEncoderToolsTest extends TestCase {
     private OpenAIEncoder $encoder;
@@ -47,7 +47,7 @@ class OpenAIEncoderToolsTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'gpt-4o-2024-08-06',
+            model: new GPT41(GPT41::VERSION_2025_04_14),
             conversation: $conversation,
             tools: [$weatherTool]
         );
@@ -89,7 +89,7 @@ class OpenAIEncoderToolsTest extends TestCase {
         $conversation = new LLMConversation([$toolUseMessage]);
 
         $request = new LLMRequest(
-            model: 'gpt-4o-2024-08-06',
+            model: new GPT41(GPT41::VERSION_2025_04_14),
             conversation: $conversation
         );
 
@@ -122,7 +122,7 @@ class OpenAIEncoderToolsTest extends TestCase {
         $conversation = new LLMConversation([$toolResultMessage]);
 
         $request = new LLMRequest(
-            model: 'gpt-4o-2024-08-06',
+            model: new GPT41(GPT41::VERSION_2025_04_14),
             conversation: $conversation
         );
 
@@ -170,7 +170,7 @@ class OpenAIEncoderToolsTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'gpt-4o-2024-08-06',
+            model: new GPT41(GPT41::VERSION_2025_04_14),
             conversation: $conversation
         );
 
@@ -206,7 +206,7 @@ class OpenAIEncoderToolsTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'gpt-4o-2024-08-06',
+            model: new GPT41(GPT41::VERSION_2025_04_14),
             conversation: $conversation,
             reasoningConfig: ReasoningEffort::HIGH
         );

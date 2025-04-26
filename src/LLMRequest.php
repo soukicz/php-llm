@@ -2,6 +2,7 @@
 
 namespace Soukicz\Llm;
 
+use Soukicz\Llm\Client\ModelInterface;
 use Soukicz\Llm\Config\ReasoningConfig;
 use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\Message\LLMMessage;
@@ -15,7 +16,7 @@ class LLMRequest {
      * @param string[] $stopSequences
      */
     public function __construct(
-        private readonly string  $model,
+        private readonly ModelInterface  $model,
         private LLMConversation  $conversation,
         private readonly float   $temperature = 0.0,
         private readonly int     $maxTokens = 4096,
@@ -35,7 +36,7 @@ class LLMRequest {
         return $this->conversation;
     }
 
-    public function getModel(): string {
+    public function getModel(): ModelInterface {
         return $this->model;
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Soukicz\Llm\Tests\Client\OpenAI;
 
 use PHPUnit\Framework\TestCase;
+use Soukicz\Llm\Client\OpenAI\Model\GPT41;
 use Soukicz\Llm\Client\OpenAI\OpenAIEncoder;
 use Soukicz\Llm\Config\ReasoningBudget;
 use Soukicz\Llm\Config\ReasoningEffort;
@@ -30,7 +31,7 @@ class OpenAIEncoderErrorsTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'gpt-4o-2024-08-06',
+            model: new GPT41(GPT41::VERSION_2025_04_14),
             conversation: $conversation
         );
 
@@ -47,7 +48,7 @@ class OpenAIEncoderErrorsTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'gpt-4o-2024-08-06',
+            model: new GPT41(GPT41::VERSION_2025_04_14),
             conversation: $conversation,
             reasoningConfig: new ReasoningBudget(1000) // OpenAI only supports ReasoningEffort
         );
@@ -66,7 +67,7 @@ class OpenAIEncoderErrorsTest extends TestCase {
 
         // Test with LOW
         $requestLow = new LLMRequest(
-            model: 'gpt-4o-2024-08-06',
+            model: new GPT41(GPT41::VERSION_2025_04_14),
             conversation: $conversation,
             reasoningConfig: ReasoningEffort::LOW
         );
@@ -76,7 +77,7 @@ class OpenAIEncoderErrorsTest extends TestCase {
 
         // Test with MEDIUM
         $requestMedium = new LLMRequest(
-            model: 'gpt-4o-2024-08-06',
+            model: new GPT41(GPT41::VERSION_2025_04_14),
             conversation: $conversation,
             reasoningConfig: ReasoningEffort::MEDIUM
         );
@@ -86,7 +87,7 @@ class OpenAIEncoderErrorsTest extends TestCase {
 
         // Test with HIGH
         $requestHigh = new LLMRequest(
-            model: 'gpt-4o-2024-08-06',
+            model: new GPT41(GPT41::VERSION_2025_04_14),
             conversation: $conversation,
             reasoningConfig: ReasoningEffort::HIGH
         );

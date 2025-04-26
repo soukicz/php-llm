@@ -13,18 +13,13 @@ use Psr\Http\Message\ResponseInterface;
 use Soukicz\Llm\LLMResponse;
 
 class AnthropicClient extends AnthropicEncoder implements LLMBatchClient {
-
-    public const MODEL_SONNET_37_20250219 = 'claude-3-7-sonnet-20250219';
-    public const MODEL_SONNET_35_20241022 = 'claude-3-5-sonnet-20241022';
-    public const MODEL_HAIKU_35_20241022 = 'claude-3-5-haiku-20241022';
-
     public const CODE = 'anthropic';
 
     private ?Client $httpClient = null;
+
     private ?Client $cachedHttpClient = null;
 
     public function __construct(private readonly string $apiKey, private readonly ?CacheInterface $cache = null, private $customHttpMiddleware = null, private readonly array $betaFeatures = []) {
-
     }
 
     private function getHttpClient(): Client {

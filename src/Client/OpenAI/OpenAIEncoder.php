@@ -18,7 +18,6 @@ use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Tool\ToolResponse;
 
 class OpenAIEncoder implements ModelEncoder {
-
     public function encodeRequest(LLMRequest $request): array {
         $encodedMessages = [];
         foreach ($request->getConversation()->getMessages() as $message) {
@@ -91,7 +90,7 @@ class OpenAIEncoder implements ModelEncoder {
         }
 
         $requestData = [
-            'model' => $request->getModel(),
+            'model' => $request->getModel()->getCode(),
             'messages' => $encodedMessages,
             'max_completion_tokens' => $request->getMaxTokens(),
             'temperature' => $request->getTemperature(),
@@ -129,30 +128,18 @@ class OpenAIEncoder implements ModelEncoder {
 
     public function decodeResponse(LLMRequest $request, ModelResponse $modelResponse): LLMRequest|LLMResponse {
         $response = $modelResponse->getData();
+        $model = $request->getModel();
 
-        if ($request->getModel() === OpenAIClient::GPT_4O_2024_11_20) {
-            $inputPrice = $response['usage']['prompt_tokens'] * (2.5 / 1_000_000);
-            $outputPrice = $response['usage']['completion_tokens'] * (10 / 1_000_000);
-        } elseif ($request->getModel() === OpenAIClient::GPT_4O_MINI_2024_07_18) {
-            $inputPrice = $response['usage']['prompt_tokens'] * (0.150 / 1_000_000);
-            $outputPrice = $response['usage']['completion_tokens'] * (0.6 / 1_000_000);
-        } elseif ($request->getModel() === OpenAIClient::GPT_41_2025_04_14) {
-            $inputPrice = $response['usage']['prompt_tokens'] * (2 / 1_000_000);
-            $outputPrice = $response['usage']['completion_tokens'] * (8 / 1_000_000);
-        } elseif ($request->getModel() === OpenAIClient::GPT_41_MINI_2025_04_14) {
-            $inputPrice = $response['usage']['prompt_tokens'] * (0.4 / 1_000_000);
-            $outputPrice = $response['usage']['completion_tokens'] * (1.6 / 1_000_000);
-        } elseif ($request->getModel() === OpenAIClient::GPT_41_NANO_2025_04_14) {
-            $inputPrice = $response['usage']['prompt_tokens'] * (0.1 / 1_000_000);
-            $outputPrice = $response['usage']['completion_tokens'] * (0.4 / 1_000_000);
-        } else {
-            $inputPrice = null;
-            $outputPrice = null;
+        if (isset($response['usage'])) {
+            $promptTokens = $response['usage']['prompt_tokens'];
+            $completionTokens = $response['usage']['completion_tokens'];
+
+            $inputPrice = $promptTokens * ($model->getInputPricePerMillionTokens() / 1_000_000);
+            $outputPrice = $completionTokens * ($model->getOutputPricePerMillionTokens() / 1_000_000);
+
+            $request = $request->withCost($promptTokens, $completionTokens, $inputPrice, $outputPrice);
         }
 
-        if ($inputPrice) {
-            $request = $request->withCost($response['usage']['prompt_tokens'], $response['usage']['completion_tokens'], $inputPrice, $outputPrice);
-        }
         $request = $request->withTime((int) $modelResponse->getResponseTimeMs());
 
         $assistantMessage = $response['choices'][0]['message'];

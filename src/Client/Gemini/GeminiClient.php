@@ -17,12 +17,6 @@ use Soukicz\Llm\LLMResponse;
 class GeminiClient extends GeminiEncoder implements LLMClient {
     public const CODE = 'gemini';
 
-    public const MODEL_GEMINI_2_5_PRO_PREVIEW_03_25 = 'gemini-2.5-pro-preview-03-25';
-
-    public const MODEL_GEMINI_2_0_FLASH = 'gemini-2.0-flash';
-
-    public const MODEL_GEMINI_2_0_FLASH_LITE = 'gemini-2.0-flash-lite';
-
     private ?Client $httpClient = null;
 
     private ?Client $cachedHttpClient = null;
@@ -86,7 +80,7 @@ class GeminiClient extends GeminiEncoder implements LLMClient {
     }
 
     private function getGenerateContentRequest(LLMRequest $request): RequestInterface {
-        $url = "{$this->apiEndpoint}/models/{$request->getModel()}:generateContent?key={$this->apiKey}";
+        $url = "{$this->apiEndpoint}/models/{$request->getModel()->getCode()}:generateContent?key={$this->apiKey}";
 
         return new Request('POST', $url, [
             'Content-Type' => 'application/json',

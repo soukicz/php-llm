@@ -18,7 +18,6 @@ use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
 
 class AnthropicEncoder implements ModelEncoder {
-
     private function addCacheAttribute(LLMMessageContent $content, array $data): array {
         if ($content->isCached()) {
             $data['cache_control'] = ['type' => 'ephemeral'];
@@ -120,7 +119,7 @@ class AnthropicEncoder implements ModelEncoder {
             'max_tokens' => $request->getMaxTokens(),
             'temperature' => $request->getTemperature(),
             'messages' => $encodedMessages,
-            'model' => $request->getModel(),
+            'model' => $request->getModel()->getCode(),
         ];
 
         $reasoningConfig = $request->getReasoningConfig();
@@ -183,19 +182,12 @@ class AnthropicEncoder implements ModelEncoder {
 
         $cacheInputTokens = $response['usage']['cache_creation_input_tokens'] ?? 0;
         $cacheReadInputTokens = $response['usage']['cache_read_input_tokens'] ?? 0;
-        if (str_contains($request->getModel(), 'haiku')) {
-            $inputPrice = $response['usage']['input_tokens'] * (0.8 / 1000 / 1000);
-            $outputPrice = $response['usage']['output_tokens'] * (4 / 1000 / 1000);
 
-            $inputPrice += $cacheInputTokens * (1 / 1000 / 1000);
-            $outputPrice += $cacheReadInputTokens * (0.08 / 1000 / 1000);
-        } else {
-            $inputPrice = $response['usage']['input_tokens'] * (3 / 1000 / 1000);
-            $outputPrice = $response['usage']['output_tokens'] * (15 / 1000 / 1000);
+        $inputPrice = $response['usage']['input_tokens'] * ($request->getModel()->getInputPricePerMillionTokens() / 1000 / 1000);
+        $outputPrice = $response['usage']['output_tokens'] * ($request->getModel()->getOutputPricePerMillionTokens() / 1000 / 1000);
 
-            $inputPrice += $cacheInputTokens * (3.75 / 1000 / 1000);
-            $outputPrice += $cacheReadInputTokens * (0.3 / 1000 / 1000);
-        }
+        $inputPrice += $cacheInputTokens * ($request->getModel()->getCachedInputPricePerMillionTokens() / 1000 / 1000);
+        $outputPrice += $cacheReadInputTokens * ($request->getModel()->getCachedOutputPricePerMillionTokens() / 1000 / 1000);
 
         $request = $request
             ->withCost(

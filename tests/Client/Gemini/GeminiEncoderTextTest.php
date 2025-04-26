@@ -6,6 +6,7 @@ namespace Soukicz\Llm\Tests\Client\Gemini;
 
 use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Client\Gemini\GeminiEncoder;
+use Soukicz\Llm\Client\Gemini\Model\Gemini20Flash;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
@@ -26,7 +27,7 @@ class GeminiEncoderTextTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'gemini-2.0-flash',
+            model: new Gemini20Flash(),
             conversation: $conversation,
             temperature: 0.7,
             maxTokens: 1000
@@ -61,7 +62,7 @@ class GeminiEncoderTextTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'gemini-2.0-flash',
+            model: new Gemini20Flash(),
             conversation: $conversation
         );
 
@@ -88,7 +89,7 @@ class GeminiEncoderTextTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: 'gemini-2.0-flash',
+            model: new Gemini20Flash(),
             conversation: $conversation,
             stopSequences: ['END', 'FINISH']
         );
