@@ -43,12 +43,12 @@ class MarkdownFormatter {
                 } elseif ($content instanceof LLMMessagePdf) {
                     $markdown .= '**PDF** (' . $this->formatByteSize(strlen(base64_decode($content->getData()))) . ')';
                 } elseif ($content instanceof LLMMessageToolUse) {
-                    $markdown .= '**Tool use: ** ' . $content->getName() . ' (' . $content->getId() . ')' . "\n";
+                    $markdown .= '**Tool use:** ' . $content->getName() . ' (' . $content->getId() . ')' . "\n";
                     $markdown .= "```json\n";
                     $markdown .= json_encode($content->getInput(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n";
                     $markdown .= "```";
                 } elseif ($content instanceof LLMMessageToolResult) {
-                    $markdown .= "**Tool result: ** " . $content->getId() . "\n";
+                    $markdown .= "**Tool result:** " . $content->getId() . "\n";
                     $markdown .= "```\n";
                     if (is_string($content->getContent())) {
                         $markdown .= $content->getContent() . "\n";
