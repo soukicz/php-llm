@@ -64,12 +64,15 @@ class LLMChainClient {
                 foreach ($request->getTools() as $tool) {
                     if ($tool->getName() === $content->getName()) {
                         $input = $content->getInput();
+                        $noContent = is_array($input) && empty($input) && empty($tool->getInputSchema()['required']);
 
-                        try {
-                            Schema::import(json_decode(json_encode($tool->getInputSchema())))->in(json_decode(json_encode($input)));
-                        } catch (\Exception $e) {
-                            $toolResponseContents[] = Create::promiseFor(new LLMMessageToolResult($content->getId(), 'ERROR: Input is not matching expected schema: ' . $e->getMessage()));
-                            continue;
+                        if (!$noContent) {
+                            try {
+                                Schema::import(json_decode(json_encode($tool->getInputSchema())))->in(json_decode(json_encode($input)));
+                            } catch (\Exception $e) {
+                                $toolResponseContents[] = Create::promiseFor(new LLMMessageToolResult($content->getId(), 'ERROR: Input is not matching expected schema: ' . $e->getMessage()));
+                                continue;
+                            }
                         }
 
                         $toolResponse = $tool->handle($input);
