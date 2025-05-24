@@ -84,7 +84,7 @@ class MarkdownFormatter {
     }
 
     private function formatPrice(float $price): string {
-        return '$' . number_format(round($price, 3), 3) . ' (' . number_format(round($price * 24, 2), 2) . ' Kč)';
+        return '$' . number_format(round($price, 3), 3);
     }
 
     private function formatByteSize(int $size): string {
