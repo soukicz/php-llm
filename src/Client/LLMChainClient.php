@@ -64,7 +64,7 @@ class LLMChainClient {
                 foreach ($request->getTools() as $tool) {
                     if ($tool->getName() === $content->getName()) {
                         $input = $content->getInput();
-                        $noContent = is_array($input) && empty($input) && empty($tool->getInputSchema()['required']);
+                        $noContent = empty($input) && empty($tool->getInputSchema()['required']);
 
                         if (!$noContent) {
                             try {
