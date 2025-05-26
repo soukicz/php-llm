@@ -2,6 +2,7 @@
 
 namespace Soukicz\Llm\Client\Anthropic;
 
+use Soukicz\Llm\Client\Anthropic\Tool\AnthropicNativeTool;
 use Soukicz\Llm\Client\ModelEncoder;
 use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Client\StopReason;
@@ -147,6 +148,13 @@ class AnthropicEncoder implements ModelEncoder {
             $options['tools'] = [];
 
             foreach ($request->getTools() as $tool) {
+                if ($tool instanceof AnthropicNativeTool) {
+                    $options['tools'][] = [
+                        'type' => $tool->getType(),
+                        'name' => $tool->getName(),
+                    ];
+                    continue;
+                }
                 $schema = $tool->getInputSchema();
                 if (empty($schema['properties'])) {
                     $schema['properties'] = new \stdClass();
