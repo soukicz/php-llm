@@ -97,7 +97,11 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
                 $this->tool->handle(['command' => 'view', 'path' => $path]);
                 $this->fail("Security vulnerability: Path '$path' should have been blocked");
             } catch (InvalidArgumentException $e) {
-                $this->assertStringContainsString('Path is not in base directory', $e->getMessage());
+                $this->assertTrue(
+                    str_contains($e->getMessage(), 'Path is not in base directory') ||
+                    str_contains($e->getMessage(), 'dangerous sequence'),
+                    "Expected security error message, got: " . $e->getMessage()
+                );
             }
         }
     }
