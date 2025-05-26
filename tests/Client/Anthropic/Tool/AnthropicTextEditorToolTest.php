@@ -26,7 +26,7 @@ class AnthropicTextEditorToolTest extends TestCase {
         file_put_contents($this->testBaseDir . '/multiline.txt', "Line 1\nLine 2\nLine 3\nLine 4\nLine 5");
         file_put_contents($this->testBaseDir . '/subdir/nested.txt', 'Nested content');
 
-        $this->tool = new AnthropicTextEditorTool('test_tool', $this->testBaseDir);
+        $this->tool = new AnthropicTextEditorTool($this->testBaseDir);
     }
 
     protected function tearDown(): void {
@@ -343,7 +343,7 @@ class AnthropicTextEditorToolTest extends TestCase {
     }
 
     public function testToolProperties(): void {
-        $this->assertEquals('test_tool', $this->tool->getName());
+        $this->assertEquals('str_replace_based_edit_tool', $this->tool->getName());
         $this->assertEquals('text_editor_20250429', $this->tool->getType());
     }
 }

@@ -31,7 +31,7 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
         mkdir($this->testBaseDir . '/subdir', 0755, true);
         file_put_contents($this->testBaseDir . '/subdir/sub_file.txt', 'File in subdirectory');
 
-        $this->tool = new AnthropicTextEditorTool('test_tool', $this->testBaseDir);
+        $this->tool = new AnthropicTextEditorTool($this->testBaseDir);
     }
 
     protected function tearDown(): void {
@@ -67,14 +67,14 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
         // Test relative path rejection
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Base directory must be an absolute path');
-        new AnthropicTextEditorTool('test', 'relative/path');
+        new AnthropicTextEditorTool('relative/path');
     }
 
     public function testConstructorValidatesBaseDirectoryExists(): void {
         // Test non-existent directory rejection
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Base directory does not exist or is not accessible');
-        new AnthropicTextEditorTool('test', '/non/existent/directory');
+        new AnthropicTextEditorTool('/non/existent/directory');
     }
 
     /**

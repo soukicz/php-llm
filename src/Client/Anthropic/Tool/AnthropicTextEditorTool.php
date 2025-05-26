@@ -8,7 +8,7 @@ class AnthropicTextEditorTool extends AbstractAnthropicTextEditorTool {
 
     private readonly string $baseDir;
 
-    public function __construct(string $name, string $baseDir) {
+    public function __construct(string $baseDir) {
         if (!str_starts_with($baseDir, '/')) {
             throw new \InvalidArgumentException('Base directory must be an absolute path');
         }
@@ -21,7 +21,7 @@ class AnthropicTextEditorTool extends AbstractAnthropicTextEditorTool {
 
         $this->baseDir = $realBaseDir;
 
-        parent::__construct($name);
+        parent::__construct();
     }
 
     protected function getPath(string $path): string {

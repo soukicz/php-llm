@@ -7,11 +7,11 @@ use Soukicz\Llm\Tool\ToolDefinition;
 use Soukicz\Llm\Tool\ToolResponse;
 
 abstract class AbstractAnthropicTextEditorTool implements AnthropicNativeTool, ToolDefinition {
-    public function __construct(protected readonly string $name) {
+    public function __construct() {
     }
 
     public function getName(): string {
-        return $this->name;
+        return 'str_replace_based_edit_tool';
     }
 
     public function getType(): string {
