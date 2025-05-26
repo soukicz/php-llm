@@ -24,7 +24,7 @@ class AnthropicTextEditorTool extends AbstractAnthropicTextEditorTool {
         parent::__construct($name);
     }
 
-    private function getPath(string $path): string {
+    protected function getPath(string $path): string {
         // Basic validation
         if ($path === '') {
             throw new \InvalidArgumentException('Path is not in base directory or contains invalid characters');
@@ -50,7 +50,7 @@ class AnthropicTextEditorTool extends AbstractAnthropicTextEditorTool {
         // For non-existent files, check parent directory hierarchy
         if ($realPath === false) {
             $currentPath = dirname($path);
-            
+
             // Walk up the directory tree until we find an existing directory
             while ($currentPath !== '/' && $currentPath !== $this->baseDir) {
                 $realCurrentPath = realpath($currentPath);
@@ -63,7 +63,7 @@ class AnthropicTextEditorTool extends AbstractAnthropicTextEditorTool {
                 }
                 $currentPath = dirname($currentPath);
             }
-            
+
             // If we walked up to root or base dir without finding existing path, it's invalid
             if ($currentPath === '/' || ($currentPath !== $this->baseDir && realpath($currentPath) === false)) {
                 throw new \InvalidArgumentException('Path is not in base directory or contains invalid characters');
