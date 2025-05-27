@@ -103,11 +103,12 @@ class OpenAIClient extends OpenAIEncoder implements LLMBatchClient {
      */
     public function createBatch(array $requests): string {
         $body = '';
+        $endpoint = '/v1/chat/completions';
         foreach ($requests as $customId => $request) {
             $body .= json_encode([
                     'custom_id' => $customId,
                     'method' => 'POST',
-                    'url' => '/v1/chat/completions',
+                    'url' => $endpoint,
                     'body' => $this->encodeRequest($request),
                 ], JSON_THROW_ON_ERROR) . "\n";
         }
@@ -123,6 +124,8 @@ class OpenAIClient extends OpenAIEncoder implements LLMBatchClient {
 
         $batchResult = $this->getHttpClient()->post('https://api.openai.com/v1/batches', [
             'json' => [
+                'completion_window' => '24h',
+                'endpoint' => $endpoint,
                 'input_file_id' => $file['id'],
             ],
         ]);
