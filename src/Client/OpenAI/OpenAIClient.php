@@ -123,7 +123,7 @@ class OpenAIClient extends OpenAIEncoder implements LLMBatchClient {
 
         $batchResult = $this->getHttpClient()->post('https://api.openai.com/v1/batches', [
             'json' => [
-                'file_id' => $file['id'],
+                'input_file_id' => $file['id'],
             ],
         ]);
 
