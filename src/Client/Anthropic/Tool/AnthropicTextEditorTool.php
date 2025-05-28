@@ -25,10 +25,7 @@ class AnthropicTextEditorTool extends AbstractAnthropicTextEditorTool {
     }
 
     protected function getPath(string $path): string {
-        // Basic validation
-        if ($path === '') {
-            throw new \InvalidArgumentException('Path is not in base directory or contains invalid characters');
-        }
+        $path = ltrim($path, '/');
 
         if (str_contains($path, "\0")) {
             throw new \InvalidArgumentException('Path contains null bytes');
@@ -39,10 +36,7 @@ class AnthropicTextEditorTool extends AbstractAnthropicTextEditorTool {
             throw new \InvalidArgumentException('Path contains dangerous sequence');
         }
 
-        // Convert relative paths to absolute
-        if (!str_starts_with($path, '/')) {
-            $path = $this->baseDir . '/' . $path;
-        }
+        $path = $this->baseDir . '/' . $path;
 
         // Resolve the real path to handle symlinks and .. traversal
         $realPath = realpath($path);
@@ -157,14 +151,22 @@ class AnthropicTextEditorTool extends AbstractAnthropicTextEditorTool {
             return new ToolResponse("Error: Found $matchCount matches for replacement text. Please provide more context to make a unique match.");
         }
 
+        $count = 0;
         // Perform the replacement
-        $newContent = str_replace($oldString, $newString, $content);
+        $newContent = str_replace($oldString, $newString, $content, $count);
 
         if (file_put_contents($path, $newContent) === false) {
             return new ToolResponse('Error: Unable to write to file');
         }
 
-        return new ToolResponse('Successfully replaced text in file');
+        if ($count === 0) {
+            return new ToolResponse('Error: No occurrences replaced (string not found)');
+        }
+        if ($count === 1) {
+            return new ToolResponse('Successfully replaced 1 occurrence');
+        }
+
+        return new ToolResponse("Successfully replaced $count occurrence(s)");
     }
 
     protected function insertToFile(string $path, string $newString, int $afterLine): ToolResponse {

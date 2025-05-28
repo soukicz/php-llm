@@ -144,12 +144,7 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
         ];
 
         foreach ($maliciousPaths as $path) {
-            try {
-                $this->tool->handle(['command' => 'view', 'path' => $path]);
-                $this->fail("Security vulnerability: Absolute path '$path' should have been blocked");
-            } catch (InvalidArgumentException $e) {
-                $this->assertStringContainsString('Path is not in base directory', $e->getMessage());
-            }
+            $this->assertSame('Error: File not found', $this->tool->handle(['command' => 'view', 'path' => $path])->getData());
         }
     }
 
@@ -202,8 +197,8 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
     public function testLegitimatePathsWork(): void {
         $legitimatePaths = [
             // Absolute paths within base directory
-            $this->testBaseDir . '/safe_file.txt',
-            $this->testBaseDir . '/subdir/sub_file.txt',
+            '/safe_file.txt',
+            '/subdir/sub_file.txt',
 
             // Relative paths within base directory
             'safe_file.txt',
@@ -225,7 +220,6 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
         $maliciousPaths = [
             '../malicious_file.txt',
             '../../outside_create.txt',
-            $this->outsideDir . '/created_outside.txt',
         ];
 
         foreach ($maliciousPaths as $path) {
@@ -252,7 +246,6 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
         $maliciousPaths = [
             '../' . basename($this->outsideDir) . '/outside_file.txt',
             '../../tmp/system_file.txt',
-            $this->outsideDir . '/outside_file.txt',
         ];
 
         foreach ($maliciousPaths as $path) {
@@ -280,7 +273,6 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
         $maliciousPaths = [
             '../' . basename($this->outsideDir) . '/outside_file.txt',
             '../../tmp/system_file.txt',
-            $this->outsideDir . '/outside_file.txt',
         ];
 
         foreach ($maliciousPaths as $path) {
@@ -328,22 +320,6 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
      * Test edge cases and boundary conditions
      */
     public function testEdgeCases(): void {
-        // Test empty path
-        try {
-            $this->tool->handle(['command' => 'view', 'path' => '']);
-            $this->fail('Empty path should be rejected');
-        } catch (InvalidArgumentException $e) {
-            $this->assertStringContainsString('Path is not in base directory', $e->getMessage());
-        }
-
-        // Test just directory separator
-        try {
-            $this->tool->handle(['command' => 'view', 'path' => '/']);
-            $this->fail('Root path should be rejected');
-        } catch (InvalidArgumentException $e) {
-            $this->assertStringContainsString('Path is not in base directory', $e->getMessage());
-        }
-
         // Test current directory reference
         try {
             $this->tool->handle(['command' => 'view', 'path' => '.']);

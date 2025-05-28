@@ -89,7 +89,7 @@ class AnthropicTextEditorToolTest extends TestCase {
 
     public function testViewDirectoryByAbsolutePath(): void {
         // Test viewing directory by absolute path
-        $response = $this->tool->handle(['command' => 'view', 'path' => $this->testBaseDir]);
+        $response = $this->tool->handle(['command' => 'view', 'path' => '/']);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
         $content = $response->getData();
@@ -189,7 +189,7 @@ class AnthropicTextEditorToolTest extends TestCase {
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertEquals('Successfully replaced text in file', $response->getData());
+        $this->assertEquals('Successfully replaced 1 occurrence', $response->getData());
 
         // Verify content was changed
         $this->assertEquals('Hi World', file_get_contents($this->testBaseDir . '/simple.txt'));
@@ -204,7 +204,7 @@ class AnthropicTextEditorToolTest extends TestCase {
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertEquals('Successfully replaced text in file', $response->getData());
+        $this->assertEquals('Successfully replaced 1 occurrence', $response->getData());
 
         // Verify content was changed
         $expected = "Line 1\nModified Line 2\nModified Line 3\nLine 4\nLine 5";
