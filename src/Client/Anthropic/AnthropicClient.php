@@ -3,8 +3,10 @@
 namespace Soukicz\Llm\Client\Anthropic;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
 use Soukicz\Llm\Cache\CacheInterface;
 use Soukicz\Llm\Client\LLMBatchClient;
+use Soukicz\Llm\Client\LLMClientException;
 use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Http\HttpClientFactory;
 use Soukicz\Llm\LLMRequest;
@@ -60,6 +62,14 @@ class AnthropicClient extends AnthropicEncoder implements LLMBatchClient {
             'json' => $data,
         ])->then(function (ResponseInterface $response) {
             return new ModelResponse(json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR), (int) $response->getHeaderLine('X-Request-Duration-ms'));
+        }, function (\Throwable $e) {
+            if ($e instanceof ClientException && $e->getResponse()->getStatusCode() === 400) {
+                $data = json_decode((string) $e->getResponse()->getBody(), true, 512, JSON_THROW_ON_ERROR);
+                if (isset($data['type'], $data['error']['type'], $data['error']['message']) && $data['type'] === 'error') {
+                    throw new LLMClientException($data['error']['type'] . ': ' . $data['error']['message'], 400, $e);
+                }
+            }
+            throw $e;
         });
     }
 

@@ -2,7 +2,6 @@
 
 namespace Soukicz\Llm\Client;
 
-class LLMClientException
-{
+class LLMClientException extends \RuntimeException {
 
 }
