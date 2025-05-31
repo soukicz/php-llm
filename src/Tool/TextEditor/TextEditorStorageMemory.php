@@ -38,17 +38,6 @@ class TextEditorStorageMemory implements TextEditorStorage {
         return $path;
     }
 
-    private function getParentPath(string $path): string {
-        if ($path === '') {
-            return '';
-        }
-
-        $parts = explode('/', $path);
-        array_pop($parts);
-
-        return implode('/', $parts);
-    }
-
     private function createParentDirectories(string $path): void {
         if ($path === '') {
             return;
