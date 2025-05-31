@@ -99,11 +99,13 @@ class AnthropicEncoder implements ModelEncoder {
                     $toolResultContent = $messageContent->getContent();
                     if ($toolResultContent instanceof LLMMessageImage) {
                         $content = [
-                            'type' => 'image',
-                            'source' => [
-                                'type' => $toolResultContent->getEncoding(),
-                                'media_type' => $toolResultContent->getMediaType(),
-                                'data' => $toolResultContent->getData(),
+                            [
+                                'type' => 'image',
+                                'source' => [
+                                    'type' => $toolResultContent->getEncoding(),
+                                    'media_type' => $toolResultContent->getMediaType(),
+                                    'data' => $toolResultContent->getData(),
+                                ],
                             ],
                         ];
                     } elseif (is_string($toolResultContent)) {
