@@ -9,6 +9,11 @@
             "Soukicz\\Llm\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Soukicz\\Llm\\Tests\\": "tests/"
+        }
+    },
     "authors": [
         {
             "name": "Petr Soukup",

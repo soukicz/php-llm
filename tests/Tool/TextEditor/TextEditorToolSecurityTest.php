@@ -1,9 +1,11 @@
 <?php
 
-namespace Soukicz\Llm\Tool\TextEditor;
+namespace Soukicz\Llm\Tests\Tool\TextEditor;
 
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
+use Soukicz\Llm\Tool\TextEditor\TextEditorStorageFilesystem;
+use Soukicz\Llm\Tool\TextEditor\TextEditorTool;
 use Soukicz\Llm\Tool\ToolResponse;
 
 class TextEditorToolSecurityTest extends TestCase {

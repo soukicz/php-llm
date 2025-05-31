@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Soukicz\Llm\Tool\TextEditor;
+namespace Soukicz\Llm\Tests\Tool\TextEditor;
 
 use PHPUnit\Framework\TestCase;
+use Soukicz\Llm\Tool\TextEditor\TextEditorStorageFilesystem;
+use Soukicz\Llm\Tool\TextEditor\TextEditorTool;
 use Soukicz\Llm\Tool\ToolResponse;
 
 class TextEditorToolTest extends TestCase {
