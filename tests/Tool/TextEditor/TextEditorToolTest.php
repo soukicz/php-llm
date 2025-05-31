@@ -2,14 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Soukicz\Llm\Client\Anthropic\Tool;
+namespace Soukicz\Llm\Tool\TextEditor;
 
 use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Tool\ToolResponse;
 
-class AnthropicTextEditorToolTest extends TestCase {
+class TextEditorToolTest extends TestCase {
     private string $testBaseDir;
-    private AnthropicTextEditorTool $tool;
+    private TextEditorStorageFilesystem $storage;
+    private TextEditorTool $tool;
 
     protected function setUp(): void {
         parent::setUp();
@@ -26,7 +27,9 @@ class AnthropicTextEditorToolTest extends TestCase {
         file_put_contents($this->testBaseDir . '/multiline.txt', "Line 1\nLine 2\nLine 3\nLine 4\nLine 5");
         file_put_contents($this->testBaseDir . '/subdir/nested.txt', 'Nested content');
 
-        $this->tool = new AnthropicTextEditorTool($this->testBaseDir);
+        // Create storage and tool instances
+        $this->storage = new TextEditorStorageFilesystem($this->testBaseDir);
+        $this->tool = new TextEditorTool($this->storage);
     }
 
     protected function tearDown(): void {
@@ -66,23 +69,23 @@ class AnthropicTextEditorToolTest extends TestCase {
         return [
             'simple file' => [
                 ['command' => 'view', 'path' => 'simple.txt'],
-                'Hello World'
+                'Hello World',
             ],
             'multiline file' => [
                 ['command' => 'view', 'path' => 'multiline.txt'],
-                "Line 1\nLine 2\nLine 3\nLine 4\nLine 5"
+                "Line 1\nLine 2\nLine 3\nLine 4\nLine 5",
             ],
             'nested file' => [
                 ['command' => 'view', 'path' => 'subdir/nested.txt'],
-                'Nested content'
+                'Nested content',
             ],
             'file with line range' => [
                 ['command' => 'view', 'path' => 'multiline.txt', 'view_range' => [2, 4]],
-                "Line 2\nLine 3\nLine 4"
+                "Line 2\nLine 3\nLine 4",
             ],
             'file from line to end' => [
                 ['command' => 'view', 'path' => 'multiline.txt', 'view_range' => [3, -1]],
-                "Line 3\nLine 4\nLine 5"
+                "Line 3\nLine 4\nLine 5",
             ],
         ];
     }
@@ -122,7 +125,7 @@ class AnthropicTextEditorToolTest extends TestCase {
         $response = $this->tool->handle([
             'command' => 'create',
             'path' => 'new_file.txt',
-            'file_text' => $content
+            'file_text' => $content,
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
@@ -138,7 +141,7 @@ class AnthropicTextEditorToolTest extends TestCase {
         $response = $this->tool->handle([
             'command' => 'create',
             'path' => 'subdir/new_nested.txt',
-            'file_text' => $content
+            'file_text' => $content,
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
@@ -154,7 +157,7 @@ class AnthropicTextEditorToolTest extends TestCase {
         $response = $this->tool->handle([
             'command' => 'create',
             'path' => 'newdir/file.txt',
-            'file_text' => $content
+            'file_text' => $content,
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
@@ -170,7 +173,7 @@ class AnthropicTextEditorToolTest extends TestCase {
         $response = $this->tool->handle([
             'command' => 'create',
             'path' => 'simple.txt',
-            'file_text' => 'New content'
+            'file_text' => 'New content',
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
@@ -185,7 +188,7 @@ class AnthropicTextEditorToolTest extends TestCase {
             'command' => 'str_replace',
             'path' => 'simple.txt',
             'old_str' => 'Hello',
-            'new_str' => 'Hi'
+            'new_str' => 'Hi',
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
@@ -200,7 +203,7 @@ class AnthropicTextEditorToolTest extends TestCase {
             'command' => 'str_replace',
             'path' => 'multiline.txt',
             'old_str' => "Line 2\nLine 3",
-            'new_str' => "Modified Line 2\nModified Line 3"
+            'new_str' => "Modified Line 2\nModified Line 3",
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
@@ -216,7 +219,7 @@ class AnthropicTextEditorToolTest extends TestCase {
             'command' => 'str_replace',
             'path' => 'simple.txt',
             'old_str' => 'NotFound',
-            'new_str' => 'Replacement'
+            'new_str' => 'Replacement',
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
@@ -234,7 +237,7 @@ class AnthropicTextEditorToolTest extends TestCase {
             'command' => 'str_replace',
             'path' => 'duplicate.txt',
             'old_str' => 'test',
-            'new_str' => 'replaced'
+            'new_str' => 'replaced',
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
@@ -249,7 +252,7 @@ class AnthropicTextEditorToolTest extends TestCase {
             'command' => 'str_replace',
             'path' => 'nonexistent.txt',
             'old_str' => 'old',
-            'new_str' => 'new'
+            'new_str' => 'new',
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
@@ -261,7 +264,7 @@ class AnthropicTextEditorToolTest extends TestCase {
             'command' => 'insert',
             'path' => 'multiline.txt',
             'new_str' => 'Inserted Line',
-            'insert_line' => 2
+            'insert_line' => 2,
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
@@ -277,7 +280,7 @@ class AnthropicTextEditorToolTest extends TestCase {
             'command' => 'insert',
             'path' => 'simple.txt',
             'new_str' => 'First Line',
-            'insert_line' => 0
+            'insert_line' => 0,
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
@@ -293,7 +296,7 @@ class AnthropicTextEditorToolTest extends TestCase {
             'command' => 'insert',
             'path' => 'multiline.txt',
             'new_str' => 'Last Line',
-            'insert_line' => 5
+            'insert_line' => 5,
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
@@ -309,7 +312,7 @@ class AnthropicTextEditorToolTest extends TestCase {
             'command' => 'insert',
             'path' => 'multiline.txt',
             'new_str' => 'Invalid',
-            'insert_line' => 10
+            'insert_line' => 10,
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
@@ -325,7 +328,7 @@ class AnthropicTextEditorToolTest extends TestCase {
             'command' => 'insert',
             'path' => 'nonexistent.txt',
             'new_str' => 'text',
-            'insert_line' => 1
+            'insert_line' => 1,
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
@@ -335,7 +338,7 @@ class AnthropicTextEditorToolTest extends TestCase {
     public function testUnknownCommand(): void {
         $response = $this->tool->handle([
             'command' => 'invalid_command',
-            'path' => 'simple.txt'
+            'path' => 'simple.txt',
         ]);
 
         $this->assertInstanceOf(ToolResponse::class, $response);
@@ -344,6 +347,26 @@ class AnthropicTextEditorToolTest extends TestCase {
 
     public function testToolProperties(): void {
         $this->assertEquals('str_replace_based_edit_tool', $this->tool->getName());
-        $this->assertEquals('text_editor_20250429', $this->tool->getType());
+        $this->assertEquals('text_editor_20250429', $this->tool->getAnthropicType());
+        $this->assertEquals('str_replace_based_edit_tool', $this->tool->getAnthropicName());
+    }
+
+    public function testStorageMethods(): void {
+        // Test isFile method
+        $this->assertTrue($this->storage->isFile('simple.txt'));
+        $this->assertFalse($this->storage->isFile('subdir'));
+        $this->assertFalse($this->storage->isFile('nonexistent.txt'));
+
+        // Test isDirectory method
+        $this->assertTrue($this->storage->isDirectory('subdir'));
+        $this->assertFalse($this->storage->isDirectory('simple.txt'));
+        $this->assertFalse($this->storage->isDirectory('nonexistent'));
+
+        // Test getDirectoryContent returns string array
+        $contents = $this->storage->getDirectoryContent('/');
+        $this->assertIsArray($contents);
+        $this->assertContains('simple.txt', $contents);
+        $this->assertContains('multiline.txt', $contents);
+        $this->assertContains('subdir', $contents);
     }
 }

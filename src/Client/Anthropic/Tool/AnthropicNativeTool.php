@@ -6,9 +6,9 @@ use GuzzleHttp\Promise\PromiseInterface;
 use Soukicz\Llm\Tool\ToolResponse;
 
 interface AnthropicNativeTool {
-    public function getType(): string;
+    public function getAnthropicType(): string;
 
-    public function getName(): string;
+    public function getAnthropicName(): string;
 
     public function handle(array $input): ToolResponse|PromiseInterface;
 }

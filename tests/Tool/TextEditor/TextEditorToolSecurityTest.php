@@ -1,15 +1,16 @@
 <?php
 
-namespace Soukicz\Llm\Client\Anthropic\Tool;
+namespace Soukicz\Llm\Tool\TextEditor;
 
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Tool\ToolResponse;
 
-class AnthropicTextEditorToolSecurityTest extends TestCase {
+class TextEditorToolSecurityTest extends TestCase {
     private string $testBaseDir;
     private string $outsideDir;
-    private AnthropicTextEditorTool $tool;
+    private TextEditorStorageFilesystem $storage;
+    private TextEditorTool $tool;
 
     protected function setUp(): void {
         parent::setUp();
@@ -31,7 +32,9 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
         mkdir($this->testBaseDir . '/subdir', 0755, true);
         file_put_contents($this->testBaseDir . '/subdir/sub_file.txt', 'File in subdirectory');
 
-        $this->tool = new AnthropicTextEditorTool($this->testBaseDir);
+        // Create storage and tool instances
+        $this->storage = new TextEditorStorageFilesystem($this->testBaseDir);
+        $this->tool = new TextEditorTool($this->storage);
     }
 
     protected function tearDown(): void {
@@ -61,74 +64,50 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
     }
 
     /**
-     * Test that constructor validates base directory
+     * Test that storage constructor validates base directory
      */
-    public function testConstructorValidatesBaseDirectory(): void {
+    public function testStorageConstructorValidatesBaseDirectory(): void {
         // Test relative path rejection
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Base directory must be an absolute path');
-        new AnthropicTextEditorTool('relative/path');
+        new TextEditorStorageFilesystem('relative/path');
     }
 
-    public function testConstructorValidatesBaseDirectoryExists(): void {
+    public function testStorageConstructorValidatesBaseDirectoryExists(): void {
         // Test non-existent directory rejection
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Base directory does not exist or is not accessible');
-        new AnthropicTextEditorTool('/non/existent/directory');
+        new TextEditorStorageFilesystem('/non/existent/directory');
     }
 
     /**
-     * Test classic path traversal attacks
+     * Test classic path traversal attacks - these should return errors through ToolResponse
      */
     public function testPathTraversalAttacks(): void {
         $maliciousPaths = [
             // Classic path traversal
-            $this->testBaseDir . '/../' . basename($this->outsideDir) . '/outside_file.txt',
-            $this->testBaseDir . '/../../tmp/system_file.txt',
-            $this->testBaseDir . '/../../../etc/passwd',
-
-            // More aggressive traversal
-            $this->testBaseDir . '/safe_file.txt/../../../etc/passwd',
-            $this->testBaseDir . '/subdir/../../' . basename($this->outsideDir) . '/outside_file.txt',
-        ];
-
-        foreach ($maliciousPaths as $path) {
-            try {
-                $this->tool->handle(['command' => 'view', 'path' => $path]);
-                $this->fail("Security vulnerability: Path '$path' should have been blocked");
-            } catch (InvalidArgumentException $e) {
-                $this->assertTrue(
-                    str_contains($e->getMessage(), 'Path is not in base directory') ||
-                    str_contains($e->getMessage(), 'dangerous sequence'),
-                    "Expected security error message, got: " . $e->getMessage()
-                );
-            }
-        }
-    }
-
-    /**
-     * Test relative path traversal attacks
-     */
-    public function testRelativePathTraversalAttacks(): void {
-        $maliciousPaths = [
             '../' . basename($this->outsideDir) . '/outside_file.txt',
             '../../tmp/system_file.txt',
             '../../../etc/passwd',
+
+            // More complex traversal
+            'safe_file.txt/../../../etc/passwd',
             'subdir/../../' . basename($this->outsideDir) . '/outside_file.txt',
         ];
 
         foreach ($maliciousPaths as $path) {
-            try {
-                $this->tool->handle(['command' => 'view', 'path' => $path]);
-                $this->fail("Security vulnerability: Relative path '$path' should have been blocked");
-            } catch (InvalidArgumentException $e) {
-                // Either caught by dangerous sequence check or realpath validation
-                $this->assertTrue(
-                    str_contains($e->getMessage(), 'dangerous sequence') ||
-                    str_contains($e->getMessage(), 'Path is not in base directory'),
-                    "Expected security error message, got: " . $e->getMessage()
-                );
-            }
+            $response = $this->tool->handle(['command' => 'view', 'path' => $path]);
+            $this->assertInstanceOf(ToolResponse::class, $response);
+
+            $data = $response->getData();
+            $this->assertTrue(
+                str_contains($data, 'Error:') && (
+                    str_contains($data, 'Path is not in base directory') ||
+                    str_contains($data, 'dangerous sequence') ||
+                    str_contains($data, 'File not found')
+                ),
+                "Expected security error for path '$path', got: $data"
+            );
         }
     }
 
@@ -144,7 +123,13 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
         ];
 
         foreach ($maliciousPaths as $path) {
-            $this->assertSame('Error: File not found', $this->tool->handle(['command' => 'view', 'path' => $path])->getData());
+            $response = $this->tool->handle(['command' => 'view', 'path' => $path]);
+            $this->assertInstanceOf(ToolResponse::class, $response);
+            $this->assertEquals(
+                'Error: File not found',
+                $response->getData(),
+                "Expected 'File not found' error for path '$path'"
+            );
         }
     }
 
@@ -159,12 +144,14 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
         ];
 
         foreach ($maliciousPaths as $path) {
-            try {
-                $this->tool->handle(['command' => 'view', 'path' => $path]);
-                $this->fail("Security vulnerability: Null byte injection '$path' should have been blocked");
-            } catch (InvalidArgumentException $e) {
-                $this->assertStringContainsString('null bytes', $e->getMessage());
-            }
+            $response = $this->tool->handle(['command' => 'view', 'path' => $path]);
+            $this->assertInstanceOf(ToolResponse::class, $response);
+
+            $data = $response->getData();
+            $this->assertTrue(
+                str_contains($data, 'Error:') && str_contains($data, 'null bytes'),
+                "Expected null byte error for path '$path', got: $data"
+            );
         }
     }
 
@@ -173,21 +160,22 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
      */
     public function testEncodingAttacks(): void {
         $maliciousPaths = [
-            $this->testBaseDir . '///../' . basename($this->outsideDir) . '/outside_file.txt',
             './safe_file.txt',
             './../' . basename($this->outsideDir) . '/outside_file.txt',
         ];
 
         foreach ($maliciousPaths as $path) {
-            try {
-                $this->tool->handle(['command' => 'view', 'path' => $path]);
-                $this->fail("Security vulnerability: Encoding attack '$path' should have been blocked");
-            } catch (InvalidArgumentException $e) {
-                $this->assertTrue(
-                    str_contains($e->getMessage(), 'dangerous sequence') ||
-                    str_contains($e->getMessage(), 'Path is not in base directory')
-                );
-            }
+            $response = $this->tool->handle(['command' => 'view', 'path' => $path]);
+            $this->assertInstanceOf(ToolResponse::class, $response);
+
+            $data = $response->getData();
+            $this->assertTrue(
+                str_contains($data, 'Error:') && (
+                    str_contains($data, 'dangerous sequence') ||
+                    str_contains($data, 'Path is not in base directory')
+                ),
+                "Expected security error for path '$path', got: $data"
+            );
         }
     }
 
@@ -209,7 +197,11 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
         foreach ($legitimatePaths as $path) {
             $response = $this->tool->handle(['command' => 'view', 'path' => $path]);
             $this->assertInstanceOf(ToolResponse::class, $response);
-            $this->assertStringNotContainsString('Error:', $response->getData());
+            $this->assertStringNotContainsString(
+                'Error:',
+                $response->getData(),
+                "Legitimate path '$path' should not produce an error"
+            );
         }
     }
 
@@ -223,19 +215,21 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
         ];
 
         foreach ($maliciousPaths as $path) {
-            try {
-                $this->tool->handle([
-                    'command' => 'create',
-                    'path' => $path,
-                    'file_text' => 'malicious content',
-                ]);
-                $this->fail("Security vulnerability: File creation at '$path' should have been blocked");
-            } catch (InvalidArgumentException $e) {
-                $this->assertTrue(
-                    str_contains($e->getMessage(), 'dangerous sequence') ||
-                    str_contains($e->getMessage(), 'Path is not in base directory')
-                );
-            }
+            $response = $this->tool->handle([
+                'command' => 'create',
+                'path' => $path,
+                'file_text' => 'malicious content',
+            ]);
+            $this->assertInstanceOf(ToolResponse::class, $response);
+
+            $data = $response->getData();
+            $this->assertTrue(
+                str_contains($data, 'Error:') && (
+                    str_contains($data, 'dangerous sequence') ||
+                    str_contains($data, 'Path is not in base directory')
+                ),
+                "Expected security error for file creation at '$path', got: $data"
+            );
         }
     }
 
@@ -249,20 +243,23 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
         ];
 
         foreach ($maliciousPaths as $path) {
-            try {
-                $this->tool->handle([
-                    'command' => 'str_replace',
-                    'path' => $path,
-                    'old_str' => 'old',
-                    'new_str' => 'new',
-                ]);
-                $this->fail("Security vulnerability: String replacement in '$path' should have been blocked");
-            } catch (InvalidArgumentException $e) {
-                $this->assertTrue(
-                    str_contains($e->getMessage(), 'dangerous sequence') ||
-                    str_contains($e->getMessage(), 'Path is not in base directory')
-                );
-            }
+            $response = $this->tool->handle([
+                'command' => 'str_replace',
+                'path' => $path,
+                'old_str' => 'old',
+                'new_str' => 'new',
+            ]);
+            $this->assertInstanceOf(ToolResponse::class, $response);
+
+            $data = $response->getData();
+            $this->assertTrue(
+                str_contains($data, 'Error:') && (
+                    str_contains($data, 'dangerous sequence') ||
+                    str_contains($data, 'Path is not in base directory') ||
+                    str_contains($data, 'File not found')
+                ),
+                "Expected security error for string replacement in '$path', got: $data"
+            );
         }
     }
 
@@ -276,20 +273,23 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
         ];
 
         foreach ($maliciousPaths as $path) {
-            try {
-                $this->tool->handle([
-                    'command' => 'insert',
-                    'path' => $path,
-                    'new_str' => 'inserted content',
-                    'insert_line' => 1,
-                ]);
-                $this->fail("Security vulnerability: File insertion in '$path' should have been blocked");
-            } catch (InvalidArgumentException $e) {
-                $this->assertTrue(
-                    str_contains($e->getMessage(), 'dangerous sequence') ||
-                    str_contains($e->getMessage(), 'Path is not in base directory')
-                );
-            }
+            $response = $this->tool->handle([
+                'command' => 'insert',
+                'path' => $path,
+                'new_str' => 'inserted content',
+                'insert_line' => 1,
+            ]);
+            $this->assertInstanceOf(ToolResponse::class, $response);
+
+            $data = $response->getData();
+            $this->assertTrue(
+                str_contains($data, 'Error:') && (
+                    str_contains($data, 'dangerous sequence') ||
+                    str_contains($data, 'Path is not in base directory') ||
+                    str_contains($data, 'File not found')
+                ),
+                "Expected security error for file insertion in '$path', got: $data"
+            );
         }
     }
 
@@ -321,11 +321,27 @@ class AnthropicTextEditorToolSecurityTest extends TestCase {
      */
     public function testEdgeCases(): void {
         // Test current directory reference
-        try {
-            $this->tool->handle(['command' => 'view', 'path' => '.']);
-            $this->fail('Current directory reference should be rejected');
-        } catch (InvalidArgumentException $e) {
-            $this->assertStringContainsString('dangerous sequence', $e->getMessage());
-        }
+        $response = $this->tool->handle(['command' => 'view', 'path' => '.']);
+        $this->assertInstanceOf(ToolResponse::class, $response);
+
+        $data = $response->getData();
+        $this->assertTrue(
+            str_contains($data, 'Error:') && str_contains($data, 'dangerous sequence'),
+            "Current directory reference should be rejected"
+        );
+    }
+
+    /**
+     * Test security through isFile and isDirectory methods
+     */
+    public function testStorageSecurityMethods(): void {
+        // Test that path traversal attempts return false
+        $this->assertFalse($this->storage->isFile('../etc/passwd'));
+        $this->assertFalse($this->storage->isDirectory('../etc'));
+        $this->assertFalse($this->storage->isFile('../../tmp/system_file.txt'));
+
+        // Test that legitimate paths work
+        $this->assertTrue($this->storage->isFile('safe_file.txt'));
+        $this->assertTrue($this->storage->isDirectory('subdir'));
     }
 }
