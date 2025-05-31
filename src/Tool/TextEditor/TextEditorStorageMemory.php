@@ -49,17 +49,6 @@ class TextEditorStorageMemory implements TextEditorStorage {
         return implode('/', $parts);
     }
 
-    private function ensureParentDirectoryExists(string $path): void {
-        if ($path === '') {
-            return;
-        }
-
-        $parent = $this->getParentPath($path);
-        if (!isset($this->directories[$parent])) {
-            throw new RuntimeException('Parent directory does not exist');
-        }
-    }
-
     private function createParentDirectories(string $path): void {
         if ($path === '') {
             return;
