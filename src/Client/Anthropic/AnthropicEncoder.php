@@ -96,10 +96,20 @@ class AnthropicEncoder implements ModelEncoder {
                     }
                     $contents[] = $this->addCacheAttribute($messageContent, $input);
                 } elseif ($messageContent instanceof LLMMessageToolResult) {
-                    if (is_string($messageContent->getContent())) {
-                        $content = $messageContent->getContent();
+                    $toolResultContent = $messageContent->getContent();
+                    if ($toolResultContent instanceof LLMMessageImage) {
+                        $content = [
+                            'type' => 'image',
+                            'source' => [
+                                'type' => $toolResultContent->getEncoding(),
+                                'media_type' => $toolResultContent->getMediaType(),
+                                'data' => $toolResultContent->getData(),
+                            ],
+                        ];
+                    } elseif (is_string($toolResultContent)) {
+                        $content = $toolResultContent;
                     } else {
-                        $content = json_encode($messageContent->getContent(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                        $content = json_encode($toolResultContent, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                     }
                     $contents[] = $this->addCacheAttribute($messageContent, [
                         'type' => 'tool_result',
