@@ -81,7 +81,7 @@ class LLMChainClient {
                         }
 
                         $toolResponse = $tool->handle($input);
-                        if ($toolResponse instanceof LLMMessage) {
+                        if ($toolResponse instanceof LLMMessageContents) {
                             $toolResponse = Create::promiseFor($toolResponse);
                         }
                         $toolResponseContents[] = $toolResponse->then(function (LLMMessageContents $response) use ($content) {
