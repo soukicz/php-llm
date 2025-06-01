@@ -132,7 +132,7 @@ class OpenAIEncoderToolsTest extends TestCase {
         // Verify tool result structure
         $this->assertCount(1, $encoded['messages']);
         $this->assertEquals('tool', $encoded['messages'][0]['role']);
-        $this->assertEquals('{"temperature":72,"conditions":"sunny"}', $encoded['messages'][0]['content']);
+        $this->assertSame([['type' => 'text', 'text' => '{"temperature":72,"conditions":"sunny"}']], $encoded['messages'][0]['content']);
         $this->assertEquals('tool-123', $encoded['messages'][0]['tool_call_id']);
     }
 
@@ -188,7 +188,7 @@ class OpenAIEncoderToolsTest extends TestCase {
 
         // Tool result
         $this->assertEquals('tool', $encoded['messages'][2]['role']);
-        $this->assertEquals('The current temperature is 72°F with sunny conditions.', $encoded['messages'][2]['content']);
+        $this->assertSame([['type' => 'text', 'text' => 'The current temperature is 72°F with sunny conditions.']], $encoded['messages'][2]['content']);
         $this->assertEquals('tool-456', $encoded['messages'][2]['tool_call_id']);
 
         // Assistant response
