@@ -11,6 +11,7 @@ use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
@@ -38,12 +39,12 @@ class OpenAIEncoderToolsTest extends TestCase {
                 ],
                 'required' => ['location'],
             ],
-            fn () => [] // Empty handler for test
+            fn() => [] // Empty handler for test
         );
 
         // Create a simple request with tool
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('What is the weather in New York?')]),
+            LLMMessage::createFromUserString('What is the weather in New York?'),
         ]);
 
         $request = new LLMRequest(
@@ -77,14 +78,14 @@ class OpenAIEncoderToolsTest extends TestCase {
 
     public function testToolUseEncoding(): void {
         // Create a message with tool use content
-        $toolUseMessage = LLMMessage::createFromAssistant([
+        $toolUseMessage = LLMMessage::createFromAssistant(new LLMMessageContents([
             new LLMMessageToolUse(
                 'tool-123',
                 'weather',
                 ['location' => 'New York, NY'],
                 false
             ),
-        ]);
+        ]));
 
         $conversation = new LLMConversation([$toolUseMessage]);
 
@@ -111,13 +112,13 @@ class OpenAIEncoderToolsTest extends TestCase {
 
     public function testToolResultEncoding(): void {
         // Create a message with tool result content
-        $toolResultMessage = LLMMessage::createFromUser([
+        $toolResultMessage = LLMMessage::createFromUser(new LLMMessageContents([
             new LLMMessageToolResult(
                 'tool-123',
-                ['temperature' => 72, 'conditions' => 'sunny'],
+                LLMMessageContents::fromArrayData(['temperature' => 72, 'conditions' => 'sunny']),
                 false
             ),
-        ]);
+        ]));
 
         $conversation = new LLMConversation([$toolResultMessage]);
 
@@ -137,30 +138,26 @@ class OpenAIEncoderToolsTest extends TestCase {
 
     public function testToolConversationFlow(): void {
         // Create a conversation with tool use and tool result
-        $userMessage = LLMMessage::createFromUser([
-            new LLMMessageText('What is the weather in New York?'),
-        ]);
+        $userMessage = LLMMessage::createFromUserString('What is the weather in New York?');
 
-        $assistantToolUse = LLMMessage::createFromAssistant([
+        $assistantToolUse = LLMMessage::createFromAssistant(new LLMMessageContents([
             new LLMMessageToolUse(
                 'tool-456',
                 'weather',
                 ['location' => 'New York, NY'],
                 false
             ),
-        ]);
+        ]));
 
-        $userToolResult = LLMMessage::createFromUser([
+        $userToolResult = LLMMessage::createFromUser(new LLMMessageContents([
             new LLMMessageToolResult(
                 'tool-456',
-                'The current temperature is 72°F with sunny conditions.',
+                LLMMessageContents::fromString('The current temperature is 72°F with sunny conditions.'),
                 false
             ),
-        ]);
+        ]));
 
-        $assistantResponse = LLMMessage::createFromAssistant([
-            new LLMMessageText('The weather in New York is currently sunny with a temperature of 72°F.'),
-        ]);
+        $assistantResponse = LLMMessage::createFromAssistantString('The weather in New York is currently sunny with a temperature of 72°F.');
 
         $conversation = new LLMConversation([
             $userMessage,
@@ -202,7 +199,7 @@ class OpenAIEncoderToolsTest extends TestCase {
     public function testReasoningEffort(): void {
         // Create a request with reasoning effort
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('What is 15 * 17?')]),
+            LLMMessage::createFromUserString('What is 15 * 17?'),
         ]);
 
         $request = new LLMRequest(

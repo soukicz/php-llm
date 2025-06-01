@@ -4,14 +4,14 @@ namespace Soukicz\Llm\Client\Anthropic;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Promise\PromiseInterface;
+use Psr\Http\Message\ResponseInterface;
 use Soukicz\Llm\Cache\CacheInterface;
 use Soukicz\Llm\Client\LLMBatchClient;
 use Soukicz\Llm\Client\LLMClientException;
 use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Http\HttpClientFactory;
 use Soukicz\Llm\LLMRequest;
-use GuzzleHttp\Promise\PromiseInterface;
-use Psr\Http\Message\ResponseInterface;
 use Soukicz\Llm\LLMResponse;
 
 class AnthropicClient extends AnthropicEncoder implements LLMBatchClient {

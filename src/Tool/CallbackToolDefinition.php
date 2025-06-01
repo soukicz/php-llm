@@ -3,6 +3,7 @@
 namespace Soukicz\Llm\Tool;
 
 use GuzzleHttp\Promise\PromiseInterface;
+use Soukicz\Llm\Message\LLMMessageContents;
 
 class CallbackToolDefinition implements ToolDefinition {
     private string $name;
@@ -33,15 +34,15 @@ class CallbackToolDefinition implements ToolDefinition {
         return $this->inputSchema;
     }
 
-    public function handle(array $input): PromiseInterface|ToolResponse {
+    public function handle(array $input): PromiseInterface|LLMMessageContents {
         $result = ($this->handler)($input);
 
         if ($result instanceof PromiseInterface) {
-            return $result->then(static function (mixed $response) {
-                return new ToolResponse($response);
+            return $result->then(static function (LLMMessageContents $response) {
+                return $response;
             });
         }
 
-        return new ToolResponse($result);
+        return $result;
     }
 }

@@ -18,8 +18,8 @@ class AnthropicEncoderTextTest extends TestCase {
 
         // Create a conversation with only text
         $conversation = new LLMConversation([
-            LLMMessage::createFromSystem([new LLMMessageText('You are a helpful assistant.')]),
-            LLMMessage::createFromUser([new LLMMessageText('Hello')]),
+            LLMMessage::createFromSystemString('You are a helpful assistant.'),
+            LLMMessage::createFromUserString('Hello'),
         ]);
 
         $request = new LLMRequest(
@@ -50,9 +50,9 @@ class AnthropicEncoderTextTest extends TestCase {
 
         // Create a conversation with multiple messages
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('First message')]),
-            LLMMessage::createFromAssistant([new LLMMessageText('First response')]),
-            LLMMessage::createFromUser([new LLMMessageText('Second message')]),
+            LLMMessage::createFromUserString('First message'),
+            LLMMessage::createFromAssistantString('First response'),
+            LLMMessage::createFromUserString('Second message'),
         ]);
 
         $request = new LLMRequest(

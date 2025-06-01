@@ -3,14 +3,14 @@
 namespace Soukicz\Llm\Message;
 
 class LLMMessageToolResult implements LLMMessageContent {
-    public function __construct(private readonly string $id, private readonly mixed $content, private readonly bool $cached = false) {
+    public function __construct(private readonly string $id, private readonly LLMMessageContents $content, private readonly bool $cached = false) {
     }
 
     public function getId(): string {
         return $this->id;
     }
 
-    public function getContent() {
+    public function getContent(): LLMMessageContents {
         return $this->content;
     }
 
@@ -27,7 +27,7 @@ class LLMMessageToolResult implements LLMMessageContent {
     }
 
     public static function fromJson(array $data): self {
-        return new self($data['id'], $data['content'], $data['cached']);
+        return new self($data['id'], LLMMessageContents::fromJson($data['content']), $data['cached']);
     }
 
 }

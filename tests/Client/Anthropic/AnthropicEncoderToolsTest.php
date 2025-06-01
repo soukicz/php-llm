@@ -11,12 +11,12 @@ use Soukicz\Llm\Config\ReasoningBudget;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageReasoning;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 use Soukicz\Llm\Tool\CallbackToolDefinition;
-use Soukicz\Llm\Tool\ToolDefinition;
 
 class AnthropicEncoderToolsTest extends TestCase {
     public function testToolDefinitions(): void {
@@ -36,12 +36,12 @@ class AnthropicEncoderToolsTest extends TestCase {
                 ],
                 'required' => ['location'],
             ],
-            fn () => [] // Empty handler for test
+            fn() => [] // Empty handler for test
         );
 
         // Create a simple request with tool
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('What is the weather?')]),
+            LLMMessage::createFromUserString('What is the weather?'),
         ]);
 
         $request = new LLMRequest(
@@ -76,18 +76,16 @@ class AnthropicEncoderToolsTest extends TestCase {
         $encoder = new AnthropicEncoder();
 
         // Create a conversation with tool use and results
-        $userMessage = LLMMessage::createFromUser([
-            new LLMMessageText('What is 2+2?'),
-        ]);
+        $userMessage = LLMMessage::createFromUserString('What is 2+2?');
 
-        $assistantMessage = LLMMessage::createFromAssistant([
+        $assistantMessage = LLMMessage::createFromAssistant(new LLMMessageContents([
             new LLMMessageReasoning('I should use the calculator', 'sig123', false),
             new LLMMessageToolUse('tool-abc', 'calculator', ['expression' => '2+2'], false),
-        ]);
+        ]));
 
-        $userToolResultMessage = LLMMessage::createFromUser([
-            new LLMMessageToolResult('tool-abc', ['result' => 4], false),
-        ]);
+        $userToolResultMessage = LLMMessage::createFromUser(new LLMMessageContents([
+            new LLMMessageToolResult('tool-abc', LLMMessageContents::fromArrayData(['result' => 4]), false),
+        ]));
 
         $conversation = new LLMConversation([
             $userMessage,
@@ -132,7 +130,7 @@ class AnthropicEncoderToolsTest extends TestCase {
 
         // Create a request with reasoning budget
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('Solve this complex problem')]),
+            LLMMessage::createFromUserString('Solve this complex problem'),
         ]);
 
         $request = new LLMRequest(

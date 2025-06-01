@@ -19,7 +19,7 @@ class LLMResponse {
 
     public function getLastText(): string {
         $lastMessage = $this->getConversation()->getMessages()[count($this->getConversation()->getMessages()) - 1];
-        foreach (array_reverse($lastMessage->getContents()) as $content) {
+        foreach (array_reverse(iterator_to_array($lastMessage->getContents())) as $content) {
             if ($content instanceof LLMMessageText) {
                 return $content->getText();
             }

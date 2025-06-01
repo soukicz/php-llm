@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Soukicz\Llm\Tests\Tool\TextEditor;
 
 use PHPUnit\Framework\TestCase;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Tool\TextEditor\TextEditorStorageFilesystem;
 use Soukicz\Llm\Tool\TextEditor\TextEditorTool;
-use Soukicz\Llm\Tool\ToolResponse;
 
 class TextEditorToolTest extends TestCase {
     private string $testBaseDir;
@@ -63,8 +63,8 @@ class TextEditorToolTest extends TestCase {
     public function testViewFile(array $input, string $expectedContent): void {
         $response = $this->tool->handle($input);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertEquals($expectedContent, $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertEquals($expectedContent, $response->getMessages()[0]->getText());
     }
 
     public static function viewFileProvider(): array {
@@ -96,8 +96,8 @@ class TextEditorToolTest extends TestCase {
         // Test viewing directory by absolute path
         $response = $this->tool->handle(['command' => 'view', 'path' => '/']);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $content = $response->getData();
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $content = $response->getMessages()[0]->getText();
 
         $this->assertStringContainsString('Directory contents of', $content);
         $this->assertStringContainsString('FILE: simple.txt', $content);
@@ -108,8 +108,8 @@ class TextEditorToolTest extends TestCase {
     public function testViewSubdirectory(): void {
         $response = $this->tool->handle(['command' => 'view', 'path' => 'subdir']);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $content = $response->getData();
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $content = $response->getMessages()[0]->getText();
 
         $this->assertStringContainsString('Directory contents of', $content);
         $this->assertStringContainsString('FILE: nested.txt', $content);
@@ -118,8 +118,8 @@ class TextEditorToolTest extends TestCase {
     public function testViewNonExistentFile(): void {
         $response = $this->tool->handle(['command' => 'view', 'path' => 'nonexistent.txt']);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertEquals('Error: File not found', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertEquals('Error: File not found', $response->getMessages()[0]->getText());
     }
 
     public function testCreateFile(): void {
@@ -130,8 +130,8 @@ class TextEditorToolTest extends TestCase {
             'file_text' => $content,
         ]);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertStringContainsString('Successfully created file:', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertStringContainsString('Successfully created file:', $response->getMessages()[0]->getText());
 
         // Verify file was created with correct content
         $this->assertFileExists($this->testBaseDir . '/new_file.txt');
@@ -146,8 +146,8 @@ class TextEditorToolTest extends TestCase {
             'file_text' => $content,
         ]);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertStringContainsString('Successfully created file:', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertStringContainsString('Successfully created file:', $response->getMessages()[0]->getText());
 
         // Verify file was created
         $this->assertFileExists($this->testBaseDir . '/subdir/new_nested.txt');
@@ -162,8 +162,8 @@ class TextEditorToolTest extends TestCase {
             'file_text' => $content,
         ]);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertStringContainsString('Successfully created file:', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertStringContainsString('Successfully created file:', $response->getMessages()[0]->getText());
 
         // Verify directory and file were created
         $this->assertDirectoryExists($this->testBaseDir . '/newdir');
@@ -178,8 +178,8 @@ class TextEditorToolTest extends TestCase {
             'file_text' => 'New content',
         ]);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertEquals('Error: File already exists', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertEquals('Error: File already exists', $response->getMessages()[0]->getText());
 
         // Verify original content unchanged
         $this->assertEquals('Hello World', file_get_contents($this->testBaseDir . '/simple.txt'));
@@ -193,8 +193,8 @@ class TextEditorToolTest extends TestCase {
             'new_str' => 'Hi',
         ]);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertEquals('Successfully replaced 1 occurrence', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertEquals('Successfully replaced 1 occurrence', $response->getMessages()[0]->getText());
 
         // Verify content was changed
         $this->assertEquals('Hi World', file_get_contents($this->testBaseDir . '/simple.txt'));
@@ -208,8 +208,8 @@ class TextEditorToolTest extends TestCase {
             'new_str' => "Modified Line 2\nModified Line 3",
         ]);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertEquals('Successfully replaced 1 occurrence', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertEquals('Successfully replaced 1 occurrence', $response->getMessages()[0]->getText());
 
         // Verify content was changed
         $expected = "Line 1\nModified Line 2\nModified Line 3\nLine 4\nLine 5";
@@ -224,8 +224,8 @@ class TextEditorToolTest extends TestCase {
             'new_str' => 'Replacement',
         ]);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertEquals('Error: No match found for replacement. Please check your text and try again.', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertEquals('Error: No match found for replacement. Please check your text and try again.', $response->getMessages()[0]->getText());
 
         // Verify content unchanged
         $this->assertEquals('Hello World', file_get_contents($this->testBaseDir . '/simple.txt'));
@@ -242,8 +242,8 @@ class TextEditorToolTest extends TestCase {
             'new_str' => 'replaced',
         ]);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertStringContainsString('Found 3 matches for replacement text', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertStringContainsString('Found 3 matches for replacement text', $response->getMessages()[0]->getText());
 
         // Verify content unchanged
         $this->assertEquals('test test test', file_get_contents($this->testBaseDir . '/duplicate.txt'));
@@ -257,8 +257,8 @@ class TextEditorToolTest extends TestCase {
             'new_str' => 'new',
         ]);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertEquals('Error: File not found', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertEquals('Error: File not found', $response->getMessages()[0]->getText());
     }
 
     public function testInsertToFile(): void {
@@ -269,8 +269,8 @@ class TextEditorToolTest extends TestCase {
             'insert_line' => 2,
         ]);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertEquals('Successfully inserted text after line 2', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertEquals('Successfully inserted text after line 2', $response->getMessages()[0]->getText());
 
         // Verify content was inserted
         $expected = "Line 1\nLine 2\nInserted Line\nLine 3\nLine 4\nLine 5";
@@ -285,8 +285,8 @@ class TextEditorToolTest extends TestCase {
             'insert_line' => 0,
         ]);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertEquals('Successfully inserted text after line 0', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertEquals('Successfully inserted text after line 0', $response->getMessages()[0]->getText());
 
         // Verify content was inserted at beginning
         $expected = "First Line\nHello World";
@@ -301,8 +301,8 @@ class TextEditorToolTest extends TestCase {
             'insert_line' => 5,
         ]);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertEquals('Successfully inserted text after line 5', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertEquals('Successfully inserted text after line 5', $response->getMessages()[0]->getText());
 
         // Verify content was inserted at end
         $expected = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLast Line";
@@ -317,8 +317,8 @@ class TextEditorToolTest extends TestCase {
             'insert_line' => 10,
         ]);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertStringContainsString('Line number 10 is out of range', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertStringContainsString('Line number 10 is out of range', $response->getMessages()[0]->getText());
 
         // Verify content unchanged
         $expected = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
@@ -333,8 +333,8 @@ class TextEditorToolTest extends TestCase {
             'insert_line' => 1,
         ]);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertEquals('Error: File not found', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertEquals('Error: File not found', $response->getMessages()[0]->getText());
     }
 
     public function testUnknownCommand(): void {
@@ -343,8 +343,8 @@ class TextEditorToolTest extends TestCase {
             'path' => 'simple.txt',
         ]);
 
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertEquals('ERROR: Unknown command: invalid_command', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertEquals('ERROR: Unknown command: invalid_command', $response->getMessages()[0]->getText());
     }
 
     public function testToolProperties(): void {

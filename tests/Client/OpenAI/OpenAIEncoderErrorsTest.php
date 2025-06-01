@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Soukicz\Llm\Tests\Client\OpenAI;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Client\OpenAI\Model\GPT41;
 use Soukicz\Llm\Client\OpenAI\OpenAIEncoder;
@@ -12,6 +13,7 @@ use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageReasoning;
 use Soukicz\Llm\Message\LLMMessageText;
 
@@ -25,9 +27,9 @@ class OpenAIEncoderErrorsTest extends TestCase {
     public function testUnsupportedMessageTypeThrowsException(): void {
         // Create a conversation with an unsupported message type
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([
+            LLMMessage::createFromUser(new LLMMessageContents([
                 new LLMMessageReasoning('This is reasoning', 'sig123', false),
-            ]),
+            ])),
         ]);
 
         $request = new LLMRequest(
@@ -35,8 +37,8 @@ class OpenAIEncoderErrorsTest extends TestCase {
             conversation: $conversation
         );
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Unsupported message type');
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unsupported message content type');
 
         $this->encoder->encodeRequest($request);
     }
@@ -44,7 +46,7 @@ class OpenAIEncoderErrorsTest extends TestCase {
     public function testUnsupportedReasoningConfigThrowsException(): void {
         // Create a request with unsupported reasoning config
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('Hello')]),
+            LLMMessage::createFromUserString('Hello'),
         ]);
 
         $request = new LLMRequest(
@@ -53,7 +55,7 @@ class OpenAIEncoderErrorsTest extends TestCase {
             reasoningConfig: new ReasoningBudget(1000) // OpenAI only supports ReasoningEffort
         );
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Unsupported reasoning config type');
 
         $this->encoder->encodeRequest($request);
@@ -62,7 +64,7 @@ class OpenAIEncoderErrorsTest extends TestCase {
     public function testReasoningEffortValues(): void {
         // Test all enum values for ReasoningEffort
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('Hello')]),
+            LLMMessage::createFromUserString('Hello'),
         ]);
 
         // Test with LOW

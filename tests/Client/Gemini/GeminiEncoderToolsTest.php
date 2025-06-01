@@ -10,11 +10,10 @@ use Soukicz\Llm\Client\Gemini\Model\Gemini20Flash;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
-use Soukicz\Llm\Message\LLMMessageText;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 use Soukicz\Llm\Tool\CallbackToolDefinition;
-use Soukicz\Llm\Tool\Tool;
 
 class GeminiEncoderToolsTest extends TestCase {
     private GeminiEncoder $encoder;
@@ -26,7 +25,7 @@ class GeminiEncoderToolsTest extends TestCase {
     public function testRequestWithTools(): void {
         // Create a simple request with tools
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('What is the weather like in Prague?')]),
+            LLMMessage::createFromUserString('What is the weather like in Prague?'),
         ]);
 
         $weatherTool = new CallbackToolDefinition(
@@ -74,14 +73,14 @@ class GeminiEncoderToolsTest extends TestCase {
     public function testFunctionCallMessage(): void {
         // Test a conversation with a function call from the assistant
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('What is the weather like in Prague?')]),
-            LLMMessage::createFromAssistant([
+            LLMMessage::createFromUserString('What is the weather like in Prague?'),
+            LLMMessage::createFromAssistant(new LLMMessageContents([
                 new LLMMessageToolUse(
                     'tool_1',
                     'get_weather',
                     ['location' => 'Prague, CZ']
                 ),
-            ]),
+            ])),
         ]);
 
         $request = new LLMRequest(
@@ -106,20 +105,20 @@ class GeminiEncoderToolsTest extends TestCase {
     public function testFunctionResultMessage(): void {
         // Test a conversation with a function result message
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('What is the weather like in Prague?')]),
-            LLMMessage::createFromAssistant([
+            LLMMessage::createFromUserString('What is the weather like in Prague?'),
+            LLMMessage::createFromAssistant(new LLMMessageContents([
                 new LLMMessageToolUse(
                     'tool_1',
                     'get_weather',
                     ['location' => 'Prague, CZ']
                 ),
-            ]),
-            LLMMessage::createFromUser([
+            ])),
+            LLMMessage::createFromUser(new LLMMessageContents([
                 new LLMMessageToolResult(
                     'tool_1',
-                    ['temperature' => 22, 'condition' => 'sunny']
+                    LLMMessageContents::fromArrayData(['temperature' => 22, 'condition' => 'sunny'])
                 ),
-            ]),
+            ])),
         ]);
 
         $request = new LLMRequest(
@@ -142,23 +141,21 @@ class GeminiEncoderToolsTest extends TestCase {
     public function testCompleteFunctionFlow(): void {
         // Test a complete conversation with a user query, function call, function result, and final answer
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('What is the weather like in Prague?')]),
-            LLMMessage::createFromAssistant([
+            LLMMessage::createFromUserString('What is the weather like in Prague?'),
+            LLMMessage::createFromAssistant(new LLMMessageContents([
                 new LLMMessageToolUse(
                     'tool_1',
                     'get_weather',
                     ['location' => 'Prague, CZ']
                 ),
-            ]),
-            LLMMessage::createFromUser([
+            ])),
+            LLMMessage::createFromUser(new LLMMessageContents([
                 new LLMMessageToolResult(
                     'tool_1',
-                    ['temperature' => 22, 'condition' => 'sunny']
+                    LLMMessageContents::fromArrayData(['temperature' => 22, 'condition' => 'sunny'])
                 ),
-            ]),
-            LLMMessage::createFromAssistant([
-                new LLMMessageText('The weather in Prague is sunny with a temperature of 22°C.'),
-            ]),
+            ])),
+            LLMMessage::createFromAssistantString('The weather in Prague is sunny with a temperature of 22°C.'),
         ]);
 
         $request = new LLMRequest(

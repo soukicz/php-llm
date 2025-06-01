@@ -5,8 +5,8 @@ namespace Soukicz\Llm\Tool\TextEditor;
 use InvalidArgumentException;
 use RuntimeException;
 use Soukicz\Llm\Client\Anthropic\Tool\AnthropicNativeTool;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Tool\ToolDefinition;
-use Soukicz\Llm\Tool\ToolResponse;
 
 class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
     private readonly TextEditorStorage $storage;
@@ -27,7 +27,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
         return 'text_editor_20250429';
     }
 
-    public function handle(array $input): ToolResponse {
+    public function handle(array $input): LLMMessageContents {
         if ($input['command'] === 'view') {
             if (isset($input['view_range'])) {
                 $fromLine = $input['view_range'][0] - 1;
@@ -60,7 +60,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
             return $this->createFile($input['path'], $input['file_text'] ?? '');
         }
 
-        return new ToolResponse('ERROR: Unknown command: ' . $input['command']);
+        return LLMMessageContents::fromString('ERROR: Unknown command: ' . $input['command']);
     }
 
     public function getDescription(): string {
@@ -111,7 +111,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
         ];
     }
 
-    protected function viewFile(string $path, ?int $fromLine, ?int $toLine): ToolResponse {
+    protected function viewFile(string $path, ?int $fromLine, ?int $toLine): LLMMessageContents {
         try {
             // Check if it's a directory
             if ($this->storage->isDirectory($path)) {
@@ -129,7 +129,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
                     }
                 }
 
-                return new ToolResponse($output);
+                return LLMMessageContents::fromString($output);
             }
 
             // Handle file viewing
@@ -137,7 +137,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
 
             // If no line range specified, return entire file
             if ($fromLine === null && $toLine === null) {
-                return new ToolResponse($content);
+                return LLMMessageContents::fromString($content);
             }
 
             // Split content into lines for range viewing
@@ -153,13 +153,13 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
 
             $selectedLines = array_slice($lines, $startIndex, $endIndex - $startIndex + 1);
 
-            return new ToolResponse(implode("\n", $selectedLines));
+            return LLMMessageContents::fromString(implode("\n", $selectedLines));
         } catch (RuntimeException|InvalidArgumentException $e) {
-            return new ToolResponse('Error: ' . $e->getMessage());
+            return LLMMessageContents::fromString('Error: ' . $e->getMessage());
         }
     }
 
-    protected function replaceInFile(string $path, string $oldString, string $newString): ToolResponse {
+    protected function replaceInFile(string $path, string $oldString, string $newString): LLMMessageContents {
         try {
             $content = $this->storage->getFileContent($path);
 
@@ -167,11 +167,11 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
             $matchCount = substr_count($content, $oldString);
 
             if ($matchCount === 0) {
-                return new ToolResponse('Error: No match found for replacement. Please check your text and try again.');
+                return LLMMessageContents::fromString('Error: No match found for replacement. Please check your text and try again.');
             }
 
             if ($matchCount > 1) {
-                return new ToolResponse("Error: Found $matchCount matches for replacement text. Please provide more context to make a unique match.");
+                return LLMMessageContents::fromString("Error: Found $matchCount matches for replacement text. Please provide more context to make a unique match.");
             }
 
             $count = 0;
@@ -181,19 +181,19 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
             $this->storage->setFileContent($path, $newContent);
 
             if ($count === 0) {
-                return new ToolResponse('Error: No occurrences replaced (string not found)');
+                return LLMMessageContents::fromString('Error: No occurrences replaced (string not found)');
             }
             if ($count === 1) {
-                return new ToolResponse('Successfully replaced 1 occurrence');
+                return LLMMessageContents::fromString('Successfully replaced 1 occurrence');
             }
 
-            return new ToolResponse("Successfully replaced $count occurrence(s)");
+            return LLMMessageContents::fromString("Successfully replaced $count occurrence(s)");
         } catch (RuntimeException|InvalidArgumentException $e) {
-            return new ToolResponse('Error: ' . $e->getMessage());
+            return LLMMessageContents::fromString('Error: ' . $e->getMessage());
         }
     }
 
-    protected function insertToFile(string $path, string $newString, int $afterLine): ToolResponse {
+    protected function insertToFile(string $path, string $newString, int $afterLine): LLMMessageContents {
         try {
             $content = $this->storage->getFileContent($path);
 
@@ -203,7 +203,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
 
             // Validate line number (1-indexed in the API, but we need 0-indexed for array operations)
             if ($afterLine < 0 || $afterLine > $totalLines) {
-                return new ToolResponse("Error: Line number $afterLine is out of range. File has $totalLines lines.");
+                return LLMMessageContents::fromString("Error: Line number $afterLine is out of range. File has $totalLines lines.");
             }
 
             // Insert the new string after the specified line
@@ -215,19 +215,19 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
 
             $this->storage->setFileContent($path, $newContent);
 
-            return new ToolResponse("Successfully inserted text after line $afterLine");
+            return LLMMessageContents::fromString("Successfully inserted text after line $afterLine");
         } catch (RuntimeException|InvalidArgumentException $e) {
-            return new ToolResponse('Error: ' . $e->getMessage());
+            return LLMMessageContents::fromString('Error: ' . $e->getMessage());
         }
     }
 
-    protected function createFile(string $path, string $content): ToolResponse {
+    protected function createFile(string $path, string $content): LLMMessageContents {
         try {
             $this->storage->createFile($path, $content);
 
-            return new ToolResponse("Successfully created file: $path");
+            return LLMMessageContents::fromString("Successfully created file: $path");
         } catch (RuntimeException|InvalidArgumentException $e) {
-            return new ToolResponse('Error: ' . $e->getMessage());
+            return LLMMessageContents::fromString('Error: ' . $e->getMessage());
         }
     }
 }

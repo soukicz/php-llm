@@ -6,7 +6,9 @@ namespace Soukicz\Llm\Tests\Client;
 
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Soukicz\Llm\Client\LLMChainClient;
 use Soukicz\Llm\Client\LLMClient;
 use Soukicz\Llm\Client\OpenAI\Model\GPT41;
@@ -15,6 +17,7 @@ use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
@@ -41,13 +44,13 @@ class LLMChainClientTest extends TestCase {
             ],
             function (array $input): PromiseInterface {
                 // Simple calculator that just returns the input and "4" as the result
-                return Create::promiseFor(['result' => 4]);
+                return Create::promiseFor(LLMMessageContents::fromArrayData(['result' => 4]));
             }
         );
 
         // Create a request with the calculator tool
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('What is 2+2?')]),
+            LLMMessage::createFromUserString('What is 2+2?'),
         ]);
 
         $request = new LLMRequest(
@@ -60,7 +63,7 @@ class LLMChainClientTest extends TestCase {
         $response1 = $this->createToolUseResponse($request, 'tool-123', 'calculator', ['expression' => '2+2']);
 
         $request2 = $response1->getRequest()->withMessage(
-            LLMMessage::createFromUser([new LLMMessageToolResult('tool-123', ['result' => 4])])
+            LLMMessage::createFromUser(new LLMMessageContents([new LLMMessageToolResult('tool-123', LLMMessageContents::fromArrayData(['result' => 4]))]))
         );
 
         $response2 = $this->createFinalResponse($request2, 'The answer is 4');
@@ -98,7 +101,7 @@ class LLMChainClientTest extends TestCase {
             function (array $input): PromiseInterface {
                 $result = $input['expression'] === '2+2' ? 4 : 7;
 
-                return Create::promiseFor(['result' => $result]);
+                return Create::promiseFor(LLMMessageContents::fromArrayData(['result' => $result]));
             }
         );
 
@@ -117,17 +120,17 @@ class LLMChainClientTest extends TestCase {
                 'required' => ['location'],
             ],
             function (array $input): PromiseInterface {
-                return Create::promiseFor([
+                return Create::promiseFor(LLMMessageContents::fromArrayData([
                     'temperature' => 72,
                     'condition' => 'sunny',
                     'location' => $input['location'],
-                ]);
+                ]));
             }
         );
 
         // Create a request with both tools
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('What is 2+2 and then add 3? Also what\'s the weather in New York?')]),
+            LLMMessage::createFromUserString('What is 2+2 and then add 3? Also what\'s the weather in New York?'),
         ]);
 
         $request = new LLMRequest(
@@ -142,7 +145,7 @@ class LLMChainClientTest extends TestCase {
 
         // Create a request that includes the tool result from the first request
         $request2 = $response1->getRequest()->withMessage(
-            LLMMessage::createFromUser([new LLMMessageToolResult('tool-123', ['result' => 4])])
+            LLMMessage::createFromUser(new LLMMessageContents([new LLMMessageToolResult('tool-123', LLMMessageContents::fromArrayData(['result' => 4]))]))
         );
 
         // Create second response with another tool use
@@ -150,7 +153,7 @@ class LLMChainClientTest extends TestCase {
 
         // Create a request that includes the tool result from the second request
         $request3 = $response2->getRequest()->withMessage(
-            LLMMessage::createFromUser([new LLMMessageToolResult('tool-456', ['result' => 7])])
+            LLMMessage::createFromUser(new LLMMessageContents([new LLMMessageToolResult('tool-456', LLMMessageContents::fromArrayData(['result' => 7]))]))
         );
 
         // Create third response with third tool use
@@ -158,13 +161,13 @@ class LLMChainClientTest extends TestCase {
 
         // Create a request that includes the tool result from the third request
         $request4 = $response3->getRequest()->withMessage(
-            LLMMessage::createFromUser([
-                new LLMMessageToolResult('tool-789', [
+            LLMMessage::createFromUser(new LLMMessageContents([
+                new LLMMessageToolResult('tool-789', LLMMessageContents::fromArrayData([
                     'temperature' => 72,
                     'condition' => 'sunny',
                     'location' => 'New York',
-                ]),
-            ])
+                ])),
+            ]))
         );
 
         // Create final response
@@ -175,7 +178,10 @@ class LLMChainClientTest extends TestCase {
 
         // Create the mock client with the chain of responses
         $mockClient = $this->createMockLLMClient([
-            $response1, $response2, $response3, $response4,
+            $response1,
+            $response2,
+            $response3,
+            $response4,
         ]);
 
         // Create the chain client and run the request
@@ -222,13 +228,13 @@ class LLMChainClientTest extends TestCase {
                 'required' => ['expression'],
             ],
             function (array $input): PromiseInterface {
-                return Create::promiseFor(['result' => 4]);
+                return Create::promiseFor(LLMMessageContents::fromArrayData(['result' => 4]));
             }
         );
 
         // Create a request
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('What is 2+2?')]),
+            LLMMessage::createFromUserString('What is 2+2?'),
         ]);
 
         $request = new LLMRequest(
@@ -269,7 +275,7 @@ class LLMChainClientTest extends TestCase {
      *
      * @param array<LLMResponse> $responses
      */
-    private function createMockLLMClient(array $responses): LLMClient {
+    private function createMockLLMClient(array $responses): MockObject&LLMClient {
         $mockClient = $this->createMock(LLMClient::class);
 
         $responseQueue = $responses;
@@ -277,7 +283,7 @@ class LLMChainClientTest extends TestCase {
         $mockClient->method('sendRequestAsync')
             ->willReturnCallback(function () use (&$responseQueue) {
                 if (empty($responseQueue)) {
-                    throw new \RuntimeException('No more responses in queue');
+                    throw new RuntimeException('No more responses in queue');
                 }
 
                 $response = array_shift($responseQueue);
@@ -293,14 +299,14 @@ class LLMChainClientTest extends TestCase {
      */
     private function createToolUseResponse(
         LLMRequest $request,
-        string $toolId,
-        string $toolName,
-        array $toolInput
+        string     $toolId,
+        string     $toolName,
+        array      $toolInput
     ): LLMResponse {
         $updatedConversation = $request->getConversation()->withMessage(
-            LLMMessage::createFromAssistant([
+            LLMMessage::createFromAssistant(new LLMMessageContents([
                 new LLMMessageToolUse($toolId, $toolName, $toolInput),
-            ])
+            ]))
         );
 
         $updatedRequest = new LLMRequest(
@@ -326,7 +332,7 @@ class LLMChainClientTest extends TestCase {
      */
     private function createFinalResponse(LLMRequest $request, string $text): LLMResponse {
         $updatedConversation = $request->getConversation()->withMessage(
-            LLMMessage::createFromAssistant([new LLMMessageText($text)])
+            LLMMessage::createFromAssistantString($text)
         );
 
         $updatedRequest = new LLMRequest(
@@ -365,13 +371,13 @@ class LLMChainClientTest extends TestCase {
                 'required' => ['expression'],
             ],
             function (array $input): PromiseInterface {
-                return Create::promiseFor(['result' => 4]);
+                return Create::promiseFor(LLMMessageContents::fromArrayData(['result' => 4]));
             }
         );
 
         // Create a request
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('What is 2+2?')]),
+            LLMMessage::createFromUserString('What is 2+2?'),
         ]);
 
         $request = new LLMRequest(
@@ -386,7 +392,7 @@ class LLMChainClientTest extends TestCase {
 
         // Create request with tool result
         $toolResultRequest = $combinedResponse->getRequest()->withMessage(
-            LLMMessage::createFromUser([new LLMMessageToolResult('tool-123', ['result' => 4])])
+            LLMMessage::createFromUser(new LLMMessageContents([new LLMMessageToolResult('tool-123', LLMMessageContents::fromArrayData(['result' => 4]))]))
         );
 
         // Final response after tool handling
@@ -419,15 +425,15 @@ class LLMChainClientTest extends TestCase {
      */
     private function createToolUseAndLengthResponse(
         LLMRequest $request,
-        string $toolId,
-        string $toolName,
-        array $toolInput
+        string     $toolId,
+        string     $toolName,
+        array      $toolInput
     ): LLMResponse {
         $updatedConversation = $request->getConversation()->withMessage(
-            LLMMessage::createFromAssistant([
+            LLMMessage::createFromAssistant(new LLMMessageContents([
                 new LLMMessageText('This response is incomplete and would trigger continuation...'),
                 new LLMMessageToolUse($toolId, $toolName, $toolInput),
-            ])
+            ]))
         );
 
         $updatedRequest = new LLMRequest(
@@ -454,7 +460,7 @@ class LLMChainClientTest extends TestCase {
      */
     private function createLengthResponse(LLMRequest $request, string $text): LLMResponse {
         $updatedConversation = $request->getConversation()->withMessage(
-            LLMMessage::createFromAssistant([new LLMMessageText($text)])
+            LLMMessage::createFromAssistantString($text)
         );
 
         $updatedRequest = new LLMRequest(

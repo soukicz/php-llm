@@ -6,6 +6,7 @@ use Soukicz\Llm\Client\ModelInterface;
 use Soukicz\Llm\Config\ReasoningConfig;
 use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Tool\ToolDefinition;
 
@@ -155,9 +156,9 @@ class LLMRequest {
             }
         }
         if ($lastMessage->isUser()) {
-            $messages[] = LLMMessage::createFromUser($contents);
+            $messages[] = LLMMessage::createFromUser(new LLMMessageContents($contents));
         } else {
-            $messages[] = LLMMessage::createFromAssistant($contents);
+            $messages[] = LLMMessage::createFromAssistant(new LLMMessageContents($contents));
         }
 
         $clone = clone $this;

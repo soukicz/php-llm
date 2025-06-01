@@ -4,9 +4,9 @@ namespace Soukicz\Llm\Tests\Tool\TextEditor;
 
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Tool\TextEditor\TextEditorStorageFilesystem;
 use Soukicz\Llm\Tool\TextEditor\TextEditorTool;
-use Soukicz\Llm\Tool\ToolResponse;
 
 class TextEditorToolSecurityTest extends TestCase {
     private string $testBaseDir;
@@ -83,7 +83,7 @@ class TextEditorToolSecurityTest extends TestCase {
     }
 
     /**
-     * Test classic path traversal attacks - these should return errors through ToolResponse
+     * Test classic path traversal attacks - these should return errors through LLMMessageContents
      */
     public function testPathTraversalAttacks(): void {
         $maliciousPaths = [
@@ -99,9 +99,9 @@ class TextEditorToolSecurityTest extends TestCase {
 
         foreach ($maliciousPaths as $path) {
             $response = $this->tool->handle(['command' => 'view', 'path' => $path]);
-            $this->assertInstanceOf(ToolResponse::class, $response);
+            $this->assertInstanceOf(LLMMessageContents::class, $response);
 
-            $data = $response->getData();
+            $data = $response->getMessages()[0]->getText();
             $this->assertTrue(
                 str_contains($data, 'Error:') && (
                     str_contains($data, 'Path is not in base directory') ||
@@ -126,10 +126,10 @@ class TextEditorToolSecurityTest extends TestCase {
 
         foreach ($maliciousPaths as $path) {
             $response = $this->tool->handle(['command' => 'view', 'path' => $path]);
-            $this->assertInstanceOf(ToolResponse::class, $response);
+            $this->assertInstanceOf(LLMMessageContents::class, $response);
             $this->assertEquals(
                 'Error: File not found',
-                $response->getData(),
+                $response->getMessages()[0]->getText(),
                 "Expected 'File not found' error for path '$path'"
             );
         }
@@ -147,9 +147,9 @@ class TextEditorToolSecurityTest extends TestCase {
 
         foreach ($maliciousPaths as $path) {
             $response = $this->tool->handle(['command' => 'view', 'path' => $path]);
-            $this->assertInstanceOf(ToolResponse::class, $response);
+            $this->assertInstanceOf(LLMMessageContents::class, $response);
 
-            $data = $response->getData();
+            $data = $response->getMessages()[0]->getText();
             $this->assertTrue(
                 str_contains($data, 'Error:') && str_contains($data, 'null bytes'),
                 "Expected null byte error for path '$path', got: $data"
@@ -168,9 +168,9 @@ class TextEditorToolSecurityTest extends TestCase {
 
         foreach ($maliciousPaths as $path) {
             $response = $this->tool->handle(['command' => 'view', 'path' => $path]);
-            $this->assertInstanceOf(ToolResponse::class, $response);
+            $this->assertInstanceOf(LLMMessageContents::class, $response);
 
-            $data = $response->getData();
+            $data = $response->getMessages()[0]->getText();
             $this->assertTrue(
                 str_contains($data, 'Error:') && (
                     str_contains($data, 'dangerous sequence') ||
@@ -198,10 +198,10 @@ class TextEditorToolSecurityTest extends TestCase {
 
         foreach ($legitimatePaths as $path) {
             $response = $this->tool->handle(['command' => 'view', 'path' => $path]);
-            $this->assertInstanceOf(ToolResponse::class, $response);
+            $this->assertInstanceOf(LLMMessageContents::class, $response);
             $this->assertStringNotContainsString(
                 'Error:',
-                $response->getData(),
+                $response->getMessages()[0]->getText(),
                 "Legitimate path '$path' should not produce an error"
             );
         }
@@ -222,9 +222,9 @@ class TextEditorToolSecurityTest extends TestCase {
                 'path' => $path,
                 'file_text' => 'malicious content',
             ]);
-            $this->assertInstanceOf(ToolResponse::class, $response);
+            $this->assertInstanceOf(LLMMessageContents::class, $response);
 
-            $data = $response->getData();
+            $data = $response->getMessages()[0]->getText();
             $this->assertTrue(
                 str_contains($data, 'Error:') && (
                     str_contains($data, 'dangerous sequence') ||
@@ -251,9 +251,9 @@ class TextEditorToolSecurityTest extends TestCase {
                 'old_str' => 'old',
                 'new_str' => 'new',
             ]);
-            $this->assertInstanceOf(ToolResponse::class, $response);
+            $this->assertInstanceOf(LLMMessageContents::class, $response);
 
-            $data = $response->getData();
+            $data = $response->getMessages()[0]->getText();
             $this->assertTrue(
                 str_contains($data, 'Error:') && (
                     str_contains($data, 'dangerous sequence') ||
@@ -281,9 +281,9 @@ class TextEditorToolSecurityTest extends TestCase {
                 'new_str' => 'inserted content',
                 'insert_line' => 1,
             ]);
-            $this->assertInstanceOf(ToolResponse::class, $response);
+            $this->assertInstanceOf(LLMMessageContents::class, $response);
 
-            $data = $response->getData();
+            $data = $response->getMessages()[0]->getText();
             $this->assertTrue(
                 str_contains($data, 'Error:') && (
                     str_contains($data, 'dangerous sequence') ||
@@ -301,8 +301,8 @@ class TextEditorToolSecurityTest extends TestCase {
     public function testSubdirectoryAccess(): void {
         // Test legitimate subdirectory access
         $response = $this->tool->handle(['command' => 'view', 'path' => 'subdir/sub_file.txt']);
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertStringContainsString('File in subdirectory', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertStringContainsString('File in subdirectory', $response->getMessages()[0]->getText());
 
         // Test legitimate file creation in subdirectory
         $response = $this->tool->handle([
@@ -310,8 +310,8 @@ class TextEditorToolSecurityTest extends TestCase {
             'path' => 'subdir/new_file.txt',
             'file_text' => 'New file content',
         ]);
-        $this->assertInstanceOf(ToolResponse::class, $response);
-        $this->assertStringContainsString('Successfully created', $response->getData());
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertStringContainsString('Successfully created', $response->getMessages()[0]->getText());
 
         // Verify the file was created in the right place
         $this->assertFileExists($this->testBaseDir . '/subdir/new_file.txt');
@@ -324,9 +324,9 @@ class TextEditorToolSecurityTest extends TestCase {
     public function testEdgeCases(): void {
         // Test current directory reference
         $response = $this->tool->handle(['command' => 'view', 'path' => '.']);
-        $this->assertInstanceOf(ToolResponse::class, $response);
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
 
-        $data = $response->getData();
+        $data = $response->getMessages()[0]->getText();
         $this->assertTrue(
             str_contains($data, 'Error:') && str_contains($data, 'dangerous sequence'),
             "Current directory reference should be rejected"

@@ -12,7 +12,6 @@ use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Client\Gemini\GeminiClient;
 use Soukicz\Llm\Client\Gemini\Model\Gemini20Flash;
-use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
@@ -64,7 +63,7 @@ class GeminiClientTest extends TestCase {
 
         // Create a conversation
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('Tell me a joke')]),
+            LLMMessage::createFromUserString('Tell me a joke'),
         ]);
 
         $request = new LLMRequest(

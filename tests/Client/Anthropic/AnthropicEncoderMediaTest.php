@@ -10,6 +10,7 @@ use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude35Sonnet;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessagePdf;
 use Soukicz\Llm\Message\LLMMessageText;
@@ -19,10 +20,10 @@ class AnthropicEncoderMediaTest extends TestCase {
         $encoder = new AnthropicEncoder();
 
         // Create a message with image content
-        $userMessage = LLMMessage::createFromUser([
+        $userMessage = LLMMessage::createFromUser(new LLMMessageContents([
             new LLMMessageText('Look at this image:'),
             new LLMMessageImage('base64', 'image/jpeg', 'imagedata123==', true),
-        ]);
+        ]));
 
         $conversation = new LLMConversation([$userMessage]);
 
@@ -55,10 +56,10 @@ class AnthropicEncoderMediaTest extends TestCase {
         $encoder = new AnthropicEncoder();
 
         // Create a message with PDF content
-        $userMessage = LLMMessage::createFromUser([
+        $userMessage = LLMMessage::createFromUser(new LLMMessageContents([
             new LLMMessageText('Read this PDF:'),
             new LLMMessagePdf('base64', 'pdfdata123==', false),
-        ]);
+        ]));
 
         $conversation = new LLMConversation([$userMessage]);
 

@@ -2,6 +2,9 @@
 
 namespace Soukicz\Llm;
 
+use RuntimeException;
+use Soukicz\Llm\Message\LLMMessageArrayData;
+use Soukicz\Llm\Message\LLMMessageContent;
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessagePdf;
 use Soukicz\Llm\Message\LLMMessageReasoning;
@@ -10,6 +13,30 @@ use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 
 class MarkdownFormatter {
+    private function messageContentToString(LLMMessageContent $content): string {
+        if ($content instanceof LLMMessageText) {
+            return str_replace(['>', '<'], ['&gt;', '&lt;'], $content->getText());
+        }
+
+        if ($content instanceof LLMMessageArrayData) {
+            return "```json\n" . json_encode($content->getData(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n" . "```\n";
+        }
+
+        if ($content instanceof LLMMessageReasoning) {
+            return "**Reasoning:**\n\n" . $content->getText();
+        }
+
+        if ($content instanceof LLMMessageImage) {
+            return '**Image** (' . $content->getMediaType() . ' ' . $this->formatByteSize(strlen(base64_decode($content->getData()))) . ')';
+        }
+
+        if ($content instanceof LLMMessagePdf) {
+            return '**PDF** (' . $this->formatByteSize(strlen(base64_decode($content->getData()))) . ')';
+        }
+
+        throw new RuntimeException('Unknown message content type');
+    }
+
     public function responseToMarkdown(LLMRequest|LLMResponse $requestOrResponse): string {
         if ($requestOrResponse instanceof LLMRequest) {
             $request = $requestOrResponse;
@@ -31,33 +58,21 @@ class MarkdownFormatter {
             } elseif ($message->isAssistant()) {
                 $markdown .= '## Assistant:' . "\n";
             } else {
-                throw new \RuntimeException('Unknown message role');
+                throw new RuntimeException('Unknown message role');
             }
             foreach ($message->getContents() as $content) {
-                if ($content instanceof LLMMessageText) {
-                    $markdown .= str_replace('<', '&lt;', str_replace('>', '&gt;', $content->getText()));
-                } elseif ($content instanceof LLMMessageReasoning) {
-                    $markdown .= "**Reasoning:**\n\n" . $content->getText();
-                } elseif ($content instanceof LLMMessageImage) {
-                    $markdown .= '**Image** (' . $content->getMediaType() . ' ' . $this->formatByteSize(strlen(base64_decode($content->getData()))) . ')';
-                } elseif ($content instanceof LLMMessagePdf) {
-                    $markdown .= '**PDF** (' . $this->formatByteSize(strlen(base64_decode($content->getData()))) . ')';
-                } elseif ($content instanceof LLMMessageToolUse) {
+                if ($content instanceof LLMMessageToolUse) {
                     $markdown .= '**Tool use:** ' . $content->getName() . ' (' . $content->getId() . ')' . "\n";
                     $markdown .= "```json\n";
                     $markdown .= json_encode($content->getInput(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n";
                     $markdown .= "```";
                 } elseif ($content instanceof LLMMessageToolResult) {
                     $markdown .= "**Tool result:** " . $content->getId() . "\n";
-                    $markdown .= "```\n";
-                    if (is_string($content->getContent())) {
-                        $markdown .= $content->getContent() . "\n";
-                    } else {
-                        $markdown .= json_encode($content->getContent(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n";
+                    foreach ($content->getContent()->getMessages() as $toolContent) {
+                        $markdown .= $this->messageContentToString($toolContent);
                     }
-                    $markdown .= "```";
                 } else {
-                    throw new \RuntimeException('Unknown message content type');
+                    $markdown .= $this->messageContentToString($content);
                 }
                 $markdown .= "\n\n";
             }

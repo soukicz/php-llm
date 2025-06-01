@@ -2,8 +2,8 @@
 
 namespace Soukicz\Llm\Tool;
 
-use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
+use Soukicz\Llm\Message\LLMMessageContents;
 
 interface ToolDefinition {
     public function getName(): string;
@@ -12,5 +12,5 @@ interface ToolDefinition {
 
     public function getInputSchema(): array;
 
-    public function handle(array $input): PromiseInterface|ToolResponse;
+    public function handle(array $input): PromiseInterface|LLMMessageContents;
 }
