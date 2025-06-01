@@ -119,25 +119,13 @@ class AnthropicEncoder implements ModelEncoder {
                     // For Anthropic, we need to serialize the tool result content
                     $contentParts = [];
                     foreach ($toolResultContent->getMessages() as $toolMessage) {
-                        if ($toolMessage instanceof LLMMessageText) {
-                            $contentParts[] = $toolMessage->getText();
-                        } elseif ($toolMessage instanceof LLMMessageArrayData) {
-                            $contentParts[] = json_encode($toolMessage->getData(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                        } else {
-                            // For other content types, encode them and extract text representation
-                            $encoded = $this->encodeMessageContent($toolMessage);
-                            if (isset($encoded['text'])) {
-                                $contentParts[] = $encoded['text'];
-                            } else {
-                                $contentParts[] = json_encode($encoded, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                            }
-                        }
+                        $contentParts[] = $this->encodeMessageContent($toolMessage);
                     }
 
                     $contents[] = $this->addCacheAttribute($messageContent, [
                         'type' => 'tool_result',
                         'tool_use_id' => $messageContent->getId(),
-                        'content' => implode('', $contentParts),
+                        'content' => $contentParts,
                     ]);
                 } else {
                     $contents[] = $this->encodeMessageContent($messageContent);

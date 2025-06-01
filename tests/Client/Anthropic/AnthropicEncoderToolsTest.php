@@ -122,7 +122,7 @@ class AnthropicEncoderToolsTest extends TestCase {
         $this->assertEquals('user', $encoded['messages'][2]['role']);
         $this->assertEquals('tool_result', $encoded['messages'][2]['content'][0]['type']);
         $this->assertEquals('tool-abc', $encoded['messages'][2]['content'][0]['tool_use_id']);
-        $this->assertEquals('{"result":4}', $encoded['messages'][2]['content'][0]['content']);
+        $this->assertSame([['type' => 'text', 'text' => '{"result":4}']], $encoded['messages'][2]['content'][0]['content']);
     }
 
     public function testReasoningConfig(): void {

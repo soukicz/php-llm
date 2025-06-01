@@ -91,24 +91,12 @@ class OpenAIEncoder implements ModelEncoder {
                     // For OpenAI, tool results should be serialized as JSON strings
                     $contentParts = [];
                     foreach ($messageContent->getContent() as $toolMessage) {
-                        if ($toolMessage instanceof LLMMessageText) {
-                            $contentParts[] = $toolMessage->getText();
-                        } elseif ($toolMessage instanceof LLMMessageArrayData) {
-                            $contentParts[] = json_encode($toolMessage->getData(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                        } else {
-                            // For other content types, encode them and extract text representation
-                            $encoded = $this->encodeMessageContent($toolMessage);
-                            if (isset($encoded['text'])) {
-                                $contentParts[] = $encoded['text'];
-                            } else {
-                                $contentParts[] = json_encode($encoded, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                            }
-                        }
+                        $contentParts[] = $this->encodeMessageContent($toolMessage);
                     }
 
                     $encodedMessages[] = [
                         'role' => 'tool',
-                        'content' => implode('', $contentParts),
+                        'content' => $contentParts,
                         'tool_call_id' => $messageContent->getId(),
                     ];
                     continue 2;
