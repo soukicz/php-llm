@@ -6,14 +6,15 @@ use Soukicz\Llm\Client\ModelEncoder;
 use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Client\StopReason;
 use Soukicz\Llm\Config\ReasoningEffort;
+use Soukicz\Llm\LLMRequest;
+use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessagePdf;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
-use Soukicz\Llm\LLMRequest;
-use Soukicz\Llm\LLMResponse;
 
 class GeminiEncoder implements ModelEncoder {
     public function encodeRequest(LLMRequest $request): array {
@@ -189,7 +190,7 @@ class GeminiEncoder implements ModelEncoder {
                 } elseif (isset($part['functionCall'])) {
                     $toolCall = true;
                     $responseContents[] = new LLMMessageToolUse(
-                        uniqid('gemini_tool_'),  // Gemini doesn't provide tool IDs so we generate one
+                        uniqid('gemini_tool_', true),  // Gemini doesn't provide tool IDs so we generate one
                         $part['functionCall']['name'],
                         $part['functionCall']['args']
                     );
@@ -197,7 +198,7 @@ class GeminiEncoder implements ModelEncoder {
             }
         }
 
-        $request = $request->withMessage(LLMMessage::createFromAssistant($responseContents));
+        $request = $request->withMessage(LLMMessage::createFromAssistant(new LLMMessageContents($responseContents)));
 
         // Map Gemini finish reasons to StopReason
         $stopReason = match ($candidate['finishReason'] ?? 'STOP') {

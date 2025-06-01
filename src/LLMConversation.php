@@ -2,13 +2,14 @@
 
 namespace Soukicz\Llm;
 
+use InvalidArgumentException;
 use Soukicz\Llm\Message\LLMMessage;
 
 class LLMConversation implements JsonDeserializable {
     public function __construct(private readonly array $messages) {
         foreach ($messages as $message) {
             if (!$message instanceof LLMMessage) {
-                throw new \InvalidArgumentException('Only LLMMessage instances are allowed');
+                throw new InvalidArgumentException('Only LLMMessage instances are allowed');
             }
         }
     }

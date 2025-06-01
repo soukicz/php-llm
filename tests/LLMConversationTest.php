@@ -5,6 +5,7 @@ namespace Soukicz\Llm\Tests;
 use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessagePdf;
 use Soukicz\Llm\Message\LLMMessageReasoning;
@@ -20,17 +21,17 @@ class LLMConversationTest extends TestCase {
         $pdfContent = new LLMMessagePdf('base64', 'c29tZXBkZmRhdGE=', false);
         $reasoningContent = new LLMMessageReasoning('Let me think about this...', 'sig123', false);
         $toolUseContent = new LLMMessageToolUse('tool-123', 'calculator', ['expression' => '2+2'], false);
-        $toolResultContent = new LLMMessageToolResult('tool-123', ['result' => 4], false);
+        $toolResultContent = new LLMMessageToolResult('tool-123', LLMMessageContents::fromArrayData(['result' => 4]), false);
 
         // Create messages with different content types
-        $systemMessage = LLMMessage::createFromSystem([$textContent]);
-        $userMessage = LLMMessage::createFromUser([$textContent, $imageContent, $pdfContent]);
-        $assistantMessage = LLMMessage::createFromAssistant([
+        $systemMessage = LLMMessage::createFromSystem(new LLMMessageContents([$textContent]));
+        $userMessage = LLMMessage::createFromUser(new LLMMessageContents([$textContent, $imageContent, $pdfContent]));
+        $assistantMessage = LLMMessage::createFromAssistant(new LLMMessageContents([
             $textContent,
             $reasoningContent,
             $toolUseContent,
             $toolResultContent,
-        ]);
+        ]));
         $userContinueMessage = LLMMessage::createFromUserContinue($textContent);
 
         // Create a conversation with the messages
@@ -108,12 +109,12 @@ class LLMConversationTest extends TestCase {
     public function testWithMessage(): void {
         // Create initial conversation
         $textContent = new LLMMessageText('Initial message', false);
-        $systemMessage = LLMMessage::createFromSystem([$textContent]);
+        $systemMessage = LLMMessage::createFromSystem(new LLMMessageContents([$textContent]));
         $conversation = new LLMConversation([$systemMessage]);
 
         // Add a new message
         $newTextContent = new LLMMessageText('New message', false);
-        $userMessage = LLMMessage::createFromUser([$newTextContent]);
+        $userMessage = LLMMessage::createFromUser(new LLMMessageContents([$newTextContent]));
         $updatedConversation = $conversation->withMessage($userMessage);
 
         // Assert that the original conversation is unchanged

@@ -9,16 +9,10 @@ class LLMMessage implements JsonDeserializable {
     private const TYPE_USER = 'user';
     private const TYPE_ASSISTANT = 'assistant';
 
-    /**
-     * @param array<LLMMessageContent> $content
-     */
-    private function __construct(private readonly string $type, private readonly array $content, private readonly bool $continue = false) {
+    private function __construct(private readonly string $type, private readonly LLMMessageContents $content, private readonly bool $continue = false) {
     }
 
-    /**
-     * @return array<LLMMessageContent>
-     */
-    public function getContents(): array {
+    public function getContents(): LLMMessageContents {
         return $this->content;
     }
 
@@ -38,57 +32,44 @@ class LLMMessage implements JsonDeserializable {
         return $this->continue;
     }
 
-    /**
-     * @param array<LLMMessageContent> $content
-     */
-    public static function createFromUser(array $content): LLMMessage {
+    public static function createFromUser(LLMMessageContents $content): LLMMessage {
         return new self(self::TYPE_USER, $content);
     }
 
-    public static function createFromUserContinue(LLMMessageContent $content): LLMMessage {
-        return new self(self::TYPE_USER, [$content], true);
+    public static function createFromUserString(string $content): LLMMessage {
+        return new self(self::TYPE_USER, new LLMMessageContents([new LLMMessageText($content)]));
     }
 
-    /**
-     * @param array<LLMMessageContent> $content
-     */
-    public static function createFromAssistant(array $content): LLMMessage {
+    public static function createFromUserContinue(LLMMessageContent $content): LLMMessage {
+        return new self(self::TYPE_USER, new LLMMessageContents([$content]), true);
+    }
+
+    public static function createFromAssistant(LLMMessageContents $content): LLMMessage {
         return new self(self::TYPE_ASSISTANT, $content);
     }
 
-    /**
-     * @param array<LLMMessageContent> $content
-     */
-    public static function createFromSystem(array $content): LLMMessage {
+    public static function createFromAssistantString(string $content): LLMMessage {
+        return new self(self::TYPE_ASSISTANT, new LLMMessageContents([new LLMMessageText($content)]));
+    }
+
+    public static function createFromSystem(LLMMessageContents $content): LLMMessage {
         return new self(self::TYPE_SYSTEM, $content);
     }
+
+    public static function createFromSystemString(string $content): LLMMessage {
+        return new self(self::TYPE_SYSTEM, new LLMMessageContents([new LLMMessageText($content)]));
+    }
+
 
     public function jsonSerialize(): array {
         return [
             'type' => $this->type,
-            'content' => array_map(static fn(LLMMessageContent $content) => ['class' => $content::class, 'data' => $content], $this->content),
+            'content' => $this->content,
             'continue' => $this->continue,
         ];
     }
 
     public static function fromJson(array $data): self {
-        /** @var array<LLMMessageContent> $content */
-        $content = [];
-        foreach ($data['content'] as $item) {
-            $class = $item['class'];
-            if (!is_subclass_of($class, LLMMessageContent::class)) {
-                throw new \InvalidArgumentException("Class $class does not implement LLMMessageContent");
-            }
-            $result = $class::fromJson($item['data']);
-            
-            // Ensure the result implements LLMMessageContent
-            if (!($result instanceof LLMMessageContent)) {
-                throw new \InvalidArgumentException("Class $class::fromJson() does not return LLMMessageContent");
-            }
-            
-            $content[] = $result;
-        }
-        
-        return new self($data['type'], $content, $data['continue']);
+        return new self($data['type'], LLMMessageContents::fromJson($data['content']), $data['continue']);
     }
 }

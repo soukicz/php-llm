@@ -2,21 +2,24 @@
 
 namespace Soukicz\Llm\Client\Anthropic;
 
+use InvalidArgumentException;
 use Soukicz\Llm\Client\Anthropic\Tool\AnthropicNativeTool;
 use Soukicz\Llm\Client\ModelEncoder;
 use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Client\StopReason;
 use Soukicz\Llm\Config\ReasoningBudget;
+use Soukicz\Llm\LLMRequest;
+use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageArrayData;
 use Soukicz\Llm\Message\LLMMessageContent;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessagePdf;
 use Soukicz\Llm\Message\LLMMessageReasoning;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
-use Soukicz\Llm\LLMRequest;
-use Soukicz\Llm\LLMResponse;
 
 class AnthropicEncoder implements ModelEncoder {
     private function addCacheAttribute(LLMMessageContent $content, array $data): array {
@@ -25,6 +28,50 @@ class AnthropicEncoder implements ModelEncoder {
         }
 
         return $data;
+    }
+
+    private function encodeMessageContent(LLMMessageContent $messageContent): array {
+        if ($messageContent instanceof LLMMessageText) {
+            return $this->addCacheAttribute($messageContent, [
+                'type' => 'text',
+                'text' => $messageContent->getText(),
+            ]);
+        }
+        if ($messageContent instanceof LLMMessageArrayData) {
+            return $this->addCacheAttribute($messageContent, [
+                'type' => 'text',
+                'text' => json_encode($messageContent->getData(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ]);
+        }
+        if ($messageContent instanceof LLMMessageReasoning) {
+            return $this->addCacheAttribute($messageContent, [
+                'type' => 'thinking',
+                'thinking' => $messageContent->getText(),
+                'signature' => $messageContent->getSignature(),
+            ]);
+        }
+        if ($messageContent instanceof LLMMessageImage) {
+            return $this->addCacheAttribute($messageContent, [
+                'type' => 'image',
+                'source' => [
+                    'type' => $messageContent->getEncoding(),
+                    'media_type' => $messageContent->getMediaType(),
+                    'data' => $messageContent->getData(),
+                ],
+            ]);
+        }
+        if ($messageContent instanceof LLMMessagePdf) {
+            return $this->addCacheAttribute($messageContent, [
+                'type' => 'document',
+                'source' => [
+                    'type' => $messageContent->getEncoding(),
+                    'media_type' => 'application/pdf',
+                    'data' => $messageContent->getData(),
+                ],
+            ]);
+        }
+
+        throw new InvalidArgumentException('Unsupported message content type: ' . get_class($messageContent));
     }
 
     public function encodeRequest(LLMRequest $request): array {
@@ -55,36 +102,7 @@ class AnthropicEncoder implements ModelEncoder {
 
             $contents = [];
             foreach ($message->getContents() as $messageContent) {
-                if ($messageContent instanceof LLMMessageText) {
-                    $contents[] = $this->addCacheAttribute($messageContent, [
-                        'type' => 'text',
-                        'text' => $messageContent->getText(),
-                    ]);
-                } elseif ($messageContent instanceof LLMMessageReasoning) {
-                    $contents[] = $this->addCacheAttribute($messageContent, [
-                        'type' => 'thinking',
-                        'thinking' => $messageContent->getText(),
-                        'signature' => $messageContent->getSignature(),
-                    ]);
-                } elseif ($messageContent instanceof LLMMessageImage) {
-                    $contents[] = $this->addCacheAttribute($messageContent, [
-                        'type' => 'image',
-                        'source' => [
-                            'type' => $messageContent->getEncoding(),
-                            'media_type' => $messageContent->getMediaType(),
-                            'data' => $messageContent->getData(),
-                        ],
-                    ]);
-                } elseif ($messageContent instanceof LLMMessagePdf) {
-                    $contents[] = $this->addCacheAttribute($messageContent, [
-                        'type' => 'document',
-                        'source' => [
-                            'type' => $messageContent->getEncoding(),
-                            'media_type' => 'application/pdf',
-                            'data' => $messageContent->getData(),
-                        ],
-                    ]);
-                } elseif ($messageContent instanceof LLMMessageToolUse) {
+                if ($messageContent instanceof LLMMessageToolUse) {
                     $input = [
                         'type' => 'tool_use',
                         'id' => $messageContent->getId(),
@@ -97,29 +115,32 @@ class AnthropicEncoder implements ModelEncoder {
                     $contents[] = $this->addCacheAttribute($messageContent, $input);
                 } elseif ($messageContent instanceof LLMMessageToolResult) {
                     $toolResultContent = $messageContent->getContent();
-                    if ($toolResultContent instanceof LLMMessageImage) {
-                        $content = [
-                            [
-                                'type' => 'image',
-                                'source' => [
-                                    'type' => $toolResultContent->getEncoding(),
-                                    'media_type' => $toolResultContent->getMediaType(),
-                                    'data' => $toolResultContent->getData(),
-                                ],
-                            ],
-                        ];
-                    } elseif (is_string($toolResultContent)) {
-                        $content = $toolResultContent;
-                    } else {
-                        $content = json_encode($toolResultContent, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+                    // For Anthropic, we need to serialize the tool result content
+                    $contentParts = [];
+                    foreach ($toolResultContent->getMessages() as $toolMessage) {
+                        if ($toolMessage instanceof LLMMessageText) {
+                            $contentParts[] = $toolMessage->getText();
+                        } elseif ($toolMessage instanceof LLMMessageArrayData) {
+                            $contentParts[] = json_encode($toolMessage->getData(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                        } else {
+                            // For other content types, encode them and extract text representation
+                            $encoded = $this->encodeMessageContent($toolMessage);
+                            if (isset($encoded['text'])) {
+                                $contentParts[] = $encoded['text'];
+                            } else {
+                                $contentParts[] = json_encode($encoded, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                            }
+                        }
                     }
+
                     $contents[] = $this->addCacheAttribute($messageContent, [
                         'type' => 'tool_result',
                         'tool_use_id' => $messageContent->getId(),
-                        'content' => $content,
+                        'content' => implode('', $contentParts),
                     ]);
                 } else {
-                    throw new \InvalidArgumentException('Unsupported message type ' . get_class($messageContent));
+                    $contents[] = $this->encodeMessageContent($messageContent);
                 }
             }
             $encodedMessages[] = [
@@ -198,7 +219,7 @@ class AnthropicEncoder implements ModelEncoder {
                 throw new \InvalidArgumentException('Unsupported message type');
             }
         }
-        $request = $request->withMessage(LLMMessage::createFromAssistant($responseContents));
+        $request = $request->withMessage(LLMMessage::createFromAssistant(new LLMMessageContents($responseContents)));
 
         $cacheInputTokens = $response['usage']['cache_creation_input_tokens'] ?? 0;
         $cacheReadInputTokens = $response['usage']['cache_read_input_tokens'] ?? 0;

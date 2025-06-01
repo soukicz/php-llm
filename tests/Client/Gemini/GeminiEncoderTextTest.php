@@ -22,8 +22,8 @@ class GeminiEncoderTextTest extends TestCase {
     public function testSimpleTextRequest(): void {
         // Create a simple request with text only
         $conversation = new LLMConversation([
-            LLMMessage::createFromSystem([new LLMMessageText('You are a helpful assistant.')]),
-            LLMMessage::createFromUser([new LLMMessageText('Hello, how are you?')]),
+            LLMMessage::createFromSystemString('You are a helpful assistant.'),
+            LLMMessage::createFromUserString('Hello, how are you?'),
         ]);
 
         $request = new LLMRequest(
@@ -56,9 +56,9 @@ class GeminiEncoderTextTest extends TestCase {
     public function testMultipleMessagesInConversation(): void {
         // Create a conversation with multiple messages
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('What is machine learning?')]),
-            LLMMessage::createFromAssistant([new LLMMessageText('Machine learning is a field of AI...')]),
-            LLMMessage::createFromUser([new LLMMessageText('Can you provide some examples?')]),
+            LLMMessage::createFromUserString('What is machine learning?'),
+            LLMMessage::createFromAssistantString('Machine learning is a field of AI...'),
+            LLMMessage::createFromUserString('Can you provide some examples?'),
         ]);
 
         $request = new LLMRequest(
@@ -85,7 +85,7 @@ class GeminiEncoderTextTest extends TestCase {
     public function testRequestWithStopSequences(): void {
         // Create a request with stop sequences
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([new LLMMessageText('Tell me a story')]),
+            LLMMessage::createFromUserString('Tell me a story'),
         ]);
 
         $request = new LLMRequest(

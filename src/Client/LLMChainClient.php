@@ -2,17 +2,19 @@
 
 namespace Soukicz\Llm\Client;
 
+use Exception;
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Promise\Utils;
+use InvalidArgumentException;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Log\LLMLogger;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
-use Soukicz\Llm\Tool\ToolResponse;
 use Swaggest\JsonSchema\Schema;
 
 class LLMChainClient {
@@ -69,25 +71,28 @@ class LLMChainClient {
                         if (!$noContent) {
                             try {
                                 Schema::import(json_decode(json_encode($tool->getInputSchema())))->in(json_decode(json_encode($input)));
-                            } catch (\Exception $e) {
-                                $toolResponseContents[] = Create::promiseFor(new LLMMessageToolResult($content->getId(), 'ERROR: Input is not matching expected schema: ' . $e->getMessage()));
+                            } catch (Exception $e) {
+                                $toolResponseContents[] = Create::promiseFor(new LLMMessageToolResult(
+                                    $content->getId(),
+                                    LLMMessageContents::fromString('ERROR: Input is not matching expected schema: ' . $e->getMessage())
+                                ));
                                 continue;
                             }
                         }
 
                         $toolResponse = $tool->handle($input);
-                        if ($toolResponse instanceof ToolResponse) {
+                        if ($toolResponse instanceof LLMMessage) {
                             $toolResponse = Create::promiseFor($toolResponse);
                         }
-                        $toolResponseContents[] = $toolResponse->then(function (ToolResponse $response) use ($content) {
-                            return new LLMMessageToolResult($content->getId(), $response->getData());
+                        $toolResponseContents[] = $toolResponse->then(function (LLMMessageContents $response) use ($content) {
+                            return new LLMMessageToolResult($content->getId(), $response);
                         });
                     }
                 }
             }
         }
 
-        $newRequest = $response->getRequest()->withMessage(LLMMessage::createFromUser(Utils::unwrap($toolResponseContents)));
+        $newRequest = $response->getRequest()->withMessage(LLMMessage::createFromUser(new LLMMessageContents(Utils::unwrap($toolResponseContents))));
         $this->logger?->requestStarted($newRequest);
 
         // Use sendAndProcessRequest to ensure full processing of the response, including potential nested tool uses
@@ -120,7 +125,7 @@ class LLMChainClient {
             $feedback = $feedbackCallback($llmResponse);
             if ($feedback !== null) {
                 if (!$feedback instanceof LLMMessage) {
-                    throw new \InvalidArgumentException('Feedback callback must return an instance of LLMMessage');
+                    throw new InvalidArgumentException('Feedback callback must return an instance of LLMMessage');
                 }
                 $request = $request->withMessage($feedback);
 

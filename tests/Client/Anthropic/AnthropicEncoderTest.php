@@ -22,8 +22,8 @@ class AnthropicEncoderTest extends TestCase {
     public function testBasicTextRequestEncoding(): void {
         // Create a simple request with text only
         $conversation = new LLMConversation([
-            LLMMessage::createFromSystem([new LLMMessageText('System instruction')]),
-            LLMMessage::createFromUser([new LLMMessageText('User message')]),
+            LLMMessage::createFromSystemString('System instruction'),
+            LLMMessage::createFromUserString('User message'),
         ]);
 
         $request = new LLMRequest(

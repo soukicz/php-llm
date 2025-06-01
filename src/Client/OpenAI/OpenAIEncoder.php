@@ -2,22 +2,60 @@
 
 namespace Soukicz\Llm\Client\OpenAI;
 
-use GuzzleHttp\Promise\Utils;
+use InvalidArgumentException;
 use Soukicz\Llm\Client\ModelEncoder;
 use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Client\StopReason;
 use Soukicz\Llm\Config\ReasoningEffort;
+use Soukicz\Llm\LLMRequest;
+use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageArrayData;
+use Soukicz\Llm\Message\LLMMessageContent;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessagePdf;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
-use Soukicz\Llm\LLMRequest;
-use Soukicz\Llm\LLMResponse;
-use Soukicz\Llm\Tool\ToolResponse;
 
 class OpenAIEncoder implements ModelEncoder {
+    private function encodeMessageContent(LLMMessageContent $content): array {
+        if ($content instanceof LLMMessageText) {
+            return [
+                'type' => 'text',
+                'text' => $content->getText(),
+            ];
+        }
+        if ($content instanceof LLMMessageArrayData) {
+            return [
+                'type' => 'text',
+                'text' => json_encode($content->getData(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            ];
+        }
+        if ($content instanceof LLMMessageImage) {
+            return [
+                'type' => 'image',
+                'source' => [
+                    'type' => $content->getEncoding(),
+                    'media_type' => $content->getMediaType(),
+                    'data' => $content->getData(),
+                ],
+            ];
+        }
+        if ($content instanceof LLMMessagePdf) {
+            return [
+                'type' => 'file',
+                'file' => [
+                    'file_data' => 'data:application/pdf;base64,' . $content->getData(),
+                    'filename' => 'file.pdf',
+                ],
+            ];
+        }
+
+        throw new InvalidArgumentException('Unsupported message content type: ' . get_class($content));
+    }
+
     public function encodeRequest(LLMRequest $request): array {
         $encodedMessages = [];
         foreach ($request->getConversation()->getMessages() as $message) {
@@ -28,33 +66,11 @@ class OpenAIEncoder implements ModelEncoder {
             } elseif ($message->isSystem()) {
                 $role = 'system';
             } else {
-                throw new \InvalidArgumentException('Unsupported message role');
+                throw new InvalidArgumentException('Unsupported message role');
             }
             $contents = [];
             foreach ($message->getContents() as $messageContent) {
-                if ($messageContent instanceof LLMMessageText) {
-                    $contents[] = [
-                        'type' => 'text',
-                        'text' => $messageContent->getText(),
-                    ];
-                } elseif ($messageContent instanceof LLMMessageImage) {
-                    $contents[] = [
-                        'type' => 'image',
-                        'source' => [
-                            'type' => $messageContent->getEncoding(),
-                            'media_type' => $messageContent->getMediaType(),
-                            'data' => $messageContent->getData(),
-                        ],
-                    ];
-                } elseif ($messageContent instanceof LLMMessagePdf) {
-                    $contents[] = [
-                        'type' => 'file',
-                        'file' => [
-                            'file_data' => 'data:application/pdf;base64,' . $messageContent->getData(),
-                            'filename' => 'file.pdf',
-                        ],
-                    ];
-                } elseif ($messageContent instanceof LLMMessageToolUse) {
+                if ($messageContent instanceof LLMMessageToolUse) {
                     $encodedMessages[] = [
                         'role' => 'assistant',
                         'content' => null,
@@ -70,17 +86,34 @@ class OpenAIEncoder implements ModelEncoder {
                         ],
                     ];
                     continue 2;
-                } elseif ($messageContent instanceof LLMMessageToolResult) {
+                }
+                if ($messageContent instanceof LLMMessageToolResult) {
+                    // For OpenAI, tool results should be serialized as JSON strings
+                    $contentParts = [];
+                    foreach ($messageContent->getContent() as $toolMessage) {
+                        if ($toolMessage instanceof LLMMessageText) {
+                            $contentParts[] = $toolMessage->getText();
+                        } elseif ($toolMessage instanceof LLMMessageArrayData) {
+                            $contentParts[] = json_encode($toolMessage->getData(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                        } else {
+                            // For other content types, encode them and extract text representation
+                            $encoded = $this->encodeMessageContent($toolMessage);
+                            if (isset($encoded['text'])) {
+                                $contentParts[] = $encoded['text'];
+                            } else {
+                                $contentParts[] = json_encode($encoded, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                            }
+                        }
+                    }
+
                     $encodedMessages[] = [
                         'role' => 'tool',
-                        'content' => is_string($messageContent->getContent())
-                            ? $messageContent->getContent()
-                            : json_encode($messageContent->getContent(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                        'content' => implode('', $contentParts),
                         'tool_call_id' => $messageContent->getId(),
                     ];
                     continue 2;
                 } else {
-                    throw new \InvalidArgumentException('Unsupported message type');
+                    $contents[] = $this->encodeMessageContent($messageContent);
                 }
             }
             $encodedMessages[] = [
@@ -101,7 +134,7 @@ class OpenAIEncoder implements ModelEncoder {
             if ($reasoningConfig instanceof ReasoningEffort) {
                 $requestData['reasoning_effort'] = $reasoningConfig->value;
             } else {
-                throw new \InvalidArgumentException('Unsupported reasoning config type');
+                throw new InvalidArgumentException('Unsupported reasoning config type');
             }
         }
 
@@ -161,13 +194,13 @@ class OpenAIEncoder implements ModelEncoder {
             }
         }
 
-        $request = $request->withMessage(LLMMessage::createFromAssistant($responseContents));
+        $request = $request->withMessage(LLMMessage::createFromAssistant(new LLMMessageContents($responseContents)));
 
         $stopReason = match ($response['choices'][0]['finish_reason']) {
             'stop' => StopReason::FINISHED,
             'length' => StopReason::LENGTH,
             'tool_calls' => StopReason::TOOL_USE,
-            default => throw new \InvalidArgumentException('Unsupported finish reason "' . $response['choices'][0]['finish_reason'] . '"'),
+            default => throw new InvalidArgumentException('Unsupported finish reason "' . $response['choices'][0]['finish_reason'] . '"'),
         };
 
         return new LLMResponse(

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Soukicz\Llm\Tests\Client\Gemini;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Client\Gemini\GeminiEncoder;
 use Soukicz\Llm\Client\Gemini\Model\Gemini20Flash;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessagePdf;
 use Soukicz\Llm\Message\LLMMessageText;
@@ -24,10 +26,10 @@ class GeminiEncoderMediaTest extends TestCase {
     public function testImageRequest(): void {
         // Create a request with an image
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([
+            LLMMessage::createFromUser(new LLMMessageContents([
                 new LLMMessageText('What is in this image?'),
                 new LLMMessageImage('base64', 'image/jpeg', 'base64encodeddata'),
-            ]),
+            ])),
         ]);
 
         $request = new LLMRequest(
@@ -56,11 +58,11 @@ class GeminiEncoderMediaTest extends TestCase {
     public function testMixedMediaRequest(): void {
         // Create a request with text, then an image, then more text
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([
+            LLMMessage::createFromUser(new LLMMessageContents([
                 new LLMMessageText('Here is a picture of a cat:'),
                 new LLMMessageImage('base64', 'image/jpeg', 'base64encodedcatimage'),
                 new LLMMessageText('What breed is it?'),
-            ]),
+            ])),
         ]);
 
         $request = new LLMRequest(
@@ -92,10 +94,10 @@ class GeminiEncoderMediaTest extends TestCase {
     public function testPdfRequestShouldThrowException(): void {
         // PDF is not supported by Gemini directly
         $conversation = new LLMConversation([
-            LLMMessage::createFromUser([
+            LLMMessage::createFromUser(new LLMMessageContents([
                 new LLMMessageText('Analyze this PDF:'),
                 new LLMMessagePdf('base64', 'base64encodedpdf'),
-            ]),
+            ])),
         ]);
 
         $request = new LLMRequest(
@@ -103,7 +105,7 @@ class GeminiEncoderMediaTest extends TestCase {
             conversation: $conversation
         );
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('PDF content type not supported for Gemini');
 
         $this->encoder->encodeRequest($request);

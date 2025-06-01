@@ -10,6 +10,7 @@ use Soukicz\Llm\Client\OpenAI\OpenAIEncoder;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessageText;
 
@@ -22,10 +23,10 @@ class OpenAIEncoderMediaTest extends TestCase {
 
     public function testImageContent(): void {
         // Create a message with image content
-        $userMessage = LLMMessage::createFromUser([
+        $userMessage = LLMMessage::createFromUser(new LLMMessageContents([
             new LLMMessageText('Look at this image:'),
             new LLMMessageImage('base64', 'image/jpeg', 'imagedata123==', false),
-        ]);
+        ]));
 
         $conversation = new LLMConversation([$userMessage]);
 
@@ -54,22 +55,16 @@ class OpenAIEncoderMediaTest extends TestCase {
 
     public function testMixedTextAndImageContent(): void {
         // Create a conversation with mixed content types across multiple messages
-        $systemMessage = LLMMessage::createFromSystem([
-            new LLMMessageText('You are a helpful image analyzer.'),
-        ]);
+        $systemMessage = LLMMessage::createFromSystemString('You are a helpful image analyzer.');
 
-        $userFirstMessage = LLMMessage::createFromUser([
+        $userFirstMessage = LLMMessage::createFromUser(new LLMMessageContents([
             new LLMMessageText('Analyze this image:'),
             new LLMMessageImage('base64', 'image/png', 'pngdata123==', false),
-        ]);
+        ]));
 
-        $assistantResponse = LLMMessage::createFromAssistant([
-            new LLMMessageText('This image appears to be a diagram of a process.'),
-        ]);
+        $assistantResponse = LLMMessage::createFromAssistantString('This image appears to be a diagram of a process.');
 
-        $userFollowUp = LLMMessage::createFromUser([
-            new LLMMessageText('Can you explain in more detail?'),
-        ]);
+        $userFollowUp = LLMMessage::createFromUserString('Can you explain in more detail?');
 
         $conversation = new LLMConversation([
             $systemMessage,

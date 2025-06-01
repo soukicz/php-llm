@@ -58,7 +58,7 @@ $response = $chainClient->run(
     client: $anthropic,
     request: new LLMRequest(
         model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
-        conversation: new LLMConversation([LLMMessage::createFromUser([new LLMMessageText('Hello, how are you?')])]),
+        conversation: new LLMConversation([LLMMessage::createFromUserString('Hello, how are you?')]),
     )
 );
 echo $response->getLastText();
@@ -69,7 +69,7 @@ $response = $chainClient->runAsync(
     client: $anthropic,
     request: new LLMRequest(
         model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
-        conversation: new LLMConversation([LLMMessage::createFromUser([new LLMMessageText('Hello, how are you?')])]),
+        conversation: new LLMConversation([LLMMessage::createFromUserString('Hello, how are you?')]),
     )
 )->then(function (LLMResponse $response) {
     echo $response->getLastText();
@@ -88,6 +88,7 @@ use Soukicz\Llm\Client\Anthropic\AnthropicClient;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
 use Soukicz\Llm\Client\LLMChainClient;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageContents
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
@@ -118,9 +119,9 @@ $currencyTool = new CallbackToolDefinition(
             ->then(function (Response $response) use ($input) {
                 $data = json_decode($response->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
 
-                return [
+                return LLMMessageContents::fromArrayData([
                     'rate' => $data[strtolower($input['source_currency'])][strtolower($input['target_currency'])],
-                ];
+                ]);
             });
     }
 );
@@ -129,7 +130,7 @@ $response = $chainClient->run(
     client:$anthropic,
     request: new LLMRequest(
         model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
-        conversation: new LLMConversation([LLMMessage::createFromUser([new LLMMessageText('How much is 100 USD in EUR today?')])]),
+        conversation: new LLMConversation([LLMMessage::createFromUserString('How much is 100 USD in EUR today?')]),
         tools: [$currencyTool],
     )
 );
@@ -170,11 +171,11 @@ $response = $chainClient->run(
 
                 return null;
             } catch (JsonException $e) {
-                return LLMMessage::createFromUser([new LLMMessageText('I am sorry, but the response is not a valid JSON (' . $e->getMessage() . '). Please respond again.')]);
+                return LLMMessage::createFromUserString('I am sorry, but the response is not a valid JSON (' . $e->getMessage() . '). Please respond again.');
             }
         }
 
-        return LLMMessage::createFromUser([new LLMMessageText('I am sorry, but I could not find animals tag in the response. Please respond again.')]);
+        return LLMMessage::createFromUserString('I am sorry, but I could not find animals tag in the response. Please respond again.');
     }
 );
 
@@ -222,8 +223,7 @@ $response = $chainClient->run(
                 request: new LLMRequest(
                     model: new AnthropicClaude35Haiku(AnthropicClaude35Haiku::VERSION_20241022), // use cheap and fast model for this simple task
                     conversation: new LLMConversation([
-                        LLMMessage::createFromUser([
-                            new LLMMessageText(<<<EOT
+                        LLMMessage::createFromUserString(<<<EOT
 I need help with understanding of text. I have submitted work and I have received following text at the end of response:
 
 <response-text>
@@ -233,7 +233,6 @@ $suffix
 I need you to decide if this means that work was completed or if I should request continuation of work. Briefly explain what you see in response and finally output WORK_COMPLETED or WORK_NOT_COMPLETED. This is automated process and I need one of these two outputs.
 EOT
                             ),
-                        ]),
                     ]),
                 )
             );
@@ -242,7 +241,7 @@ EOT
                 return null;
             }
 
-            return LLMMessage::createFromUser([new LLMMessageText('Please continue')]);
+            return LLMMessage::createFromUserString('Please continue');
         }
 
         return null;
@@ -277,7 +276,7 @@ $response = $chainClient->run(
     client: $anthropic,
     request: new LLMRequest(
         model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
-        conversation: new LLMConversation([LLMMessage::createFromUser([new LLMMessageText('List all US states. Batch output by 5 states and output each batch as JSON array and wrap this array in XML tag named "states"')])]),
+        conversation: new LLMConversation([LLMMessage::createFromUserString('List all US states. Batch output by 5 states and output each batch as JSON array and wrap this array in XML tag named "states"')]),
         maxTokens: 55
     ),
     continuationCallback: function (LLMResponse $llmResponse): LLMRequest {
