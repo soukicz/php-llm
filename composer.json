@@ -26,7 +26,8 @@
         "guzzlehttp/promises": "^2.0",
         "guzzlehttp/psr7": "^2.7",
         "ext-zlib": "*",
-        "swaggest/json-schema": "^0.12.43"
+        "swaggest/json-schema": "^0.12.43",
+        "ramsey/uuid": "^4.8"
     },
     "require-dev": {
         "phpstan/phpstan": "^2.1",
