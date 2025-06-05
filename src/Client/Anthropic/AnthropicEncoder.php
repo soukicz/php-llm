@@ -122,11 +122,15 @@ class AnthropicEncoder implements ModelEncoder {
                         $contentParts[] = $this->encodeMessageContent($toolMessage);
                     }
 
-                    $contents[] = $this->addCacheAttribute($messageContent, [
+                    $toolContent = [
                         'type' => 'tool_result',
                         'tool_use_id' => $messageContent->getId(),
                         'content' => $contentParts,
-                    ]);
+                    ];
+                    if ($message->getContents()->isError()) {
+                        $toolContent['is_error'] = true;
+                    }
+                    $contents[] = $this->addCacheAttribute($messageContent, $toolContent);
                 } else {
                     $contents[] = $this->encodeMessageContent($messageContent);
                 }

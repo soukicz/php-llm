@@ -13,7 +13,7 @@ use JsonSerializable;
  * @implements ArrayAccess<int, LLMMessageContent>
  */
 class LLMMessageContents implements JsonSerializable, Iterator, ArrayAccess, Countable {
-    public function __construct(private array $messages) {
+    public function __construct(private array $messages, private bool $isError = false) {
         foreach ($this->messages as $message) {
             if (!$message instanceof LLMMessageContent) {
                 throw new InvalidArgumentException('All messages must implement LLMMessageContent interface - ' . get_class($message) . ' does not.');
@@ -55,6 +55,10 @@ class LLMMessageContents implements JsonSerializable, Iterator, ArrayAccess, Cou
 
     public static function fromString(string $content): self {
         return new self([new LLMMessageText($content)]);
+    }
+
+    public static function fromErrorString(string $content): self {
+        return new self([new LLMMessageText($content)], true);
     }
 
     public static function fromArrayData(array $content): self {
@@ -99,5 +103,9 @@ class LLMMessageContents implements JsonSerializable, Iterator, ArrayAccess, Cou
 
     public function count(): int {
         return count($this->messages);
+    }
+
+    public function isError(): bool {
+        return $this->isError;
     }
 }

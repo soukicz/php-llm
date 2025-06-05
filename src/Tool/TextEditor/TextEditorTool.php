@@ -155,7 +155,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
 
             return LLMMessageContents::fromString(implode("\n", $selectedLines));
         } catch (RuntimeException|InvalidArgumentException $e) {
-            return LLMMessageContents::fromString('Error: ' . $e->getMessage());
+            return LLMMessageContents::fromErrorString('Error: ' . $e->getMessage());
         }
     }
 
@@ -167,11 +167,11 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
             $matchCount = substr_count($content, $oldString);
 
             if ($matchCount === 0) {
-                return LLMMessageContents::fromString('Error: No match found for replacement. Please check your text and try again.');
+                return LLMMessageContents::fromErrorString('Error: No match found for replacement. Please check your text and try again.');
             }
 
             if ($matchCount > 1) {
-                return LLMMessageContents::fromString("Error: Found $matchCount matches for replacement text. Please provide more context to make a unique match.");
+                return LLMMessageContents::fromErrorString("Error: Found $matchCount matches for replacement text. Please provide more context to make a unique match.");
             }
 
             $count = 0;
@@ -181,7 +181,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
             $this->storage->setFileContent($path, $newContent);
 
             if ($count === 0) {
-                return LLMMessageContents::fromString('Error: No occurrences replaced (string not found)');
+                return LLMMessageContents::fromErrorString('Error: No occurrences replaced (string not found)');
             }
             if ($count === 1) {
                 return LLMMessageContents::fromString('Successfully replaced 1 occurrence');
@@ -189,7 +189,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
 
             return LLMMessageContents::fromString("Successfully replaced $count occurrence(s)");
         } catch (RuntimeException|InvalidArgumentException $e) {
-            return LLMMessageContents::fromString('Error: ' . $e->getMessage());
+            return LLMMessageContents::fromErrorString('Error: ' . $e->getMessage());
         }
     }
 
@@ -203,7 +203,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
 
             // Validate line number (1-indexed in the API, but we need 0-indexed for array operations)
             if ($afterLine < 0 || $afterLine > $totalLines) {
-                return LLMMessageContents::fromString("Error: Line number $afterLine is out of range. File has $totalLines lines.");
+                return LLMMessageContents::fromErrorString("Error: Line number $afterLine is out of range. File has $totalLines lines.");
             }
 
             // Insert the new string after the specified line
@@ -217,7 +217,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
 
             return LLMMessageContents::fromString("Successfully inserted text after line $afterLine");
         } catch (RuntimeException|InvalidArgumentException $e) {
-            return LLMMessageContents::fromString('Error: ' . $e->getMessage());
+            return LLMMessageContents::fromErrorString('Error: ' . $e->getMessage());
         }
     }
 
@@ -227,7 +227,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
 
             return LLMMessageContents::fromString("Successfully created file: $path");
         } catch (RuntimeException|InvalidArgumentException $e) {
-            return LLMMessageContents::fromString('Error: ' . $e->getMessage());
+            return LLMMessageContents::fromErrorString('Error: ' . $e->getMessage());
         }
     }
 }
