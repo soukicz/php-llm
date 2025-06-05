@@ -243,10 +243,10 @@ class TextEditorToolTest extends TestCase {
         ]);
 
         $this->assertInstanceOf(LLMMessageContents::class, $response);
-        $this->assertStringContainsString('Found 3 matches for replacement text', $response->getMessages()[0]->getText());
+        $this->assertEquals('Successfully replaced 1 occurrence', $response->getMessages()[0]->getText());
 
-        // Verify content unchanged
-        $this->assertEquals('test test test', file_get_contents($this->testBaseDir . '/duplicate.txt'));
+        // Verify only first occurrence was replaced
+        $this->assertEquals('replaced test test', file_get_contents($this->testBaseDir . '/duplicate.txt'));
     }
 
     public function testReplaceInNonExistentFile(): void {
