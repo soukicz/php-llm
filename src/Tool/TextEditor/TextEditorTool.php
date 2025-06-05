@@ -92,7 +92,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
                 ],
                 'old_str' => [
                     'type' => 'string',
-                    'description' => 'The text to replace (for str_replace command)',
+                    'description' => 'The text to replace (for str_replace command) - only first occurrence is replaced',
                 ],
                 'new_str' => [
                     'type' => 'string',
@@ -170,24 +170,12 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
                 return LLMMessageContents::fromErrorString('Error: No match found for replacement. Please check your text and try again.');
             }
 
-            if ($matchCount > 1) {
-                return LLMMessageContents::fromErrorString("Error: Found $matchCount matches for replacement text. Please provide more context to make a unique match.");
-            }
-
-            $count = 0;
-            // Perform the replacement
-            $newContent = str_replace($oldString, $newString, $content, $count);
+            $position = strpos($content, $oldString);
+            $newContent = substr_replace($content, $newString, $position, strlen($oldString));
 
             $this->storage->setFileContent($path, $newContent);
 
-            if ($count === 0) {
-                return LLMMessageContents::fromErrorString('Error: No occurrences replaced (string not found)');
-            }
-            if ($count === 1) {
-                return LLMMessageContents::fromString('Successfully replaced 1 occurrence');
-            }
-
-            return LLMMessageContents::fromString("Successfully replaced $count occurrence(s)");
+            return LLMMessageContents::fromString('Successfully replaced 1 occurrence');
         } catch (RuntimeException|InvalidArgumentException $e) {
             return LLMMessageContents::fromErrorString('Error: ' . $e->getMessage());
         }
