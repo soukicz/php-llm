@@ -27,7 +27,11 @@ class MarkdownFormatter {
         }
 
         if ($content instanceof LLMMessageImage) {
-            return '**Image** (' . $content->getMediaType() . ' ' . $this->formatByteSize(strlen(base64_decode($content->getData()))) . ')';
+            $text = '**Image** (' . $content->getMediaType() . ' ' . $this->formatByteSize(strlen(base64_decode($content->getData()))) . ')';
+            $text .= "\n\n";
+            $text .= '![Image](data:' . $content->getMediaType() . ';' . $content->getEncoding() . ',' . $content->getData() . ')';
+
+            return $text;
         }
 
         if ($content instanceof LLMMessagePdf) {
@@ -67,7 +71,7 @@ class MarkdownFormatter {
                     $markdown .= json_encode($content->getInput(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT) . "\n";
                     $markdown .= "```";
                 } elseif ($content instanceof LLMMessageToolResult) {
-                    $markdown .= "**Tool result:** " . $content->getId() . "\n";
+                    $markdown .= "**Tool result:** " . $content->getId() . "\n\n";
                     foreach ($content->getContent()->getMessages() as $toolContent) {
                         $markdown .= $this->messageContentToString($toolContent);
                     }
