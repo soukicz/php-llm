@@ -30,7 +30,7 @@ class AnthropicEncoder implements ModelEncoder {
         return $data;
     }
 
-    private function encodeMessageContent(LLMMessageContent $messageContent): array {
+    public function encodeMessageContent(LLMMessageContent $messageContent): array {
         if ($messageContent instanceof LLMMessageText) {
             return $this->addCacheAttribute($messageContent, [
                 'type' => 'text',
