@@ -60,7 +60,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
             return $this->createFile($input['path'], $input['file_text'] ?? '');
         }
 
-        return LLMMessageContents::fromString('ERROR: Unknown command: ' . $input['command']);
+        return LLMMessageContents::fromErrorString('ERROR: Unknown command: ' . $input['command']);
     }
 
     public function getDescription(): string {
