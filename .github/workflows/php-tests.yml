@@ -27,7 +27,7 @@ jobs:
         run: composer install --prefer-dist --no-progress
 
       - name: Run PHPStan
-        run: vendor/bin/phpstan analyse src tests --exclude-path tests/Integration
+        run: vendor/bin/phpstan analyse src
 
   unit-tests:
     name: Unit Tests (PHP ${{ matrix.php-version }})
