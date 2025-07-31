@@ -112,60 +112,7 @@ class LLMRequest {
         return $clone;
     }
 
-    public function withMergedMessages(): self {
-        $messages = [];
-        /** @var ?LLMMessage $previous */
-        $previous = null;
-        $lastWasContinue = false;
-        foreach ($this->getConversation()->getMessages() as $message) {
-            if ($message->isContinue()) {
-                $lastWasContinue = true;
-                continue;
-            }
-            if ($previous && $lastWasContinue) {
-                foreach ($previous->getContents() as $content) {
-                    if ($content instanceof LLMMessageText) {
-                        $firstContent = $message->getContents()[0];
-                        if ($firstContent instanceof LLMMessageText) {
-                            $content->mergeWith($firstContent);
-                        }
-                    }
-                }
-            } else {
-                $messages[] = $message;
-                $previous = $message;
-            }
-            $lastWasContinue = false;
-        }
 
-        $clone = clone $this;
-        $clone->conversation = new LLMConversation($messages);
-
-        return $clone;
-    }
-
-    public function withPostProcessLastMessageText(callable $callback): self {
-        $messages = $this->getConversation()->getMessages();
-        $lastMessage = array_pop($messages);
-        $contents = [];
-        foreach ($lastMessage->getContents() as $content) {
-            if ($content instanceof LLMMessageText) {
-                $contents[] = new LLMMessageText($callback($content->getText()));
-            } else {
-                $contents[] = $content;
-            }
-        }
-        if ($lastMessage->isUser()) {
-            $messages[] = LLMMessage::createFromUser(new LLMMessageContents($contents));
-        } else {
-            $messages[] = LLMMessage::createFromAssistant(new LLMMessageContents($contents));
-        }
-
-        $clone = clone $this;
-        $clone->conversation = new LLMConversation($messages);
-
-        return $clone;
-    }
 
     public function getLastMessage(): LLMMessage {
         return $this->getConversation()->getMessages()[count($this->getConversation()->getMessages()) - 1];

@@ -251,42 +251,6 @@ EOT
 echo $response->getLastText();
 ```
 
-## Token limit handling
-
-Handle long responses using `continuationCallback`. The helper method `LLMChainClient::continueTagResponse` simplifies splitting long outputs into multiple parts.
-
-```php
-use Soukicz\Llm\Cache\FileCache;
-use Soukicz\Llm\Client\Anthropic\AnthropicClient;
-use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
-use Soukicz\Llm\Client\LLMChainClient;
-use Soukicz\Llm\LLMResponse;
-use Soukicz\Llm\Message\LLMMessage;
-use Soukicz\Llm\Message\LLMMessageText;
-use Soukicz\Llm\LLMConversation;
-use Soukicz\Llm\LLMRequest;
-
-require_once __DIR__ . '/vendor/autoload.php';
-
-$cache = new FileCache(sys_get_temp_dir());
-$anthropic = new AnthropicClient('sk-xxxx', $cache);
-$chainClient = new LLMChainClient();
-
-$response = $chainClient->run(
-    client: $anthropic,
-    request: new LLMRequest(
-        model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
-        conversation: new LLMConversation([LLMMessage::createFromUserString('List all US states. Batch output by 5 states and output each batch as JSON array and wrap this array in XML tag named "states"')]),
-        maxTokens: 55
-    ),
-    continuationCallback: function (LLMResponse $llmResponse): LLMRequest {
-        return LLMChainClient::continueTagResponse($llmResponse->getRequest(), ['states'], 'Continue');
-    }
-);
-
-echo $response->getLastText();
-```
-
 ## Logging
 
 ```php

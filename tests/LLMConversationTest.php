@@ -32,14 +32,12 @@ class LLMConversationTest extends TestCase {
             $toolUseContent,
             $toolResultContent,
         ]));
-        $userContinueMessage = LLMMessage::createFromUserContinue($textContent);
 
         // Create a conversation with the messages
         $conversation = new LLMConversation([
             $systemMessage,
             $userMessage,
             $assistantMessage,
-            $userContinueMessage,
         ]);
 
         // Serialize to JSON and then back to array
@@ -63,7 +61,6 @@ class LLMConversationTest extends TestCase {
             $this->assertEquals($originalMessage->isSystem(), $deserializedMessage->isSystem());
             $this->assertEquals($originalMessage->isUser(), $deserializedMessage->isUser());
             $this->assertEquals($originalMessage->isAssistant(), $deserializedMessage->isAssistant());
-            $this->assertEquals($originalMessage->isContinue(), $deserializedMessage->isContinue());
 
             // Check content
             $originalContents = $originalMessage->getContents();

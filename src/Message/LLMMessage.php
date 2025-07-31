@@ -9,7 +9,7 @@ class LLMMessage implements JsonDeserializable {
     private const TYPE_USER = 'user';
     private const TYPE_ASSISTANT = 'assistant';
 
-    private function __construct(private readonly string $type, private readonly LLMMessageContents $content, private readonly bool $continue = false) {
+    private function __construct(private readonly string $type, private readonly LLMMessageContents $content) {
     }
 
     public function getContents(): LLMMessageContents {
@@ -28,9 +28,6 @@ class LLMMessage implements JsonDeserializable {
         return $this->type === self::TYPE_SYSTEM;
     }
 
-    public function isContinue(): bool {
-        return $this->continue;
-    }
 
     public static function createFromUser(LLMMessageContents $content): LLMMessage {
         return new self(self::TYPE_USER, $content);
@@ -40,9 +37,6 @@ class LLMMessage implements JsonDeserializable {
         return new self(self::TYPE_USER, new LLMMessageContents([new LLMMessageText($content)]));
     }
 
-    public static function createFromUserContinue(LLMMessageContent $content): LLMMessage {
-        return new self(self::TYPE_USER, new LLMMessageContents([$content]), true);
-    }
 
     public static function createFromAssistant(LLMMessageContents $content): LLMMessage {
         return new self(self::TYPE_ASSISTANT, $content);
@@ -65,11 +59,10 @@ class LLMMessage implements JsonDeserializable {
         return [
             'type' => $this->type,
             'content' => $this->content,
-            'continue' => $this->continue,
         ];
     }
 
     public static function fromJson(array $data): self {
-        return new self($data['type'], LLMMessageContents::fromJson($data['content']), $data['continue']);
+        return new self($data['type'], LLMMessageContents::fromJson($data['content']));
     }
 }

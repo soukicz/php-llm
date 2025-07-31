@@ -10,11 +10,6 @@ class LLMMessageText implements LLMMessageContent {
         return $this->text;
     }
 
-    public function mergeWith(self $text):self {
-        $this->text .= $text->getText();
-
-        return $this;
-    }
 
     public function isCached(): bool {
         return $this->cached;
