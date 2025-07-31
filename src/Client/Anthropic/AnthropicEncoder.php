@@ -232,7 +232,7 @@ class AnthropicEncoder implements ModelEncoder {
             ->withTime($responseTimeMs);
 
         $stopReason = match ($response['stop_reason']) {
-            'end_turn' => StopReason::FINISHED,
+            'end_turn', 'stop_sequence' => StopReason::FINISHED,
             'max_tokens' => StopReason::LENGTH,
             'tool_use' => StopReason::TOOL_USE,
             default => throw new \InvalidArgumentException('Unsupported stop reason "' . $response['stop_reason'] . '"'),
