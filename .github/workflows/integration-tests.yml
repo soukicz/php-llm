@@ -1,0 +1,87 @@
+name: Integration Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      verbose:
+        description: 'Enable verbose output'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+  push:
+    branches: [ master ]
+    paths:
+      - 'src/**'
+      - 'tests/Integration/**'
+      - '.github/workflows/integration-tests.yml'
+  pull_request:
+    branches: [ master ]
+    types: [ labeled ]
+
+jobs:
+  integration-tests:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    # Only run on manual trigger or push to master
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push'
+
+    environment: integration-tests  # Use GitHub environment for protection rules
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, json, zlib
+          coverage: none
+
+      - name: Validate composer.json and composer.lock
+        run: composer validate --strict
+
+      - name: Cache Composer packages
+        id: composer-cache
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-php-8.3-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-8.3-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
+
+      - name: Setup environment
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          # Create .env file from secrets
+          cat > .env << EOF
+          ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
+          OPENAI_API_KEY=$OPENAI_API_KEY
+          GEMINI_API_KEY=$GEMINI_API_KEY
+          INTEGRATION_TEST_VERBOSE=${{ github.event.inputs.verbose || 'false' }}
+          INTEGRATION_TEST_MAX_COST=5.00
+          EOF
+
+      - name: Run integration tests
+        run: |
+          vendor/bin/phpunit --testsuite integration --display-warnings --display-notices
+        timeout-minutes: 10
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: integration-test-results
+          path: |
+            .phpunit.result.cache

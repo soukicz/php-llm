@@ -3,6 +3,10 @@
   <testsuites>
     <testsuite name="default">
       <directory>tests</directory>
+      <exclude>tests/Integration</exclude>
+    </testsuite>
+    <testsuite name="integration">
+      <directory>tests/Integration</directory>
     </testsuite>
   </testsuites>
   <source>
@@ -10,4 +14,9 @@
       <directory>src</directory>
     </include>
   </source>
+  <groups>
+    <exclude>
+      <group>integration</group>
+    </exclude>
+  </groups>
 </phpunit>
