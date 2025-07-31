@@ -27,7 +27,7 @@ jobs:
         run: composer install --prefer-dist --no-progress
 
       - name: Run PHPStan
-        run: vendor/bin/phpstan analyse src
+        run: vendor/bin/phpstan analyse src tests --exclude-path tests/Integration
 
   unit-tests:
     name: Unit Tests (PHP ${{ matrix.php-version }})
@@ -61,7 +61,7 @@ jobs:
         run: composer install --prefer-dist --no-progress
 
       - name: Run tests
-        run: XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-text
+        run: XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-text --testsuite default
 
   test-lowest-dependencies:
     name: Test with lowest dependencies (PHP 8.1)
@@ -82,4 +82,4 @@ jobs:
         run: composer update --prefer-lowest --prefer-dist --no-progress
 
       - name: Run tests
-        run: vendor/bin/phpunit
+        run: vendor/bin/phpunit --testsuite default
