@@ -70,7 +70,7 @@ class HttpClientFactory {
             return
                 $retries < self::MAX_RETRIES
                 && null !== $response
-                && in_array($response->getStatusCode(), [429, 529, 502, 504], true);
+                && in_array($response->getStatusCode(), [429, 529, 500, 502, 503, 504], true);
         };
 
         $delay = static function (int $retries, ResponseInterface $response): int {
