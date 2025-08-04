@@ -10,8 +10,47 @@
 ## Supported models
  - Anthropic (Claude)
  - OpenAI (GPT)
+ - OpenAI-compatible
  - Google (Gemini)
  - AWS Bedrock (package `soukicz/llm-aws-bedrock`)
+
+The [`OpenAICompatibleClient`](src/Client/OpenAI/OpenAICompatibleClient.php) allows you to use any OpenAI-compatible API endpoint with custom base-URL and model name. This is particularly useful for:
+
+- **OpenRouter**: Access to multiple models through a unified API
+- **Local LLM servers**: Self-hosted models using OpenAI-compatible interfaces (llama-server, ollama, etc.)
+- **Alternative providers**: Services that implement OpenAI's API specification
+
+### OpenRouter Example
+
+```php
+use Soukicz\Llm\Client\OpenAI\OpenAICompatibleClient;
+use Soukicz\Llm\Client\OpenAI\Model\GPT41;
+use Soukicz\Llm\Client\LLMChainClient;
+use Soukicz\Llm\LLMConversation;
+use Soukicz\Llm\LLMRequest;
+use Soukicz\Llm\Message\LLMMessage;
+
+$client = new OpenAICompatibleClient(
+    baseUrl: 'https://openrouter.ai/api/v1',
+    model: 'openrouter/horizon-beta', // Use model ID from OpenRouter's model page
+    apiKey: 'sk-or-v1-xxxxx' // Your OpenRouter API key
+);
+
+$chainClient = new LLMChainClient();
+$response = $chainClient->run(
+    client: $client,
+    request: new LLMRequest(
+        model: new GPT41(GPT41::VERSION_2025_04_14), // Model wrapper (actual model specified in constructor)
+        conversation: new LLMConversation([
+            LLMMessage::createFromUserString('Hello from OpenRouter!')
+        ])
+    )
+);
+
+echo $response->getLastText();
+```
+
+**Note**: The `model` parameter in the constructor specifies the actual model to use, while the `model` parameter in `LLMRequest` is used for internal processing and token calculations.
 
 ## Installation
 
