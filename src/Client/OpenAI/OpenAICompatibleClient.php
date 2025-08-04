@@ -21,6 +21,9 @@ class OpenAICompatibleClient extends OpenAIEncoder implements LLMBatchClient {
 
     private ?Client $cachedHttpClient = null;
 
+    // For testing purposes
+    public static ?Client $testHttpClient = null;
+
     public function __construct(
         private readonly string $baseUrl,
         private readonly string $model,
@@ -37,6 +40,10 @@ class OpenAICompatibleClient extends OpenAIEncoder implements LLMBatchClient {
     }
 
     private function getHttpClient(): Client {
+        if (self::$testHttpClient !== null) {
+            return self::$testHttpClient;
+        }
+
         if (!$this->httpClient) {
             $this->httpClient = HttpClientFactory::createClient($this->customHttpMiddleware, null, $this->getHeaders());
         }
