@@ -24,23 +24,22 @@ The [`OpenAICompatibleClient`](src/Client/OpenAI/OpenAICompatibleClient.php) all
 
 ```php
 use Soukicz\Llm\Client\OpenAI\OpenAICompatibleClient;
-use Soukicz\Llm\Client\OpenAI\Model\GPT41;
+use Soukicz\Llm\Client\Universal\LocalModel;
 use Soukicz\Llm\Client\LLMChainClient;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
 
 $client = new OpenAICompatibleClient(
+    apiKey: 'sk-or-v1-xxxxx', // Your OpenRouter API key
     baseUrl: 'https://openrouter.ai/api/v1',
-    model: 'openrouter/horizon-beta', // Use model ID from OpenRouter's model page
-    apiKey: 'sk-or-v1-xxxxx' // Your OpenRouter API key
 );
 
 $chainClient = new LLMChainClient();
 $response = $chainClient->run(
     client: $client,
     request: new LLMRequest(
-        model: new GPT41(GPT41::VERSION_2025_04_14), // Model wrapper (actual model specified in constructor)
+        model: new LocalModel('openrouter/horizon-beta'),
         conversation: new LLMConversation([
             LLMMessage::createFromUserString('Hello from OpenRouter!')
         ])
@@ -49,8 +48,6 @@ $response = $chainClient->run(
 
 echo $response->getLastText();
 ```
-
-**Note**: The `model` parameter in the constructor specifies the actual model to use, while the `model` parameter in `LLMRequest` is used for internal processing and token calculations.
 
 ## Installation
 
