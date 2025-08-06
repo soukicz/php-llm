@@ -36,7 +36,7 @@ class UniversalLLMIntegrationTest extends IntegrationTestBase {
 
         $this->assertNotEmpty(
             $clients,
-            'No LLM API keys configured. Please create a .env file with at least one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY'
+            'No LLM API keys configured. Please create a .env file with at least one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY'
         );
     }
 

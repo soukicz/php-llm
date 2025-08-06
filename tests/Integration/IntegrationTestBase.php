@@ -15,6 +15,8 @@ use Soukicz\Llm\Client\LLMClient;
 use Soukicz\Llm\Client\ModelInterface;
 use Soukicz\Llm\Client\OpenAI\Model\GPT4oMini;
 use Soukicz\Llm\Client\OpenAI\OpenAIClient;
+use Soukicz\Llm\Client\OpenAI\OpenAICompatibleClient;
+use Soukicz\Llm\Client\Universal\LocalModel;
 
 /**
  * @group integration
@@ -79,7 +81,7 @@ abstract class IntegrationTestBase extends TestCase {
             [$key, $value] = explode('=', $line, 2);
             $_ENV[trim($key)] = trim($value);
         }
-        
+
         self::$envLoaded = true;
     }
 
@@ -107,7 +109,7 @@ abstract class IntegrationTestBase extends TestCase {
      * @return array<string>
      */
     protected function getRequiredEnvironmentVariables(): array {
-        return ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY'];
+        return ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'OPENROUTER_API_KEY'];
     }
 
     /**
@@ -117,7 +119,7 @@ abstract class IntegrationTestBase extends TestCase {
     protected function getAllClients(): array {
         // Ensure environment is loaded (in case called from data provider)
         self::loadEnvironmentStatic();
-        
+
         // Initialize cache if not already done
         if ($this->cache === null) {
             $cacheDir = sys_get_temp_dir() . '/llm-integration-tests';
@@ -126,7 +128,7 @@ abstract class IntegrationTestBase extends TestCase {
             }
             $this->cache = new FileCache($cacheDir);
         }
-        
+
         $clients = [];
 
         if (!empty($_ENV['ANTHROPIC_API_KEY'])) {
@@ -150,6 +152,14 @@ abstract class IntegrationTestBase extends TestCase {
                 'client' => new GeminiClient($_ENV['GEMINI_API_KEY'], $this->cache),
                 'model' => new Gemini20Flash(),
                 'name' => 'Google Gemini 2.0 Flash',
+            ];
+        }
+
+        if (!empty($_ENV['OPENROUTER_API_KEY'])) {
+            $clients[] = [
+                'client' => new OpenAICompatibleClient($_ENV['OPENROUTER_API_KEY'], 'https://openrouter.ai/api/v1', $this->cache),
+                'model' => new LocalModel('openrouter/horizon-beta'),
+                'name' => 'OpenRouter',
             ];
         }
 

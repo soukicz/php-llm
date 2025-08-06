@@ -63,12 +63,14 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           # Create .env file from secrets
           cat > .env << EOF
           ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
           OPENAI_API_KEY=$OPENAI_API_KEY
           GEMINI_API_KEY=$GEMINI_API_KEY
+          OPENROUTER_API_KEY=O$PENROUTER_API_KEY
           INTEGRATION_TEST_VERBOSE=${{ github.event.inputs.verbose || 'false' }}
           INTEGRATION_TEST_MAX_COST=5.00
           EOF
