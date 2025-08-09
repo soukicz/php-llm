@@ -70,14 +70,14 @@ jobs:
           ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
           OPENAI_API_KEY=$OPENAI_API_KEY
           GEMINI_API_KEY=$GEMINI_API_KEY
-          OPENROUTER_API_KEY=O$PENROUTER_API_KEY
+          OPENROUTER_API_KEY=$OPENROUTER_API_KEY
           INTEGRATION_TEST_VERBOSE=${{ github.event.inputs.verbose || 'false' }}
           INTEGRATION_TEST_MAX_COST=5.00
           EOF
 
       - name: Run integration tests
         run: |
-          vendor/bin/phpunit --testsuite integration --display-warnings --display-notices
+          vendor/bin/phpunit -c phpunit-integration.xml --display-warnings --display-notices
         timeout-minutes: 10
 
       - name: Upload test results
