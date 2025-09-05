@@ -17,6 +17,9 @@ use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 
 class GeminiEncoder implements ModelEncoder {
+
+    protected array $safetySettings = [];
+
     public function encodeRequest(LLMRequest $request): array {
         $contents = [];
         $systemInstruction = null;
@@ -102,6 +105,9 @@ class GeminiEncoder implements ModelEncoder {
                 'maxOutputTokens' => $request->getMaxTokens(),
             ],
         ];
+        if (!empty($this->safetySettings)) {
+            $requestData['safetySettings'] = $this->safetySettings;
+        }
 
         if (!empty($request->getStopSequences())) {
             $requestData['generationConfig']['stopSequences'] = $request->getStopSequences();

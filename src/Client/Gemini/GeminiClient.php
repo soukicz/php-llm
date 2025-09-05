@@ -26,7 +26,7 @@ class GeminiClient extends GeminiEncoder implements LLMClient {
     // For testing purposes
     public static ?Client $testHttpClient = null;
 
-    public function __construct(private readonly string $apiKey, private readonly ?CacheInterface $cache = null, private $customHttpMiddleware = null) {
+    public function __construct(private readonly string $apiKey, private readonly ?CacheInterface $cache = null, private $customHttpMiddleware = null, protected array $safetySettings = []) {
     }
 
     private function getHeaders(): array {
