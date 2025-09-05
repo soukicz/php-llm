@@ -194,6 +194,9 @@ class GeminiEncoder implements ModelEncoder {
                         $part['functionCall']['name'],
                         $part['functionCall']['args']
                     );
+                } elseif (isset($part['inlineData']) && in_array($part['inlineData']['mimeType'], ['image/jpeg', 'image/png'], true)) {
+                    $responseContents[] = new LLMMessageImage('base64', $part['inlineData']['mimeType'], $part['inlineData']['data']);
+
                 }
             }
         }
