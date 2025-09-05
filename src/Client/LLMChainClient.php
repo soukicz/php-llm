@@ -74,7 +74,7 @@ class LLMChainClient {
                             } catch (Exception $e) {
                                 $toolResponseContents[] = Create::promiseFor(new LLMMessageToolResult(
                                     $content->getId(),
-                                    LLMMessageContents::fromString('ERROR: Input is not matching expected schema: ' . $e->getMessage())
+                                    LLMMessageContents::fromErrorString('ERROR: Input is not matching expected schema: ' . $e->getMessage())
                                 ));
                                 continue;
                             }
