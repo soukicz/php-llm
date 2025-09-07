@@ -213,7 +213,7 @@ class GeminiEncoder implements ModelEncoder {
         $stopReason = match ($candidate['finishReason'] ?? 'STOP') {
             'STOP', 'FINISH_REASON_STOP' => StopReason::FINISHED,
             'MAX_TOKENS', 'FINISH_REASON_MAX_TOKENS' => StopReason::LENGTH,
-            'RECITATION', 'SAFETY', 'FINISH_REASON_SAFETY' => StopReason::SAFETY,
+            'RECITATION', 'SAFETY', 'PROHIBITED_CONTENT', 'FINISH_REASON_SAFETY' => StopReason::SAFETY,
             'FUNCTION_CALL', 'FINISH_REASON_TOOL' => StopReason::TOOL_USE,
             default => StopReason::FINISHED,
         };
