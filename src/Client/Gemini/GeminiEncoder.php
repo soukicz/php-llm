@@ -166,21 +166,6 @@ class GeminiEncoder implements ModelEncoder {
         $response = $modelResponse->getData();
         $model = $request->getModel();
 
-        if (isset($response['usageMetadata'])) {
-            $promptTokenCount = $response['usageMetadata']['promptTokenCount'];
-            $outputTokenCount = $response['usageMetadata']['candidatesTokenCount'];
-
-            $inputPrice = $promptTokenCount * ($model->getInputPricePerMillionTokens() / 1_000_000);
-            $outputPrice = $outputTokenCount * ($model->getOutputPricePerMillionTokens() / 1_000_000);
-
-            $request = $request->withCost(
-                $promptTokenCount,
-                $outputTokenCount,
-                $inputPrice,
-                $outputPrice
-            );
-        }
-
         $request = $request->withTime((int) $modelResponse->getResponseTimeMs());
 
         $candidate = $response['candidates'][0];
@@ -220,6 +205,25 @@ class GeminiEncoder implements ModelEncoder {
 
         if ($toolCall) {
             $stopReason = StopReason::TOOL_USE;
+        }
+
+        if (isset($response['usageMetadata'])) {
+            $promptTokenCount = $response['usageMetadata']['promptTokenCount'];
+            if ($stopReason === StopReason::SAFETY && !isset($response['usageMetadata']['candidatesTokenCount'])) {
+                $outputTokenCount = 0;
+            } else {
+                $outputTokenCount = $response['usageMetadata']['candidatesTokenCount'];
+            }
+
+            $inputPrice = $promptTokenCount * ($model->getInputPricePerMillionTokens() / 1_000_000);
+            $outputPrice = $outputTokenCount * ($model->getOutputPricePerMillionTokens() / 1_000_000);
+
+            $request = $request->withCost(
+                $promptTokenCount,
+                $outputTokenCount,
+                $inputPrice,
+                $outputPrice
+            );
         }
 
         return new LLMResponse(
