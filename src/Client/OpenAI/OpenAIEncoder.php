@@ -35,8 +35,10 @@ class OpenAIEncoder implements ModelEncoder {
         }
         if ($content instanceof LLMMessageImage) {
             return [
-                'type' => 'input_image',
-                'image_url' => 'data:' . $content->getMediaType() . ';base64,' . $content->getData(),
+                'type' => 'image_url',
+                'image_url' => [
+                    'url' => 'data:' . $content->getMediaType() . ';base64,' . $content->getData(),
+                ],
             ];
         }
         if ($content instanceof LLMMessagePdf) {
