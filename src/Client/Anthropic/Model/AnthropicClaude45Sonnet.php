@@ -11,7 +11,7 @@ class AnthropicClaude45Sonnet extends AnthropicModel {
     }
 
     public function getCode(): string {
-        return 'claude-4-5-sonnet-' . $this->version;
+        return 'claude-sonnet-4-5-' . $this->version;
     }
 
     public function getInputPricePerMillionTokens(): float {
