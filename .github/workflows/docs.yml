@@ -40,5 +40,10 @@ jobs:
           echo "Fixing PHP code blocks..."
           python3 .github/scripts/fix-php-highlighting.py
 
+      - name: Configure Git Credentials
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
       - name: Deploy to GitHub Pages
         run: mkdocs gh-deploy --force
