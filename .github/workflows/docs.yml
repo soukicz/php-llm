@@ -1,0 +1,44 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          key: ${{ github.ref }}
+          path: .cache
+
+      - name: Install dependencies
+        run: pip install mkdocs-material
+
+      - name: Prepare documentation
+        run: |
+          echo "Copying Readme.md to docs/index.md..."
+          cp Readme.md docs/index.md
+
+          echo "Fixing links in docs/index.md..."
+          sed -i 's|](docs/|](|g' docs/index.md
+
+          echo "Fixing PHP code blocks..."
+          python3 .github/scripts/fix-php-highlighting.py
+
+      - name: Deploy to GitHub Pages
+        run: mkdocs gh-deploy --force

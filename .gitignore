@@ -3,3 +3,7 @@
 composer.lock
 .env
 .phpunit.result.cache
+/site/
+docs/index.md
+__pycache__/
+/tests-temp/

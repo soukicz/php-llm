@@ -1,0 +1,80 @@
+site_name: PHP LLM
+site_description: Agentic AI Framework for PHP - Build powerful AI agents with Large Language Models
+site_url: https://soukicz.github.io/php-llm/
+repo_url: https://github.com/soukicz/php-llm
+repo_name: soukicz/php-llm
+
+theme:
+  name: material
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Quick Start: examples/quick-start.md
+  - Examples:
+      - Quick Start: examples/quick-start.md
+      - Best Practices: examples/best-practices.md
+      - Tools & Function Calling: examples/tools-and-function-calling.md
+      - Multimodal: examples/multimodal.md
+      - State Management: examples/state-management.md
+      - Logging & Debugging: examples/logging-debugging.md
+  - Guides:
+      - Configuration: guides/configuration.md
+      - Tools: guides/tools.md
+      - Caching: guides/caching.md
+      - Batch Processing: guides/batch-processing.md
+      - Multimodal: guides/multimodal.md
+      - Reasoning: guides/reasoning.md
+      - Feedback Loops: guides/feedback-loops.md
+  - Providers:
+      - Overview: providers/README.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.details
+  - admonition
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/soukicz/php-llm

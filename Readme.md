@@ -1,322 +1,548 @@
-## Features
+# PHP LLM - Agentic AI Framework for PHP
 
- - Unified API for multiple language models
- - Tool integration
- - Response caching
- - Asynchronous requests
- - Feedback loop handling
- - Automatic token limit handling (continuation support)
+Build powerful **AI agents** that can use tools, self-correct, and take autonomous actions. A unified PHP framework for Large Language Models with support for Anthropic Claude, OpenAI GPT, Google Gemini, and more.
 
-## Supported models
- - Anthropic (Claude)
- - OpenAI (GPT)
- - OpenAI-compatible
- - Google (Gemini)
- - AWS Bedrock (package `soukicz/llm-aws-bedrock`)
-
-The [`OpenAICompatibleClient`](src/Client/OpenAI/OpenAICompatibleClient.php) allows you to use any OpenAI-compatible API endpoint with custom base-URL and model name. This is particularly useful for:
-
-- **OpenRouter**: Access to multiple models through a unified API
-- **Local LLM servers**: Self-hosted models using OpenAI-compatible interfaces (llama-server, ollama, etc.)
-- **Alternative providers**: Services that implement OpenAI's API specification
-
-### OpenRouter Example
-
-```php
-use Soukicz\Llm\Client\OpenAI\OpenAICompatibleClient;
-use Soukicz\Llm\Client\Universal\LocalModel;
-use Soukicz\Llm\Client\LLMChainClient;
-use Soukicz\Llm\LLMConversation;
-use Soukicz\Llm\LLMRequest;
-use Soukicz\Llm\Message\LLMMessage;
-
-$client = new OpenAICompatibleClient(
-    apiKey: 'sk-or-v1-xxxxx', // Your OpenRouter API key
-    baseUrl: 'https://openrouter.ai/api/v1',
-);
-
-$chainClient = new LLMChainClient();
-$response = $chainClient->run(
-    client: $client,
-    request: new LLMRequest(
-        model: new LocalModel('openrouter/horizon-beta'),
-        conversation: new LLMConversation([
-            LLMMessage::createFromUserString('Hello from OpenRouter!')
-        ])
-    )
-);
-
-echo $response->getLastText();
-```
-
-## Installation
+> **What is Agentic AI?** Agents that can call functions, validate outputs, iterate on responses, and make decisions autonomously - not just generate text.
 
 ```bash
 composer require soukicz/llm
 ```
 
-## Caching
+## Why PHP LLM?
 
-All clients support caching. You can use the provided `FileCache` or implement your own cache by extending `CacheInterface`. A DynamoDB cache implementation is also available in the `soukicz/llm-cache-dynamodb` package.
+- 🤖 **Build AI Agents** - Create autonomous agents with tools, feedback loops, and state management
+- 🔄 **Unified API** - One interface for Anthropic, OpenAI, Gemini, and more
+- 🛠️ **Function Calling** - Empower agents to interact with external systems and APIs
+- 📝 **Built-in Tools** - TextEditorTool for file manipulation, embeddings API, and more
+- ✅ **Self-Correcting** - Validate and refine outputs with feedback loops
+- 📸 **Multimodal** - Process images and PDFs alongside text (with caching support)
+- 🧠 **Reasoning Models** - Advanced thinking with o3 and o4-mini reasoning models
+- ⚡ **Async & Caching** - Fast, cost-effective operations with prompt caching
+- 💾 **State Persistence** - Save and resume conversations with thread IDs
+- 📊 **Monitoring** - Built-in logging, cost tracking, and debugging interfaces
 
-Caching operates at the HTTP request level. To ensure correct caching behavior, always specify exact model names instead of using general terms like "latest," to prevent cached responses from older models. Cached responses still report the original response time.
+## Key Concepts
 
-## Debugging
-Use `MarkdownDebugFormatter` to convert `LLMRequest` or `LLMResponse` objects to markdown format, aiding debugging and logging.
+Before you start, understanding these core concepts will help you use the library effectively:
 
-LLM clients also support an optional Guzzle middleware for HTTP-level logging.
+### Async by Default
+All LLM clients in this library are **asynchronous by default** using Guzzle Promises. The `run()` method is a convenience wrapper that calls `runAsync()->wait()` internally. For production applications handling multiple requests, use the async methods directly for better performance.
 
-## Saving state
-The `LLMConversation` object supports JSON serialization and deserialization. This allows you to save conversation states and resume them later.
+### Two Types of Clients
 
-## Simple request and response
+- **LLM Clients** (`AnthropicClient`, `OpenAIClient`, etc.) - Low-level API clients that send a single request and return a single response. Use these when you need direct control over individual API calls.
+
+- **Chain Client** (`LLMChainClient`) - High-level orchestrator that handles multi-turn conversations, automatic tool calling, feedback loops, and retries. Use this for building agents that need to iterate or use tools.
+
+### Model Versions
+Anthropic and OpenAI models require explicit version constants:
+```php
+<?php
+new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929)
+new GPTo3(GPTo3::VERSION_2025_04_16)
+```
+Google Gemini models do NOT require versions - just instantiate them directly.
+
+### Conversations & State
+`LLMConversation` manages the message history and can be serialized/deserialized for persistence. Each conversation has an optional `threadId` (UUID) for tracking across sessions.
+
+## Quick Start
 
 ```php
-use Soukicz\Llm\Cache\FileCache;
-use Soukicz\Llm\Client\Anthropic\AnthropicClient;
-use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
-use Soukicz\Llm\Client\LLMChainClient;
-use Soukicz\Llm\Message\LLMMessage;
-use Soukicz\Llm\Message\LLMMessageText;
-use Soukicz\Llm\LLMConversation;
-use Soukicz\Llm\LLMRequest;
-use Soukicz\Llm\LLMResponse;
-
+<?php
 require_once __DIR__ . '/vendor/autoload.php';
 
-$cache = new FileCache(sys_get_temp_dir());
-$anthropic = new AnthropicClient('sk-xxxxx', $cache);
-$chainClient = new LLMChainClient();
-
-/////////////////////////////
-// simple synchronous request
-$response = $chainClient->run(
-    client: $anthropic,
-    request: new LLMRequest(
-        model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
-        conversation: new LLMConversation([LLMMessage::createFromUserString('Hello, how are you?')]),
-    )
-);
-echo $response->getLastText();
-
-////////////////////////
-// simple async request
-$response = $chainClient->runAsync(
-    client: $anthropic,
-    request: new LLMRequest(
-        model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
-        conversation: new LLMConversation([LLMMessage::createFromUserString('Hello, how are you?')]),
-    )
-)->then(function (LLMResponse $response) {
-    echo $response->getLastText();
-});
-```
-
-### Tools
-
-```php
-
-use GuzzleHttp\Client;
-use GuzzleHttp\Promise\PromiseInterface;
-use GuzzleHttp\Psr7\Response;
 use Soukicz\Llm\Cache\FileCache;
 use Soukicz\Llm\Client\Anthropic\AnthropicClient;
-use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
 use Soukicz\Llm\Client\LLMChainClient;
 use Soukicz\Llm\Message\LLMMessage;
-use Soukicz\Llm\Message\LLMMessageContents
-use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
+
+// Optional: Enable prompt caching to reduce costs
+$cache = new FileCache(sys_get_temp_dir());
+
+// Create the API client (low-level, sends single requests)
+$client = new AnthropicClient('sk-xxxxx', $cache);
+
+// Create the chain client (high-level, handles tool calls and feedback loops)
+$chainClient = new LLMChainClient();
+
+// Run a request (this is synchronous - use runAsync() for better performance)
+$response = $chainClient->run(
+    client: $client,
+    request: new LLMRequest(
+        model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
+        conversation: new LLMConversation([
+            LLMMessage::createFromUserString('What is PHP?')
+        ]),
+    )
+);
+
+// Get the assistant's response text
+echo $response->getLastText();
+```
+
+### Async Usage
+
+```php
+<?php
+// For better performance, use async operations
+$promise = $chainClient->runAsync($client, $request);
+
+$promise->then(
+    function (LLMResponse $response) {
+        echo $response->getLastText();
+    },
+    function (Exception $error) {
+        echo "Error: " . $error->getMessage();
+    }
+);
+```
+
+### Provider-Specific Setup
+
+```php
+<?php
+// Anthropic Claude
+$client = new AnthropicClient(
+    apiKey: 'sk-ant-xxxxx',
+    cache: $cache,
+    customHttpMiddleware: null,
+    betaFeatures: [] // e.g., ['text-editor-20250116'] for TextEditorTool
+);
+
+// OpenAI (organization parameter is required)
+$client = new OpenAIClient(
+    apiKey: 'sk-xxxxx',
+    apiOrganization: 'org-xxxxx', // Required parameter
+    cache: $cache
+);
+
+// Google Gemini
+$client = new GeminiClient(
+    apiKey: 'your-key',
+    cache: $cache
+);
+```
+
+**→ [More Examples](docs/examples/quick-start.md)**
+
+## Core Features
+
+### 🛠️ Function Calling (Tools)
+
+Enable AI agents to call external functions and APIs:
+
+```php
 use Soukicz\Llm\Tool\CallbackToolDefinition;
+use Soukicz\Llm\Message\LLMMessageContents;
 
-require_once __DIR__ . '/vendor/autoload.php';
-
-$cache = new FileCache(sys_get_temp_dir());
-$anthropic = new AnthropicClient('sk-xxxxxx', $cache);
-$chainClient = new LLMChainClient();
-
-$currencyTool = new CallbackToolDefinition(
-    name: 'currency_rates',
-    description: 'Tool for getting current currency rates. Required input is currency code of source currency and currency code of target currency.',
-    inputSchema: [
-        'type' => 'object',
-        'properties' => [
-            'source_currency' => ['type' => 'string'],
-            'target_currency' => ['type' => 'string'],
-        ],
-        'required' => ['source_currency', 'target_currency'],
-    ],
-    handler: function (array $input): PromiseInterface {
-        $client = new Client();
-
-        // tool can return either a promise or a value
-        return $client->getAsync('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/' . strtolower($input['source_currency']) . '.json')
-            ->then(function (Response $response) use ($input) {
-                $data = json_decode($response->getBody()->getContents(), true, 512, JSON_THROW_ON_ERROR);
-
-                return LLMMessageContents::fromArrayData([
-                    'rate' => $data[strtolower($input['source_currency'])][strtolower($input['target_currency'])],
-                ]);
-            });
-    }
+$weatherTool = new CallbackToolDefinition(
+    name: 'get_weather',
+    description: 'Get current weather for a location',
+    inputSchema: ['type' => 'object', 'properties' => ['city' => ['type' => 'string']]],
+    handler: fn($input) => LLMMessageContents::fromArrayData([
+        'temperature' => 22,
+        'condition' => 'sunny'
+    ])
 );
 
-$response = $chainClient->run(
-    client:$anthropic,
-    request: new LLMRequest(
-        model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
-        conversation: new LLMConversation([LLMMessage::createFromUserString('How much is 100 USD in EUR today?')]),
-        tools: [$currencyTool],
-    )
-);
-echo $response->getLastText();
+$response = $chainClient->run($client, new LLMRequest(
+    model: $model,
+    conversation: $conversation,
+    tools: [$weatherTool],
+));
 ```
 
-## Feedback loop handling
+> **Note:** Tool handlers must return `LLMMessageContents` or a Promise. See [Tools Documentation](docs/guides/tools.md) for complete examples.
 
-`LLMChainClient` manages feedback loops. Define a callback function to validate responses and optionally request a retry. Always include a loop counter to prevent infinite loops.
+**→ [Tools Documentation](docs/guides/tools.md)**
+
+### ✅ Feedback Loops
+
+Build self-correcting agents that validate and improve their outputs:
 
 ```php
-use Soukicz\Llm\Cache\FileCache;
-use Soukicz\Llm\Client\Anthropic\AnthropicClient;
-use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
-use Soukicz\Llm\Client\LLMChainClient;
-use Soukicz\Llm\LLMResponse;
-use Soukicz\Llm\Message\LLMMessage;
-use Soukicz\Llm\Message\LLMMessageText;
-use Soukicz\Llm\LLMConversation;
-use Soukicz\Llm\LLMRequest;
-
-require_once __DIR__ . '/vendor/autoload.php';
-
-$cache = new FileCache(sys_get_temp_dir());
-$anthropic = new AnthropicClient('sk-xxxxxx', $cache);
-$chainClient = new LLMChainClient();
-
 $response = $chainClient->run(
-    client: $anthropic,
-    request: new LLMRequest(
-        model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
-        conversation: new LLMConversation([LLMMessage::createFromUser([new LLMMessageText('List 5 animals in JSON array and wrap this array in XML tag named "animals"')])]),
-    ),
-    feedbackCallback: function (LLMResponse $llmResponse): ?LLMMessage {
-        if (preg_match('~<animals>(.+)</animals>~s', $llmResponse->getLastText(), $m)) {
-            try {
-                json_decode($m[1], true, 512, JSON_THROW_ON_ERROR);
-
-                return null;
-            } catch (JsonException $e) {
-                return LLMMessage::createFromUserString('I am sorry, but the response is not a valid JSON (' . $e->getMessage() . '). Please respond again.');
-            }
+    client: $client,
+    request: $request,
+    feedbackCallback: function ($response) {
+        if (!isValid($response->getLastText())) {
+            return LLMMessage::createFromUserString('Please try again with valid JSON');
         }
-
-        return LLMMessage::createFromUserString('I am sorry, but I could not find animals tag in the response. Please respond again.');
+        return null; // Valid, stop iteration
     }
 );
-
-echo $response->getLastText();
 ```
 
-## Feedback loop handling - nested LLM
+**→ [Feedback Loops Documentation](docs/guides/feedback-loops.md)**
 
-You can use nested LLM calls within a feedback loop to validate complex responses through an additional LLM evaluation step.
+### 📸 Multimodal Support
+
+Process images and PDFs alongside text:
 
 ```php
-
-use Soukicz\Llm\Cache\FileCache;
-use Soukicz\Llm\Client\Anthropic\AnthropicClient;
-use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
-use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude35Haiku;
-use Soukicz\Llm\Client\LLMChainClient;
-use Soukicz\Llm\LLMResponse;
-use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageContents;
+use Soukicz\Llm\Message\LLMMessageImage;
+use Soukicz\Llm\Message\LLMMessagePdf;
 use Soukicz\Llm\Message\LLMMessageText;
-use Soukicz\Llm\LLMConversation;
-use Soukicz\Llm\LLMRequest;
 
-require_once __DIR__ . '/vendor/autoload.php';
+// Images
+$imageData = base64_encode(file_get_contents('/path/to/image.jpg'));
+$message = LLMMessage::createFromUser(new LLMMessageContents([
+    new LLMMessageText('What is in this image?'),
+    new LLMMessageImage('base64', 'image/jpeg', $imageData, cached: true) // Enable prompt caching
+]));
 
-$cache = new FileCache(sys_get_temp_dir());
-$anthropic = new AnthropicClient('sk-xxxxx', $cache);
-$chainClient = new LLMChainClient();
-
-$response = $chainClient->run(
-    client: $anthropic,
-    request: new LLMRequest(
-        model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
-        conversation: new LLMConversation([LLMMessage::createFromUser([new LLMMessageText('List all US states in JSON array and wrap this array in XML tag named "states"')])]),
-    ),
-    feedbackCallback: function (LLMResponse $llmResponse) use ($anthropic, $chainClient): ?LLMMessage {
-        if (preg_match('~</states>(.+)~s', $llmResponse->getLastText(), $m)) {
-            $suffix = trim(trim(trim($m[3]), '`'));
-            if (empty($suffix)) {
-                return null;
-            }
-
-            $checkResponse = $chainClient->run(
-                client: $anthropic,
-                request: new LLMRequest(
-                    model: new AnthropicClaude35Haiku(AnthropicClaude35Haiku::VERSION_20241022), // use cheap and fast model for this simple task
-                    conversation: new LLMConversation([
-                        LLMMessage::createFromUserString(<<<EOT
-I need help with understanding of text. I have submitted work and I have received following text at the end of response:
-
-<response-text>
-$suffix
-</response-text>
-
-I need you to decide if this means that work was completed or if I should request continuation of work. Briefly explain what you see in response and finally output WORK_COMPLETED or WORK_NOT_COMPLETED. This is automated process and I need one of these two outputs.
-EOT
-                            ),
-                    ]),
-                )
-            );
-
-            if (str_contains($checkResponse->getLastText(), 'WORK_COMPLETED')) {
-                return null;
-            }
-
-            return LLMMessage::createFromUserString('Please continue');
-        }
-
-        return null;
-    }
-);
-
-echo $response->getLastText();
+// PDFs
+$pdfData = base64_encode(file_get_contents('/path/to/document.pdf'));
+$message = LLMMessage::createFromUser(new LLMMessageContents([
+    new LLMMessageText('Summarize this document'),
+    new LLMMessagePdf('base64', $pdfData, cached: true) // Optimize with caching
+]));
 ```
 
-## Logging
+> **Tip:** Use the `cached: true` parameter on large images/PDFs to enable prompt caching and reduce costs.
+
+**→ [Multimodal Documentation](docs/guides/multimodal.md)**
+
+### 🧠 Reasoning Models
+
+Use advanced reasoning for complex problems:
 
 ```php
-use Soukicz\Llm\LLMRequest;
-use Soukicz\Llm\LLMResponse;
-use Soukicz\Llm\Log\LLMLogger;
-use Soukicz\Llm\MarkdownFormatter;
+use Soukicz\Llm\Config\ReasoningEffort;
+use Soukicz\Llm\Config\ReasoningBudget;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
+use Soukicz\Llm\Client\OpenAI\Model\GPT5;
 
-readonly class LLMFileLogger implements LLMLogger {
+// Control reasoning with effort level (for supported models)
+$request = new LLMRequest(
+    model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
+    conversation: $conversation,
+    reasoningConfig: ReasoningEffort::HIGH // LOW, MEDIUM, or HIGH
+);
 
-    public function __construct(
-        private string            $logPath,
-        private MarkdownFormatter $formatter
-    ) {
-    }
+// Or use token-based budget control (for supported models)
+$request = new LLMRequest(
+    model: new GPT5(GPT5::VERSION_2025_08_07),
+    conversation: $conversation,
+    reasoningConfig: new ReasoningBudget(10000) // Max reasoning tokens
+);
+```
 
-    public function requestStarted(LLMRequest $request): void {
-        file_put_contents($this->logPath, $this->formatter->responseToMarkdown($request));
-    }
+**→ [Reasoning Models Documentation](docs/guides/reasoning.md)**
 
-    public function requestFinished(LLMResponse $response): void {
-        file_put_contents($this->logPath, $this->formatter->responseToMarkdown($response));
-    }
+## Advanced Features
+
+### 📝 TextEditorTool - Built-in File Manipulation
+
+Empower agents to read, write, and manage files with the built-in TextEditorTool:
+
+```php
+use Soukicz\Llm\Tool\TextEditorTool;
+use Soukicz\Llm\Tool\TextEditorStorageFilesystem;
+
+// Create filesystem storage with sandboxing
+$storage = new TextEditorStorageFilesystem('/safe/workspace/path');
+$textEditorTool = new TextEditorTool($storage);
+
+// Enable for Anthropic Claude with beta features
+$client = new AnthropicClient(
+    apiKey: 'sk-ant-xxxxx',
+    cache: $cache,
+    betaFeatures: ['text-editor-20250116'] // Required for TextEditorTool
+);
+
+$response = $chainClient->run($client, new LLMRequest(
+    model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
+    conversation: new LLMConversation([
+        LLMMessage::createFromUserString('Create a PHP file with a hello world function')
+    ]),
+    tools: [$textEditorTool]
+));
+```
+
+**→ [Tools Documentation](docs/guides/tools.md)** for complete TextEditorTool examples
+
+### 🔢 Embeddings API
+
+Generate embeddings for semantic search, clustering, and RAG applications:
+
+```php
+use Soukicz\Llm\Client\OpenAI\OpenAIClient;
+
+$client = new OpenAIClient('sk-xxxxx', 'your-org-id');
+
+$embeddings = $client->getBatchEmbeddings(
+    texts: ['Hello world', 'PHP is great', 'AI embeddings'],
+    model: 'text-embedding-3-small',
+    dimensions: 512
+);
+
+// Returns array of float arrays (embeddings)
+foreach ($embeddings as $i => $embedding) {
+    echo "Text {$i} embedding dimensions: " . count($embedding) . "\n";
 }
 ```
 
-```php
-use Soukicz\Llm\Client\LLMChainClient();
-use Soukicz\Llm\MarkdownFormatter();
+### 📊 Monitoring & Debugging
 
-$logger = new LLMFileLogger(__DIR__ . '/log.md', new MarkdownFormatter());
-$chainClient = new LLMChainClient();
+Built-in interfaces for logging and monitoring:
+
+```php
+use Soukicz\Llm\Log\LLMLogger;
+
+// Implement custom logger
+class MyLogger implements LLMLogger {
+    public function log(LLMRequest $request, LLMResponse $response): void {
+        // Log requests, responses, costs, tokens, etc.
+        $cost = ($response->getInputPriceUsd() ?? 0) + ($response->getOutputPriceUsd() ?? 0);
+        echo "Cost: $" . $cost . "\n";
+        echo "Tokens: {$response->getInputTokens()} in, {$response->getOutputTokens()} out\n";
+    }
+}
+
+// Attach to chain client
+$chainClient = new LLMChainClient(logger: new MyLogger());
 ```
+
+**→ [Logging & Debugging Documentation](docs/examples/logging-debugging.md)**
+
+### ⚙️ Advanced Request Configuration
+
+Fine-tune your requests with additional parameters:
+
+```php
+use Soukicz\Llm\LLMRequest;
+
+$request = new LLMRequest(
+    model: $model,
+    conversation: $conversation,
+    tools: $tools,
+
+    // Custom stop sequences to halt generation
+    stopSequences: ['END', '---'],
+
+    // Reasoning configuration (for o3/o4-mini models)
+    reasoningConfig: ReasoningEffort::HIGH,
+    // OR
+    reasoningConfig: new ReasoningBudget(10000),
+);
+
+// Access cost and token information
+$response = $chainClient->run($client, $request);
+$cost = ($response->getInputPriceUsd() ?? 0) + ($response->getOutputPriceUsd() ?? 0);
+echo "Cost: $" . $cost . "\n";
+echo "Input tokens: " . $response->getInputTokens() . "\n";
+echo "Output tokens: " . $response->getOutputTokens() . "\n";
+echo "Stop reason: " . $response->getStopReason()->value . "\n"; // END_TURN, TOOL_USE, MAX_TOKENS, STOP_SEQUENCE
+```
+
+## Supported Providers
+
+- **Anthropic (Claude)** - Claude 3.5, 3.7, 4.0, 4.1, and 4.5 series models
+- **OpenAI (GPT)** - GPT-4o, GPT-4.1, o3 and o4-mini (reasoning), and GPT-5 series models
+- **Google Gemini** - Gemini 2.0 and 2.5 series models
+- **OpenAI-Compatible** - OpenRouter, local servers (Ollama, llama-server), and more
+- **AWS Bedrock** - Via separate package ([`soukicz/llm-aws-bedrock`](https://github.com/soukicz/llm-aws-bedrock))
+
+**→ [Provider Comparison](docs/providers/README.md)**
+
+## Documentation
+
+### Getting Started
+- [Quick Start Examples](docs/examples/quick-start.md) - Get up and running in minutes
+- [Configuration Guide](docs/guides/configuration.md) - Configure clients and requests
+- [Provider Overview](docs/providers/README.md) - Choose the right provider
+- [Best Practices](docs/examples/best-practices.md) - Production-ready patterns
+
+### Core Features
+- [Tools & Function Calling](docs/guides/tools.md) - External tools, TextEditorTool, custom functions
+- [Feedback Loops](docs/guides/feedback-loops.md) - Self-correcting agents and validation
+- [Multimodal Support](docs/guides/multimodal.md) - Images, PDFs, and caching
+- [Reasoning Models](docs/guides/reasoning.md) - o3/o4-mini with effort and budget control
+
+### Advanced Features
+- [Caching](docs/guides/caching.md) - Prompt caching and cost reduction
+- [Batch Processing](docs/guides/batch-processing.md) - High-volume async operations
+- [State Management](docs/examples/state-management.md) - Persistence and thread IDs
+- [Logging & Debugging](docs/examples/logging-debugging.md) - Monitor and debug
+
+## Common Use Cases
+
+### AI Agent with Tools
+```php
+use Soukicz\Llm\Tool\CallbackToolDefinition;
+use Soukicz\Llm\Message\LLMMessageContents;
+
+// Create custom tools for the agent
+$calculatorTool = new CallbackToolDefinition(
+    name: 'calculate',
+    description: 'Perform mathematical calculations',
+    inputSchema: [
+        'type' => 'object',
+        'properties' => [
+            'expression' => ['type' => 'string', 'description' => 'Math expression to evaluate']
+        ]
+    ],
+    handler: fn($input) => LLMMessageContents::fromArrayData([
+        'result' => eval('return ' . $input['expression'] . ';')
+    ])
+);
+
+$searchTool = new CallbackToolDefinition(
+    name: 'search_database',
+    description: 'Search the product database',
+    inputSchema: [
+        'type' => 'object',
+        'properties' => [
+            'query' => ['type' => 'string']
+        ]
+    ],
+    handler: function($input) use ($pdo) {
+        $stmt = $pdo->prepare('SELECT * FROM products WHERE name LIKE ?');
+        $stmt->execute(['%' . $input['query'] . '%']);
+        return LLMMessageContents::fromArrayData($stmt->fetchAll());
+    }
+);
+
+// Agent will automatically use tools as needed
+$response = $chainClient->run($client, new LLMRequest(
+    model: $model,
+    conversation: new LLMConversation([
+        LLMMessage::createFromUserString('Find products with "laptop" and calculate 15% discount on $999')
+    ]),
+    tools: [$searchTool, $calculatorTool],
+));
+```
+
+### Self-Correcting JSON Parser
+```php
+// Agent that validates and corrects its own output
+$response = $chainClient->run(
+    client: $client,
+    request: new LLMRequest(
+        model: $model,
+        conversation: new LLMConversation([
+            LLMMessage::createFromUserString('Extract user data as JSON: John Doe, age 30, email john@example.com')
+        ])
+    ),
+    feedbackCallback: function ($response) {
+        $text = $response->getLastText();
+        json_decode($text);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return LLMMessage::createFromUserString(
+                'Invalid JSON: ' . json_last_error_msg() . '. Please fix the syntax.'
+            );
+        }
+
+        return null; // Valid JSON, stop iteration
+    },
+    maxIterations: 3 // Limit retry attempts
+);
+```
+
+### Multimodal Document Analysis
+```php
+use Soukicz\Llm\Message\{LLMMessageContents, LLMMessageText, LLMMessageImage, LLMMessagePdf};
+
+// Agent that analyzes multiple document types
+$chartData = base64_encode(file_get_contents('/sales-chart.png'));
+$reportData = base64_encode(file_get_contents('/quarterly-report.pdf'));
+
+$response = $chainClient->run($client, new LLMRequest(
+    model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
+    conversation: new LLMConversation([
+        LLMMessage::createFromUser(new LLMMessageContents([
+            new LLMMessageText('Analyze these documents and summarize the key insights'),
+            new LLMMessageImage('base64', 'image/png', $chartData, cached: true),
+            new LLMMessagePdf('base64', $reportData, cached: true),
+        ]))
+    ])
+));
+
+echo $response->getLastText();
+```
+
+## Frequently Asked Questions
+
+### What's the difference between "agentic" and regular LLM usage?
+
+**Agentic AI** refers to LLMs that can autonomously take actions, use tools, and iterate on their responses. Instead of just generating text, agentic systems:
+- Call external functions and APIs (tool use)
+- Validate and self-correct their outputs (feedback loops)
+- Make decisions about which tools to use
+- Persist state across multiple interactions
+
+This library is designed specifically to make building such agents easy in PHP.
+
+### How do I reduce API costs?
+
+1. **Enable caching**: Pass a `FileCache` instance to reduce repeated prompts
+2. **Use prompt caching**: Set `cached: true` on images/PDFs
+3. **Choose appropriate models**: Smaller models for simpler tasks
+4. **Use stop sequences**: Define custom stop sequences to prevent over-generation
+
+### Can I use this with local models?
+
+Yes! Use the `OpenAICompatibleClient` to connect to:
+- Ollama (local models)
+- llama-server
+- OpenRouter
+- Any service with OpenAI-compatible API
+
+### How do I save and resume conversations?
+
+```php
+// Save conversation
+$json = json_encode($conversation);
+file_put_contents('conversation.json', $json);
+
+// Resume conversation
+$data = json_decode(file_get_contents('conversation.json'), true);
+$conversation = LLMConversation::fromJson($data);
+```
+
+## Development
+
+### Running Tests
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Add your API keys to .env
+# ANTHROPIC_API_KEY=sk-ant-xxxxx
+# OPENAI_API_KEY=sk-xxxxx
+# GEMINI_API_KEY=your-key
+
+# Run tests
+vendor/bin/phpunit
+```
+
+### Requirements
+
+- PHP 8.3 or higher
+- Composer
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is open-sourced software licensed under the BSD-3-Clause license.
+
+## Links
+
+- [Documentation](docs/) - Full documentation
+- [GitHub](https://github.com/soukicz/llm) - Source code
+- [Packagist](https://packagist.org/packages/soukicz/llm) - Composer package
+
+---
+
+**Built for modern PHP** • Requires PHP 8.3+ • BSD-3-Clause Licensed
