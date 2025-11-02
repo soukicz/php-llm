@@ -47,10 +47,9 @@ class OpenAIEncoderMediaTest extends TestCase {
         $this->assertEquals('Look at this image:', $encoded['messages'][0]['content'][0]['text']);
 
         // Check image content
-        $this->assertEquals('image', $encoded['messages'][0]['content'][1]['type']);
-        $this->assertEquals('base64', $encoded['messages'][0]['content'][1]['source']['type']);
-        $this->assertEquals('image/jpeg', $encoded['messages'][0]['content'][1]['source']['media_type']);
-        $this->assertEquals('imagedata123==', $encoded['messages'][0]['content'][1]['source']['data']);
+        $this->assertEquals('image_url', $encoded['messages'][0]['content'][1]['type']);
+        $this->assertStringStartsWith('data:image/jpeg;base64,', $encoded['messages'][0]['content'][1]['image_url']['url']);
+        $this->assertStringContainsString('imagedata123==', $encoded['messages'][0]['content'][1]['image_url']['url']);
     }
 
     public function testMixedTextAndImageContent(): void {
@@ -91,9 +90,9 @@ class OpenAIEncoderMediaTest extends TestCase {
         $this->assertEquals('user', $encoded['messages'][1]['role']);
         $this->assertCount(2, $encoded['messages'][1]['content']);
         $this->assertEquals('text', $encoded['messages'][1]['content'][0]['type']);
-        $this->assertEquals('image', $encoded['messages'][1]['content'][1]['type']);
-        $this->assertEquals('base64', $encoded['messages'][1]['content'][1]['source']['type']);
-        $this->assertEquals('image/png', $encoded['messages'][1]['content'][1]['source']['media_type']);
+        $this->assertEquals('image_url', $encoded['messages'][1]['content'][1]['type']);
+        $this->assertStringStartsWith('data:image/png;base64,', $encoded['messages'][1]['content'][1]['image_url']['url']);
+        $this->assertStringContainsString('pngdata123==', $encoded['messages'][1]['content'][1]['image_url']['url']);
 
         // Check assistant response
         $this->assertEquals('assistant', $encoded['messages'][2]['role']);
