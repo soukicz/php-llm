@@ -35,7 +35,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: ['8.1', '8.2', '8.3']
+        php-version: ['8.3', '8.4']
 
     steps:
       - name: Checkout code
@@ -64,7 +64,7 @@ jobs:
         run: XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-text --testsuite default
 
   test-lowest-dependencies:
-    name: Test with lowest dependencies (PHP 8.1)
+    name: Test with lowest dependencies (PHP 8.3)
     runs-on: ubuntu-latest
 
     steps:
@@ -74,7 +74,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.1'
+          php-version: '8.3'
           extensions: mbstring, xml, json, zlib
           coverage: none
 
