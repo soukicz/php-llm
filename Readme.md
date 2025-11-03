@@ -8,6 +8,14 @@ Build powerful **AI agents** that can use tools, self-correct, and take autonomo
 composer require soukicz/llm
 ```
 
+---
+
+## 📚 Full Documentation
+
+**→ Complete guides, API reference, and examples: [soukicz.github.io/php-llm](https://soukicz.github.io/php-llm/)**
+
+---
+
 ## Why PHP LLM?
 
 - 🤖 **Build AI Agents** - Create autonomous agents with tools, feedback loops, and state management
