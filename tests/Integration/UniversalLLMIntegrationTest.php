@@ -25,7 +25,7 @@ class UniversalLLMIntegrationTest extends IntegrationTestBase {
 
     protected function setUp(): void {
         parent::setUp();
-        $this->chainClient = new LLMAgentClient();
+        $this->agentClient = new LLMAgentClient();
     }
 
     /**
@@ -56,7 +56,7 @@ class UniversalLLMIntegrationTest extends IntegrationTestBase {
         );
 
         $startTime = microtime(true);
-        $response = $this->chainClient->run($client, $request);
+        $response = $this->agentClient->run($client, $request);
         $duration = microtime(true) - $startTime;
 
         // Track cost
@@ -119,7 +119,7 @@ class UniversalLLMIntegrationTest extends IntegrationTestBase {
             maxTokens: 500
         );
 
-        $response = $this->chainClient->run($client, $request);
+        $response = $this->agentClient->run($client, $request);
 
         // Track cost
         $cost = ($response->getInputPriceUsd() ?? 0) + ($response->getOutputPriceUsd() ?? 0);
@@ -172,7 +172,7 @@ class UniversalLLMIntegrationTest extends IntegrationTestBase {
             maxTokens: 200
         );
 
-        $response = $this->chainClient->run(
+        $response = $this->agentClient->run(
             $client,
             $request,
             feedbackCallback: function (LLMResponse $response) use (&$attempts, $maxAttempts): ?LLMMessage {
@@ -246,7 +246,7 @@ class UniversalLLMIntegrationTest extends IntegrationTestBase {
             maxTokens: 100
         );
 
-        $response1 = $this->chainClient->run($client, $request1);
+        $response1 = $this->agentClient->run($client, $request1);
         $cost1 = ($response1->getInputPriceUsd() ?? 0) + ($response1->getOutputPriceUsd() ?? 0);
         $this->trackCost($cost1);
 
@@ -262,7 +262,7 @@ class UniversalLLMIntegrationTest extends IntegrationTestBase {
             maxTokens: 100
         );
 
-        $response2 = $this->chainClient->run($client, $request2);
+        $response2 = $this->agentClient->run($client, $request2);
         $cost = ($response2->getInputPriceUsd() ?? 0) + ($response2->getOutputPriceUsd() ?? 0);
         $this->trackCost($cost);
 
@@ -294,7 +294,7 @@ class UniversalLLMIntegrationTest extends IntegrationTestBase {
                 maxTokens: 50
             );
 
-            $promises[] = $this->chainClient->runAsync($client, $request);
+            $promises[] = $this->agentClient->runAsync($client, $request);
         }
 
         // Wait for all promises
@@ -340,7 +340,7 @@ class UniversalLLMIntegrationTest extends IntegrationTestBase {
             maxTokens: 150
         );
 
-        $response = $this->chainClient->run($client, $request);
+        $response = $this->agentClient->run($client, $request);
         $cost = ($response->getInputPriceUsd() ?? 0) + ($response->getOutputPriceUsd() ?? 0);
         $this->trackCost($cost);
 
@@ -387,7 +387,7 @@ class UniversalLLMIntegrationTest extends IntegrationTestBase {
             stopSequences: ['STOP']
         );
 
-        $response = $this->chainClient->run($client, $request);
+        $response = $this->agentClient->run($client, $request);
         $cost = ($response->getInputPriceUsd() ?? 0) + ($response->getOutputPriceUsd() ?? 0);
         $this->trackCost($cost);
 

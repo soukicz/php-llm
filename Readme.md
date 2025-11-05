@@ -40,7 +40,7 @@ All LLM clients in this library are **asynchronous by default** using Guzzle Pro
 
 - **LLM Clients** (`AnthropicClient`, `OpenAIClient`, etc.) - Low-level API clients that send a single request and return a single response. Use these when you need direct control over individual API calls.
 
-- **Chain Client** (`LLMAgentClient`) - High-level orchestrator that handles multi-turn conversations, automatic tool calling, feedback loops, and retries. Use this for building agents that need to iterate or use tools.
+- **Agent Client** (`LLMAgentClient`) - High-level orchestrator that handles multi-turn conversations, automatic tool calling, feedback loops, and retries. Use this for building agents that need to iterate or use tools.
 
 ### Model Versions
 Anthropic and OpenAI models require explicit version constants:
@@ -74,7 +74,7 @@ $cache = new FileCache(sys_get_temp_dir());
 // Create the API client (low-level, sends single requests)
 $client = new AnthropicClient('sk-xxxxx', $cache);
 
-// Create the chain client (high-level, handles tool calls and feedback loops)
+// Create the agent client (high-level, handles tool calls and feedback loops)
 $agentClient = new LLMAgentClient();
 
 // Run a request (this is synchronous - use runAsync() for better performance)
@@ -313,7 +313,7 @@ class MyLogger implements LLMLogger {
     }
 }
 
-// Attach to chain client
+// Attach to agent client
 $agentClient = new LLMAgentClient(logger: new MyLogger());
 ```
 

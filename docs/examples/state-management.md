@@ -273,7 +273,7 @@ class ChatService {
             LLMMessage::createFromUserString($message)
         );
 
-        $response = $this->chainClient->run(
+        $response = $this->agentClient->run(
             client: $this->client,
             request: new LLMRequest(
                 model: $this->model,

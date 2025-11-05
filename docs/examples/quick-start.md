@@ -30,7 +30,7 @@ $cache = new FileCache(sys_get_temp_dir());
 // Initialize the Anthropic client with your API key
 $anthropic = new AnthropicClient('sk-xxxxx', $cache);
 
-// The chain client handles the request/response cycle
+// The agent client handles the request/response cycle
 $agentClient = new LLMAgentClient();
 
 // Make a synchronous request
