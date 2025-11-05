@@ -333,12 +333,12 @@ $openai = new OpenAIClient('sk-xxxxx', 'org-xxxxx', $cache);
 $gemini = new GeminiClient('gemini-key', $cache);
 
 // Use the same LLMAgentClient with any provider
-$chainClient = new LLMAgentClient();
+$agentClient = new LLMAgentClient();
 
 // Switch between providers by changing the client
-$response = $chainClient->run($anthropic, $request);
-$response = $chainClient->run($openai, $request);
-$response = $chainClient->run($gemini, $request);
+$response = $agentClient->run($anthropic, $request);
+$response = $agentClient->run($openai, $request);
+$response = $agentClient->run($gemini, $request);
 ```
 
 ## Common Configuration

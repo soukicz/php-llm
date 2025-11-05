@@ -16,11 +16,11 @@ use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessageText;
 
 function generateProductDescription(string $imagePath): string {
-    global $chainClient, $client, $model;
+    global $agentClient, $client, $model;
 
     $imageData = base64_encode(file_get_contents($imagePath));
 
-    $response = $chainClient->run(
+    $response = $agentClient->run(
         client: $client,
         request: new LLMRequest(
             model: $model,
@@ -62,11 +62,11 @@ Analyze UI screenshots for bugs and improvements:
 ```php
 <?php
 function analyzeUIScreenshot(string $screenshotPath): array {
-    global $chainClient, $client, $model;
+    global $agentClient, $client, $model;
 
     $imageData = base64_encode(file_get_contents($screenshotPath));
 
-    $response = $chainClient->run(
+    $response = $agentClient->run(
         client: $client,
         request: new LLMRequest(
             model: $model,
@@ -101,11 +101,11 @@ Extract data from visualization images:
 ```php
 <?php
 function extractChartData(string $chartImagePath): array {
-    global $chainClient, $client, $model;
+    global $agentClient, $client, $model;
 
     $imageData = base64_encode(file_get_contents($chartImagePath));
 
-    $response = $chainClient->run(
+    $response = $agentClient->run(
         client: $client,
         request: new LLMRequest(
             model: $model,
@@ -135,11 +135,11 @@ print_r($chartData);
 ```php
 <?php
 function processReceipt(string $receiptImagePath): array {
-    global $chainClient, $client, $model;
+    global $agentClient, $client, $model;
 
     $imageData = base64_encode(file_get_contents($receiptImagePath));
 
-    $response = $chainClient->run(
+    $response = $agentClient->run(
         client: $client,
         request: new LLMRequest(
             model: $model,
@@ -183,11 +183,11 @@ $pdo->prepare('INSERT INTO expenses (merchant, date, amount, tax, items) VALUES 
 ```php
 <?php
 function reviewContract(string $contractPdfPath): array {
-    global $chainClient, $client, $model;
+    global $agentClient, $client, $model;
 
     $pdfData = base64_encode(file_get_contents($contractPdfPath));
 
-    $response = $chainClient->run(
+    $response = $agentClient->run(
         client: $client,
         request: new LLMRequest(
             model: $model,
@@ -222,11 +222,11 @@ function reviewContract(string $contractPdfPath): array {
 ```php
 <?php
 function summarizeResearchPaper(string $paperPdfPath): string {
-    global $chainClient, $client, $model;
+    global $agentClient, $client, $model;
 
     $pdfData = base64_encode(file_get_contents($paperPdfPath));
 
-    $response = $chainClient->run(
+    $response = $agentClient->run(
         client: $client,
         request: new LLMRequest(
             model: $model,
@@ -256,12 +256,12 @@ function summarizeResearchPaper(string $paperPdfPath): string {
 ```php
 <?php
 function compareDocuments(string $pdf1Path, string $pdf2Path): string {
-    global $chainClient, $client, $model;
+    global $agentClient, $client, $model;
 
     $pdf1Data = base64_encode(file_get_contents($pdf1Path));
     $pdf2Data = base64_encode(file_get_contents($pdf2Path));
 
-    $response = $chainClient->run(
+    $response = $agentClient->run(
         client: $client,
         request: new LLMRequest(
             model: $model,
@@ -295,11 +295,11 @@ $diff = compareDocuments(
 ```php
 <?php
 function extractTablesFromPdf(string $pdfPath): array {
-    global $chainClient, $client, $model;
+    global $agentClient, $client, $model;
 
     $pdfData = base64_encode(file_get_contents($pdfPath));
 
-    $response = $chainClient->run(
+    $response = $agentClient->run(
         client: $client,
         request: new LLMRequest(
             model: $model,
@@ -338,7 +338,7 @@ foreach ($tables as $i => $table) {
 ```php
 <?php
 function analyzeProposal(string $proposalPdf, array $mockupImagePaths): array {
-    global $chainClient, $client, $model;
+    global $agentClient, $client, $model;
 
     $pdfData = base64_encode(file_get_contents($proposalPdf));
 
@@ -359,7 +359,7 @@ function analyzeProposal(string $proposalPdf, array $mockupImagePaths): array {
         '3) Alignment between proposal and designs, 4) Recommendations'
     );
 
-    $response = $chainClient->run(
+    $response = $agentClient->run(
         client: $client,
         request: new LLMRequest(
             model: $model,

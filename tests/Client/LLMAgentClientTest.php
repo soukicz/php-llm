@@ -72,8 +72,8 @@ class LLMAgentClientTest extends TestCase {
         $mockClient = $this->createMockLLMClient([$response1, $response2]);
 
         // Create the chain client and run the request
-        $chainClient = new LLMAgentClient();
-        $finalResponse = $chainClient->run($mockClient, $request);
+        $agentClient = new LLMAgentClient();
+        $finalResponse = $agentClient->run($mockClient, $request);
 
         // Verify the final response
         $this->assertEquals(StopReason::FINISHED, $finalResponse->getStopReason());
@@ -185,8 +185,8 @@ class LLMAgentClientTest extends TestCase {
         ]);
 
         // Create the chain client and run the request
-        $chainClient = new LLMAgentClient();
-        $finalResponse = $chainClient->run($mockClient, $request);
+        $agentClient = new LLMAgentClient();
+        $finalResponse = $agentClient->run($mockClient, $request);
 
         // Verify the final response
         $this->assertEquals(StopReason::FINISHED, $finalResponse->getStopReason());

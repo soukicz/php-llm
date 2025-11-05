@@ -68,7 +68,7 @@ $request = new LLMRequest(
     tools: [$calculator]
 );
 
-$response = $chainClient->run($client, $request);
+$response = $agentClient->run($client, $request);
 echo $response->getLastText(); // "The result of 157 * 832 is 130,624."
 ```
 
@@ -232,7 +232,7 @@ $request = new LLMRequest(
 );
 
 // The LLM will automatically call both tools and synthesize the results
-$response = $chainClient->run($client, $request);
+$response = $agentClient->run($client, $request);
 ```
 
 ## Multi-Step Tool Usage
@@ -246,7 +246,7 @@ $conversation = new LLMConversation([
 ]);
 
 // First request
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $client,
     request: new LLMRequest(
         model: $model,
@@ -281,7 +281,7 @@ if ($response->getLastMessage()->hasToolUse()) {
     }
 
     // Continue the conversation
-    $finalResponse = $chainClient->run(
+    $finalResponse = $agentClient->run(
         client: $client,
         request: new LLMRequest(
             model: $model,

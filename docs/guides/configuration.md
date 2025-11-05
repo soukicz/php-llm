@@ -306,7 +306,7 @@ $client = new AnthropicClient(
     cache: $cache
 );
 
-$chainClient = new LLMAgentClient();
+$agentClient = new LLMAgentClient();
 
 // Configure request
 $request = new LLMRequest(
@@ -319,7 +319,7 @@ $request = new LLMRequest(
     stopSequences: ['---'],    // Stop at delimiter
 );
 
-$response = $chainClient->run($client, $request);
+$response = $agentClient->run($client, $request);
 ```
 
 ## See Also

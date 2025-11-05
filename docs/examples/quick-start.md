@@ -31,10 +31,10 @@ $cache = new FileCache(sys_get_temp_dir());
 $anthropic = new AnthropicClient('sk-xxxxx', $cache);
 
 // The chain client handles the request/response cycle
-$chainClient = new LLMAgentClient();
+$agentClient = new LLMAgentClient();
 
 // Make a synchronous request
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $anthropic,
     request: new LLMRequest(
         model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
@@ -57,7 +57,7 @@ Use asynchronous requests when you need to make multiple LLM calls concurrently 
 use Soukicz\Llm\LLMResponse;
 
 // Start an async request (doesn't block)
-$promise = $chainClient->runAsync(
+$promise = $agentClient->runAsync(
     client: $anthropic,
     request: new LLMRequest(
         model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
@@ -87,7 +87,7 @@ $conversation = new LLMConversation([
 ]);
 
 // First turn
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $anthropic,
     request: new LLMRequest(
         model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
@@ -106,7 +106,7 @@ $conversation = $conversation->withMessage(
 );
 
 // Second turn
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $anthropic,
     request: new LLMRequest(
         model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
@@ -130,7 +130,7 @@ use Soukicz\Llm\Client\OpenAI\Model\GPT5;
 
 $openai = new OpenAIClient('sk-xxxxx', 'org-xxxxx', $cache);
 
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $openai,
     request: new LLMRequest(
         model: new GPT5(GPT5::VERSION_2025_08_07),
@@ -148,7 +148,7 @@ use Soukicz\Llm\Client\Gemini\Model\Gemini25Pro;
 
 $gemini = new GeminiClient('your-api-key', $cache);
 
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $gemini,
     request: new LLMRequest(
         model: new Gemini25Pro(),
@@ -169,7 +169,7 @@ $client = new OpenAICompatibleClient(
     baseUrl: 'https://openrouter.ai/api/v1',
 );
 
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $client,
     request: new LLMRequest(
         model: new LocalModel('anthropic/claude-3.5-sonnet'),
@@ -208,7 +208,7 @@ All client operations can throw `LLMClientException` for API errors, network fai
 use Soukicz\Llm\Client\LLMClientException;
 
 try {
-    $response = $chainClient->run($client, $request);
+    $response = $agentClient->run($client, $request);
     echo $response->getLastText();
 } catch (LLMClientException $e) {
     echo "Error: " . $e->getMessage();
@@ -222,7 +222,7 @@ Every response includes token usage and cost information. This helps you monitor
 
 ```php
 <?php
-$response = $chainClient->run($client, $request);
+$response = $agentClient->run($client, $request);
 
 // Token counts
 echo "Input tokens: " . $response->getInputTokens() . "\n";

@@ -43,7 +43,7 @@ $conversation = $conversation->withMessage(
     LLMMessage::createFromUserString('What are traits?')
 );
 
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $client,
     request: new LLMRequest(
         model: $model,
@@ -239,7 +239,7 @@ class ConversationMetadata {
 class ChatService {
     public function __construct(
         private PDO $pdo,
-        private LLMAgentClient $chainClient,
+        private LLMAgentClient $agentClient,
         private $client,
         private $model
     ) {}

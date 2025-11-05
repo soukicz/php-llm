@@ -58,7 +58,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 $cache = new FileCache(sys_get_temp_dir());
 $anthropic = new AnthropicClient('sk-xxxxxx', $cache);
-$chainClient = new LLMAgentClient();
+$agentClient = new LLMAgentClient();
 
 $currencyTool = new CallbackToolDefinition(
     name: 'currency_rates',
@@ -86,7 +86,7 @@ $currencyTool = new CallbackToolDefinition(
     }
 );
 
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $anthropic,
     request: new LLMRequest(
         model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),

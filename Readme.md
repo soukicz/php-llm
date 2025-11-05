@@ -75,10 +75,10 @@ $cache = new FileCache(sys_get_temp_dir());
 $client = new AnthropicClient('sk-xxxxx', $cache);
 
 // Create the chain client (high-level, handles tool calls and feedback loops)
-$chainClient = new LLMAgentClient();
+$agentClient = new LLMAgentClient();
 
 // Run a request (this is synchronous - use runAsync() for better performance)
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $client,
     request: new LLMRequest(
         model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
@@ -97,7 +97,7 @@ echo $response->getLastText();
 ```php
 <?php
 // For better performance, use async operations
-$promise = $chainClient->runAsync($client, $request);
+$promise = $agentClient->runAsync($client, $request);
 
 $promise->then(
     function (LLMResponse $response) {
@@ -157,7 +157,7 @@ $weatherTool = new CallbackToolDefinition(
     ])
 );
 
-$response = $chainClient->run($client, new LLMRequest(
+$response = $agentClient->run($client, new LLMRequest(
     model: $model,
     conversation: $conversation,
     tools: [$weatherTool],
@@ -173,7 +173,7 @@ $response = $chainClient->run($client, new LLMRequest(
 Build self-correcting agents that validate and improve their outputs:
 
 ```php
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $client,
     request: $request,
     feedbackCallback: function ($response) {
@@ -264,7 +264,7 @@ $client = new AnthropicClient(
     betaFeatures: ['text-editor-20250116'] // Required for TextEditorTool
 );
 
-$response = $chainClient->run($client, new LLMRequest(
+$response = $agentClient->run($client, new LLMRequest(
     model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
     conversation: new LLMConversation([
         LLMMessage::createFromUserString('Create a PHP file with a hello world function')
@@ -314,7 +314,7 @@ class MyLogger implements LLMLogger {
 }
 
 // Attach to chain client
-$chainClient = new LLMAgentClient(logger: new MyLogger());
+$agentClient = new LLMAgentClient(logger: new MyLogger());
 ```
 
 **→ [Logging & Debugging Documentation](docs/examples/logging-debugging.md)**
@@ -341,7 +341,7 @@ $request = new LLMRequest(
 );
 
 // Access cost and token information
-$response = $chainClient->run($client, $request);
+$response = $agentClient->run($client, $request);
 $cost = ($response->getInputPriceUsd() ?? 0) + ($response->getOutputPriceUsd() ?? 0);
 echo "Cost: $" . $cost . "\n";
 echo "Input tokens: " . $response->getInputTokens() . "\n";
@@ -418,7 +418,7 @@ $searchTool = new CallbackToolDefinition(
 );
 
 // Agent will automatically use tools as needed
-$response = $chainClient->run($client, new LLMRequest(
+$response = $agentClient->run($client, new LLMRequest(
     model: $model,
     conversation: new LLMConversation([
         LLMMessage::createFromUserString('Find products with "laptop" and calculate 15% discount on $999')
@@ -430,7 +430,7 @@ $response = $chainClient->run($client, new LLMRequest(
 ### Self-Correcting JSON Parser
 ```php
 // Agent that validates and corrects its own output
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $client,
     request: new LLMRequest(
         model: $model,
@@ -462,7 +462,7 @@ use Soukicz\Llm\Message\{LLMMessageContents, LLMMessageText, LLMMessageImage, LL
 $chartData = base64_encode(file_get_contents('/sales-chart.png'));
 $reportData = base64_encode(file_get_contents('/quarterly-report.pdf'));
 
-$response = $chainClient->run($client, new LLMRequest(
+$response = $agentClient->run($client, new LLMRequest(
     model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
     conversation: new LLMConversation([
         LLMMessage::createFromUser(new LLMMessageContents([

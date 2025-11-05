@@ -31,9 +31,9 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 $cache = new FileCache(sys_get_temp_dir());
 $anthropic = new AnthropicClient('sk-xxxxxx', $cache);
-$chainClient = new LLMAgentClient();
+$agentClient = new LLMAgentClient();
 
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $anthropic,
     request: new LLMRequest(
         model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
@@ -80,7 +80,7 @@ Use another LLM to validate complex responses:
 <?php
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude35Haiku;
 
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $anthropic,
     request: new LLMRequest(
         model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
@@ -88,7 +88,7 @@ $response = $chainClient->run(
             LLMMessage::createFromUserString('List all US states in JSON array and wrap this array in XML tag named "states"')
         ]),
     ),
-    feedbackCallback: function (LLMResponse $llmResponse) use ($anthropic, $chainClient): ?LLMMessage {
+    feedbackCallback: function (LLMResponse $llmResponse) use ($anthropic, $agentClient): ?LLMMessage {
         if (preg_match('~</states>(.+)~s', $llmResponse->getLastText(), $m)) {
             $suffix = trim(trim(trim($m[1]), '`'));
             if (empty($suffix)) {
@@ -96,7 +96,7 @@ $response = $chainClient->run(
             }
 
             // Use a cheaper, faster model to validate
-            $checkResponse = $chainClient->run(
+            $checkResponse = $agentClient->run(
                 client: $anthropic,
                 request: new LLMRequest(
                     model: new AnthropicClaude35Haiku(AnthropicClaude35Haiku::VERSION_20241022),
@@ -263,7 +263,7 @@ Validate tool outputs in feedback loops:
 
 ```php
 <?php
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $anthropic,
     request: new LLMRequest(
         model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
@@ -289,7 +289,7 @@ Validate reasoning model outputs:
 use Soukicz\Llm\Client\OpenAI\Model\OpenAIGPTo3;
 use Soukicz\Llm\Config\ReasoningEffort;
 
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $openai,
     request: new LLMRequest(
         model: new OpenAIGPTo3(),

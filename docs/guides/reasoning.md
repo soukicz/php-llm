@@ -68,9 +68,9 @@ use Soukicz\Llm\LLMRequest;
 
 $cache = new FileCache(sys_get_temp_dir());
 $openai = new OpenAIClient('sk-xxxxx', 'org-xxxxx', $cache);
-$chainClient = new LLMAgentClient();
+$agentClient = new LLMAgentClient();
 
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $openai,
     request: new LLMRequest(
         model: new GPTo3(GPTo3::VERSION_2025_04_16),
@@ -147,7 +147,7 @@ Monitor token usage including reasoning tokens:
 
 ```php
 <?php
-$response = $chainClient->run($client, $request);
+$response = $agentClient->run($client, $request);
 $usage = $response->getTokenUsage();
 
 echo "Input tokens: " . $usage->getInputTokens() . "\n";
@@ -178,7 +178,7 @@ Combine reasoning with validation for ultra-reliable agents:
 
 ```php
 <?php
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $openai,
     request: new LLMRequest(
         model: new GPTo3(GPTo3::VERSION_2025_04_16),

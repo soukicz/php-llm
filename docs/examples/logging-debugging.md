@@ -83,10 +83,10 @@ use Soukicz\Llm\Client\LLMAgentClient;
 use Soukicz\Llm\MarkdownFormatter;
 
 $logger = new LLMFileLogger(__DIR__ . '/llm.log', new MarkdownFormatter());
-$chainClient = new LLMAgentClient($logger);
+$agentClient = new LLMAgentClient($logger);
 
 // All requests will now be logged
-$response = $chainClient->run($client, $request);
+$response = $agentClient->run($client, $request);
 ```
 
 ## PSR-3 Logger Integration
@@ -137,7 +137,7 @@ $monolog = new Logger('llm');
 $monolog->pushHandler(new StreamHandler(__DIR__ . '/llm.log', Logger::INFO));
 
 $logger = new PSR3LLMLogger($monolog, new MarkdownFormatter());
-$chainClient = new LLMAgentClient($logger);
+$agentClient = new LLMAgentClient($logger);
 ```
 
 **Sample Log Output:**
@@ -184,7 +184,7 @@ $client = new AnthropicClient(
 use Soukicz\Llm\Client\LLMClientException;
 
 try {
-    $response = $chainClient->run($client, $request);
+    $response = $agentClient->run($client, $request);
 } catch (LLMClientException $e) {
     // Log error details
     error_log("LLM Error: " . $e->getMessage());
@@ -193,7 +193,7 @@ try {
     // Check if it's a rate limit
     if ($e->getCode() === 429) {
         sleep(60);
-        $response = $chainClient->run($client, $request); // Retry
+        $response = $agentClient->run($client, $request); // Retry
     }
 }
 ```

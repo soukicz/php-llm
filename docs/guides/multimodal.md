@@ -101,12 +101,12 @@ use Soukicz\Llm\LLMRequest;
 
 $cache = new FileCache(sys_get_temp_dir());
 $anthropic = new AnthropicClient('sk-xxxxx', $cache);
-$chainClient = new LLMAgentClient();
+$agentClient = new LLMAgentClient();
 
 // Load and encode the image
 $imageData = base64_encode(file_get_contents('/path/to/photo.jpg'));
 
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $anthropic,
     request: new LLMRequest(
         model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),

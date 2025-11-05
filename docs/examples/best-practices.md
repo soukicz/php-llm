@@ -72,7 +72,7 @@ Use feedback loops when:
 $maxIterations = 5;
 $iteration = 0;
 
-$response = $chainClient->run(
+$response = $agentClient->run(
     client: $client,
     request: new LLMRequest(
         model: $model,
@@ -139,7 +139,7 @@ For example, if an agent needs to fetch data from three different sources, runni
 $promises = [];
 
 foreach ($items as $item) {
-    $promises[] = $chainClient->runAsync(
+    $promises[] = $agentClient->runAsync(
         client: $client,
         request: new LLMRequest(
             model: $model,

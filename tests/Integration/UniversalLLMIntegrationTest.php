@@ -21,7 +21,7 @@ use Soukicz\Llm\Tool\CallbackToolDefinition;
  * @group integration
  */
 class UniversalLLMIntegrationTest extends IntegrationTestBase {
-    private LLMAgentClient $chainClient;
+    private LLMAgentClient $agentClient;
 
     protected function setUp(): void {
         parent::setUp();

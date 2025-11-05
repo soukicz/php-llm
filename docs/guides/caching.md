@@ -167,7 +167,7 @@ $commonQueries = [
 ];
 
 foreach ($commonQueries as $query) {
-    $response = $chainClient->run(
+    $response = $agentClient->run(
         client: $client,
         request: new LLMRequest(
             model: $model,
@@ -307,11 +307,11 @@ Example cost calculation:
 $request = new LLMRequest(/*...*/);
 
 // First request - hits API ($0.015)
-$response1 = $chainClient->run($client, $request);
+$response1 = $agentClient->run($client, $request);
 echo "Cost: $" . $response1->getTokenUsage()->getTotalCost() . "\n";
 
 // Cached request - no cost ($0.00)
-$response2 = $chainClient->run($client, $request);
+$response2 = $agentClient->run($client, $request);
 echo "Cost: $" . $response2->getTokenUsage()->getTotalCost() . "\n";
 
 // 100% savings on repeated requests!
