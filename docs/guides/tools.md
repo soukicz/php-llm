@@ -47,7 +47,7 @@ use GuzzleHttp\Psr7\Response;
 use Soukicz\Llm\Cache\FileCache;
 use Soukicz\Llm\Client\Anthropic\AnthropicClient;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
-use Soukicz\Llm\Client\LLMChainClient;
+use Soukicz\Llm\Client\LLMAgentClient;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\LLMConversation;
@@ -58,7 +58,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 $cache = new FileCache(sys_get_temp_dir());
 $anthropic = new AnthropicClient('sk-xxxxxx', $cache);
-$chainClient = new LLMChainClient();
+$chainClient = new LLMAgentClient();
 
 $currencyTool = new CallbackToolDefinition(
     name: 'currency_rates',

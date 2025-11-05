@@ -239,7 +239,7 @@ class ConversationMetadata {
 class ChatService {
     public function __construct(
         private PDO $pdo,
-        private LLMChainClient $chainClient,
+        private LLMAgentClient $chainClient,
         private $client,
         private $model
     ) {}

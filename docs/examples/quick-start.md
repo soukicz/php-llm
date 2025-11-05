@@ -19,7 +19,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 use Soukicz\Llm\Cache\FileCache;
 use Soukicz\Llm\Client\Anthropic\AnthropicClient;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
-use Soukicz\Llm\Client\LLMChainClient;
+use Soukicz\Llm\Client\LLMAgentClient;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
@@ -31,7 +31,7 @@ $cache = new FileCache(sys_get_temp_dir());
 $anthropic = new AnthropicClient('sk-xxxxx', $cache);
 
 // The chain client handles the request/response cycle
-$chainClient = new LLMChainClient();
+$chainClient = new LLMAgentClient();
 
 // Make a synchronous request
 $response = $chainClient->run(

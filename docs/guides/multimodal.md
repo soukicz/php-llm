@@ -91,7 +91,7 @@ $message = LLMMessage::createFromUser(new LLMMessageContents([
 use Soukicz\Llm\Cache\FileCache;
 use Soukicz\Llm\Client\Anthropic\AnthropicClient;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
-use Soukicz\Llm\Client\LLMChainClient;
+use Soukicz\Llm\Client\LLMAgentClient;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageImage;
@@ -101,7 +101,7 @@ use Soukicz\Llm\LLMRequest;
 
 $cache = new FileCache(sys_get_temp_dir());
 $anthropic = new AnthropicClient('sk-xxxxx', $cache);
-$chainClient = new LLMChainClient();
+$chainClient = new LLMAgentClient();
 
 // Load and encode the image
 $imageData = base64_encode(file_get_contents('/path/to/photo.jpg'));

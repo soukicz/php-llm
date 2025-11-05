@@ -1,6 +1,6 @@
 # Feedback Loops
 
-Build self-correcting AI agents with feedback loops. The `LLMChainClient` allows you to validate agent responses and automatically request improvements until quality criteria are met. This is essential for building reliable agentic systems that produce consistent, validated outputs.
+Build self-correcting AI agents with feedback loops. The `LLMAgentClient` allows you to validate agent responses and automatically request improvements until quality criteria are met. This is essential for building reliable agentic systems that produce consistent, validated outputs.
 
 ## Overview
 
@@ -21,7 +21,7 @@ Define a callback function to validate responses:
 use Soukicz\Llm\Cache\FileCache;
 use Soukicz\Llm\Client\Anthropic\AnthropicClient;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
-use Soukicz\Llm\Client\LLMChainClient;
+use Soukicz\Llm\Client\LLMAgentClient;
 use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\LLMConversation;
@@ -31,7 +31,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 $cache = new FileCache(sys_get_temp_dir());
 $anthropic = new AnthropicClient('sk-xxxxxx', $cache);
-$chainClient = new LLMChainClient();
+$chainClient = new LLMAgentClient();
 
 $response = $chainClient->run(
     client: $anthropic,

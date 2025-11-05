@@ -8,7 +8,7 @@ use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Promise\Utils;
 use GuzzleHttp\Promise\Create;
 use JsonException;
-use Soukicz\Llm\Client\LLMChainClient;
+use Soukicz\Llm\Client\LLMAgentClient;
 use Soukicz\Llm\Client\StopReason;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
@@ -21,11 +21,11 @@ use Soukicz\Llm\Tool\CallbackToolDefinition;
  * @group integration
  */
 class UniversalLLMIntegrationTest extends IntegrationTestBase {
-    private LLMChainClient $chainClient;
+    private LLMAgentClient $chainClient;
 
     protected function setUp(): void {
         parent::setUp();
-        $this->chainClient = new LLMChainClient();
+        $this->chainClient = new LLMAgentClient();
     }
 
     /**

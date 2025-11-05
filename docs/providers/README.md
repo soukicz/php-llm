@@ -332,8 +332,8 @@ $anthropic = new AnthropicClient('sk-ant-xxxxx', $cache);
 $openai = new OpenAIClient('sk-xxxxx', 'org-xxxxx', $cache);
 $gemini = new GeminiClient('gemini-key', $cache);
 
-// Use the same LLMChainClient with any provider
-$chainClient = new LLMChainClient();
+// Use the same LLMAgentClient with any provider
+$chainClient = new LLMAgentClient();
 
 // Switch between providers by changing the client
 $response = $chainClient->run($anthropic, $request);

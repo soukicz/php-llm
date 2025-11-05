@@ -79,11 +79,11 @@ readonly class LLMFileLogger implements LLMLogger {
 
 ```php
 <?php
-use Soukicz\Llm\Client\LLMChainClient;
+use Soukicz\Llm\Client\LLMAgentClient;
 use Soukicz\Llm\MarkdownFormatter;
 
 $logger = new LLMFileLogger(__DIR__ . '/llm.log', new MarkdownFormatter());
-$chainClient = new LLMChainClient($logger);
+$chainClient = new LLMAgentClient($logger);
 
 // All requests will now be logged
 $response = $chainClient->run($client, $request);
@@ -137,7 +137,7 @@ $monolog = new Logger('llm');
 $monolog->pushHandler(new StreamHandler(__DIR__ . '/llm.log', Logger::INFO));
 
 $logger = new PSR3LLMLogger($monolog, new MarkdownFormatter());
-$chainClient = new LLMChainClient($logger);
+$chainClient = new LLMAgentClient($logger);
 ```
 
 **Sample Log Output:**

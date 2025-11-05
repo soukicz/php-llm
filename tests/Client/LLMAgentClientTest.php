@@ -9,7 +9,7 @@ use GuzzleHttp\Promise\PromiseInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
-use Soukicz\Llm\Client\LLMChainClient;
+use Soukicz\Llm\Client\LLMAgentClient;
 use Soukicz\Llm\Client\LLMClient;
 use Soukicz\Llm\Client\OpenAI\Model\GPT41;
 use Soukicz\Llm\Client\StopReason;
@@ -23,7 +23,7 @@ use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 use Soukicz\Llm\Tool\CallbackToolDefinition;
 
-class LLMChainClientTest extends TestCase {
+class LLMAgentClientTest extends TestCase {
     /**
      * Test that a single tool use is processed correctly
      */
@@ -72,7 +72,7 @@ class LLMChainClientTest extends TestCase {
         $mockClient = $this->createMockLLMClient([$response1, $response2]);
 
         // Create the chain client and run the request
-        $chainClient = new LLMChainClient();
+        $chainClient = new LLMAgentClient();
         $finalResponse = $chainClient->run($mockClient, $request);
 
         // Verify the final response
@@ -185,7 +185,7 @@ class LLMChainClientTest extends TestCase {
         ]);
 
         // Create the chain client and run the request
-        $chainClient = new LLMChainClient();
+        $chainClient = new LLMAgentClient();
         $finalResponse = $chainClient->run($mockClient, $request);
 
         // Verify the final response

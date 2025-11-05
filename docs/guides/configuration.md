@@ -294,7 +294,7 @@ $model = new LocalModel('anthropic/claude-3.5-sonnet');
 use Soukicz\Llm\Cache\FileCache;
 use Soukicz\Llm\Client\Anthropic\AnthropicClient;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
-use Soukicz\Llm\Client\LLMChainClient;
+use Soukicz\Llm\Client\LLMAgentClient;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
@@ -306,7 +306,7 @@ $client = new AnthropicClient(
     cache: $cache
 );
 
-$chainClient = new LLMChainClient();
+$chainClient = new LLMAgentClient();
 
 // Configure request
 $request = new LLMRequest(

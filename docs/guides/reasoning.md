@@ -60,7 +60,7 @@ $request = new LLMRequest(
 use Soukicz\Llm\Cache\FileCache;
 use Soukicz\Llm\Client\OpenAI\OpenAIClient;
 use Soukicz\Llm\Client\OpenAI\Model\GPTo3;
-use Soukicz\Llm\Client\LLMChainClient;
+use Soukicz\Llm\Client\LLMAgentClient;
 use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\LLMConversation;
@@ -68,7 +68,7 @@ use Soukicz\Llm\LLMRequest;
 
 $cache = new FileCache(sys_get_temp_dir());
 $openai = new OpenAIClient('sk-xxxxx', 'org-xxxxx', $cache);
-$chainClient = new LLMChainClient();
+$chainClient = new LLMAgentClient();
 
 $response = $chainClient->run(
     client: $openai,
