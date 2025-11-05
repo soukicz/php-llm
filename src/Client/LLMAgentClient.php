@@ -17,8 +17,6 @@ use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 use Swaggest\JsonSchema\Schema;
 
-class_alias(LLMAgentClient::class, 'Soukicz\Llm\Client\LLMChainClient');
-
 class LLMAgentClient {
     public function __construct(private readonly ?LLMLogger $logger = null) {
     }
