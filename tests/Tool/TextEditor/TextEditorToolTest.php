@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Soukicz\Llm\Tests\Tool\TextEditor;
 
 use PHPUnit\Framework\TestCase;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude35Sonnet;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
 use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Tool\TextEditor\TextEditorStorageFilesystem;
 use Soukicz\Llm\Tool\TextEditor\TextEditorTool;
@@ -349,8 +352,22 @@ class TextEditorToolTest extends TestCase {
 
     public function testToolProperties(): void {
         $this->assertEquals('str_replace_based_edit_tool', $this->tool->getName());
-        $this->assertEquals('text_editor_20250429', $this->tool->getAnthropicType());
         $this->assertEquals('str_replace_based_edit_tool', $this->tool->getAnthropicName());
+    }
+
+    public function testGetAnthropicTypeForClaude4Models(): void {
+        $model = new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929);
+        $this->assertEquals('text_editor_20250728', $this->tool->getAnthropicType($model));
+    }
+
+    public function testGetAnthropicTypeForClaude37(): void {
+        $model = new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219);
+        $this->assertEquals('text_editor_20250124', $this->tool->getAnthropicType($model));
+    }
+
+    public function testGetAnthropicTypeForOtherModels(): void {
+        $model = new AnthropicClaude35Sonnet(AnthropicClaude35Sonnet::VERSION_20241022);
+        $this->assertEquals('text_editor_20250429', $this->tool->getAnthropicType($model));
     }
 
     public function testStorageMethods(): void {

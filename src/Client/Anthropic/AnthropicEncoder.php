@@ -175,7 +175,7 @@ class AnthropicEncoder implements ModelEncoder {
             foreach ($request->getTools() as $tool) {
                 if ($tool instanceof AnthropicNativeTool) {
                     $options['tools'][] = [
-                        'type' => $tool->getAnthropicType(),
+                        'type' => $tool->getAnthropicType($request->getModel()),
                         'name' => $tool->getAnthropicName(),
                     ];
                     continue;

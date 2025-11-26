@@ -5,6 +5,8 @@ namespace Soukicz\Llm\Tool\TextEditor;
 use InvalidArgumentException;
 use RuntimeException;
 use Soukicz\Llm\Client\Anthropic\Tool\AnthropicNativeTool;
+use Soukicz\Llm\Client\Anthropic\Tool\AnthropicToolTypeResolver;
+use Soukicz\Llm\Client\ModelInterface;
 use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Tool\ToolDefinition;
 
@@ -23,8 +25,8 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
         return 'str_replace_based_edit_tool';
     }
 
-    public function getAnthropicType(): string {
-        return 'text_editor_20250429';
+    public function getAnthropicType(ModelInterface $model): string {
+        return AnthropicToolTypeResolver::getTextEditorType($model);
     }
 
     public function handle(array $input): LLMMessageContents {
