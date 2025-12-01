@@ -2,6 +2,7 @@
 
 namespace Soukicz\Llm\Client\Gemini;
 
+use Soukicz\Llm\Client\Gemini\Model\GeminiImageModel;
 use Soukicz\Llm\Client\ModelEncoder;
 use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Client\StopReason;
@@ -107,6 +108,17 @@ class GeminiEncoder implements ModelEncoder {
         ];
         if (!empty($this->safetySettings)) {
             $requestData['safetySettings'] = $this->safetySettings;
+        }
+
+        $model = $request->getModel();
+        if ($model instanceof GeminiImageModel && ($model->getAspectRatio() !== null || $model->getImageSize() !== null)) {
+            $requestData['generationConfig']['imageConfig'] = [];
+            if ($model->getAspectRatio() !== null) {
+                $requestData['generationConfig']['imageConfig']['aspectRatio'] = $model->getAspectRatio();
+            }
+            if ($model->getImageSize() !== null) {
+                $requestData['generationConfig']['imageConfig']['size'] = $model->getImageSize();
+            }
         }
 
         if (!empty($request->getStopSequences())) {
