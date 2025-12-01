@@ -117,7 +117,7 @@ class GeminiEncoder implements ModelEncoder {
                 $requestData['generationConfig']['imageConfig']['aspectRatio'] = $model->getAspectRatio();
             }
             if ($model->getImageSize() !== null) {
-                $requestData['generationConfig']['imageConfig']['size'] = $model->getImageSize();
+                $requestData['generationConfig']['imageConfig']['imageSize'] = $model->getImageSize();
             }
         }
 
