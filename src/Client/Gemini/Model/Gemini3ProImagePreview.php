@@ -29,7 +29,7 @@ class Gemini3ProImagePreview extends GeminiModel implements GeminiImageModel {
     }
 
     public function getOutputPricePerMillionTokens(): float {
-        return 12.0;
+        return 120.0;
     }
 
     public function getCachedInputPricePerMillionTokens(): float {

@@ -26,7 +26,7 @@ class Gemini25FlashImagePreview extends GeminiModel implements GeminiImageModel 
     }
 
     public function getOutputPricePerMillionTokens(): float {
-        return 30;
+        return 30.0;
     }
 
     public function getCachedInputPricePerMillionTokens(): float {
