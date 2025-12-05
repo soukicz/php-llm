@@ -58,7 +58,7 @@ class MarkdownFormatter {
             if ($message->isUser()) {
                 $markdown .= '## User:' . "\n";
             } elseif ($message->isSystem()) {
-                $markdown .= '## User:' . "\n";
+                $markdown .= '## System:' . "\n";
             } elseif ($message->isAssistant()) {
                 $markdown .= '## Assistant:' . "\n";
             } else {
