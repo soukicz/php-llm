@@ -4,6 +4,7 @@ namespace Soukicz\Llm\Tool\TextEditor;
 
 use InvalidArgumentException;
 use RuntimeException;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
 use Soukicz\Llm\Client\Anthropic\Tool\AnthropicNativeTool;
 use Soukicz\Llm\Client\Anthropic\Tool\AnthropicToolTypeResolver;
 use Soukicz\Llm\Client\ModelInterface;
@@ -11,6 +12,8 @@ use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Tool\ToolDefinition;
 
 class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
+    private const SNIPPET_LINES = 4;
+
     private readonly TextEditorStorage $storage;
 
     public function __construct(TextEditorStorage $storage) {
@@ -18,10 +21,15 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
     }
 
     public function getName(): string {
-        return $this->getAnthropicName();
+        return 'str_replace_based_edit_tool';
     }
 
-    public function getAnthropicName(): string {
+    public function getAnthropicName(ModelInterface $model): string {
+        // Claude 3.7 Sonnet uses str_replace_editor, Claude 4+ uses str_replace_based_edit_tool
+        if ($model instanceof AnthropicClaude37Sonnet) {
+            return 'str_replace_editor';
+        }
+
         return 'str_replace_based_edit_tool';
     }
 
@@ -137,15 +145,11 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
             // Handle file viewing
             $content = $this->storage->getFileContent($path);
 
-            // If no line range specified, return entire file
-            if ($fromLine === null && $toLine === null) {
-                return LLMMessageContents::fromString($content);
-            }
-
-            // Split content into lines for range viewing
+            // Split content into lines
             $lines = explode("\n", $content);
             $totalLines = count($lines);
 
+            // Determine range
             $startIndex = $fromLine ?? 0;
             $endIndex = $toLine ?? $totalLines - 1;
 
@@ -153,11 +157,24 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
             $startIndex = max(0, min($startIndex, $totalLines - 1));
             $endIndex = max($startIndex, min($endIndex, $totalLines - 1));
 
-            $selectedLines = array_slice($lines, $startIndex, $endIndex - $startIndex + 1);
+            // Build output with line numbers in cat -n format (6-char right-aligned + tab)
+            $numberedLines = [];
+            for ($i = $startIndex; $i <= $endIndex; $i++) {
+                $lineNumber = $i + 1; // 1-indexed for display
+                $numberedLines[] = sprintf("%6d\t%s", $lineNumber, $lines[$i]);
+            }
 
-            return LLMMessageContents::fromString(implode("\n", $selectedLines));
+            // Include prefix to indicate line numbers are present (matches Anthropic reference implementation)
+            $output = "Here's the result of running `cat -n` on $path:\n" . implode("\n", $numberedLines) . "\n";
+
+            return LLMMessageContents::fromString($output);
         } catch (RuntimeException|InvalidArgumentException $e) {
-            return LLMMessageContents::fromErrorString('Error: ' . $e->getMessage());
+            $message = $e->getMessage();
+            if ($message === 'File not found' || $message === 'Directory not found') {
+                return LLMMessageContents::fromErrorString("The path $path does not exist. Please provide a valid path.");
+            }
+
+            return LLMMessageContents::fromErrorString('Error: ' . $message);
         }
     }
 
@@ -169,7 +186,18 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
             $matchCount = substr_count($content, $oldString);
 
             if ($matchCount === 0) {
-                return LLMMessageContents::fromErrorString('Error: No match found for replacement. Please check your text and try again.');
+                return LLMMessageContents::fromErrorString(
+                    "No replacement was performed, old_str `$oldString` did not appear verbatim in $path."
+                );
+            }
+
+            if ($matchCount > 1) {
+                $lineNumbers = $this->findMatchLineNumbers($content, $oldString);
+                $linesStr = implode(', ', $lineNumbers);
+
+                return LLMMessageContents::fromErrorString(
+                    "No replacement was performed. Multiple occurrences of old_str `$oldString` in lines $linesStr. Please ensure it is unique."
+                );
             }
 
             $position = strpos($content, $oldString);
@@ -177,9 +205,21 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
 
             $this->storage->setFileContent($path, $newContent);
 
-            return LLMMessageContents::fromString('Successfully replaced 1 occurrence');
+            // Find the line number where replacement occurred (1-indexed)
+            $replacementLine = substr_count(substr($content, 0, $position), "\n") + 1;
+            $snippet = $this->makeSnippet($newContent, $replacementLine);
+
+            return LLMMessageContents::fromString(
+                "The file $path has been edited. " . $snippet
+                . "Review the changes and make sure they are as expected. Edit the file again if necessary."
+            );
         } catch (RuntimeException|InvalidArgumentException $e) {
-            return LLMMessageContents::fromErrorString('Error: ' . $e->getMessage());
+            $message = $e->getMessage();
+            if ($message === 'File not found') {
+                return LLMMessageContents::fromErrorString("The path $path does not exist. Please provide a valid path.");
+            }
+
+            return LLMMessageContents::fromErrorString('Error: ' . $message);
         }
     }
 
@@ -191,7 +231,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
             $lines = explode("\n", $content);
             $totalLines = count($lines);
 
-            // Validate line number (1-indexed in the API, but we need 0-indexed for array operations)
+            // Validate line number (0-indexed: 0 means insert at beginning, totalLines means at end)
             if ($afterLine < 0 || $afterLine > $totalLines) {
                 return LLMMessageContents::fromErrorString("Error: Line number $afterLine is out of range. File has $totalLines lines.");
             }
@@ -205,9 +245,21 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
 
             $this->storage->setFileContent($path, $newContent);
 
-            return LLMMessageContents::fromString("Successfully inserted text after line $afterLine");
+            // The inserted line is at position afterLine + 1 (1-indexed)
+            $insertedLine = $afterLine + 1;
+            $snippet = $this->makeSnippet($newContent, $insertedLine);
+
+            return LLMMessageContents::fromString(
+                "The file $path has been edited. " . $snippet
+                . "Review the changes and make sure they are as expected (correct indentation, no duplicate lines, etc). Edit the file again if necessary."
+            );
         } catch (RuntimeException|InvalidArgumentException $e) {
-            return LLMMessageContents::fromErrorString('Error: ' . $e->getMessage());
+            $message = $e->getMessage();
+            if ($message === 'File not found') {
+                return LLMMessageContents::fromErrorString("The path $path does not exist. Please provide a valid path.");
+            }
+
+            return LLMMessageContents::fromErrorString('Error: ' . $message);
         }
     }
 
@@ -215,9 +267,56 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
         try {
             $this->storage->createFile($path, $content);
 
-            return LLMMessageContents::fromString("Successfully created file: $path");
+            return LLMMessageContents::fromString("File created successfully at: $path");
         } catch (RuntimeException|InvalidArgumentException $e) {
-            return LLMMessageContents::fromErrorString('Error: ' . $e->getMessage());
+            $message = $e->getMessage();
+            if ($message === 'File already exists') {
+                return LLMMessageContents::fromErrorString("File already exists at: $path. Cannot overwrite files using command `create`.");
+            }
+
+            return LLMMessageContents::fromErrorString('Error: ' . $message);
         }
+    }
+
+    /**
+     * Generate a context snippet around an edited area.
+     * Shows SNIPPET_LINES lines before and after the edit location.
+     */
+    private function makeSnippet(string $content, int $editLine): string {
+        $lines = explode("\n", $content);
+        $totalLines = count($lines);
+
+        // Calculate range (0-indexed internally, but editLine is 1-indexed)
+        $editIndex = $editLine - 1;
+        $startIndex = max(0, $editIndex - self::SNIPPET_LINES);
+        $endIndex = min($totalLines - 1, $editIndex + self::SNIPPET_LINES);
+
+        $snippet = [];
+        for ($i = $startIndex; $i <= $endIndex; $i++) {
+            $lineNumber = $i + 1; // 1-indexed for display
+            $snippet[] = sprintf("%6d\t%s", $lineNumber, $lines[$i]);
+        }
+
+        return "Here's the result of running `cat -n` on a snippet of the edited file:\n"
+             . implode("\n", $snippet) . "\n";
+    }
+
+    /**
+     * Find all line numbers where a string occurs in content.
+     *
+     * @return int[]
+     */
+    private function findMatchLineNumbers(string $content, string $needle): array {
+        $lineNumbers = [];
+        $offset = 0;
+
+        while (($pos = strpos($content, $needle, $offset)) !== false) {
+            // Count newlines before this position to get line number (1-indexed)
+            $lineNumber = substr_count(substr($content, 0, $pos), "\n") + 1;
+            $lineNumbers[] = $lineNumber;
+            $offset = $pos + 1;
+        }
+
+        return $lineNumbers;
     }
 }

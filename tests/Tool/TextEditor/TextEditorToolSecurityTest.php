@@ -127,10 +127,10 @@ class TextEditorToolSecurityTest extends TestCase {
         foreach ($maliciousPaths as $path) {
             $response = $this->tool->handle(['command' => 'view', 'path' => $path]);
             $this->assertInstanceOf(LLMMessageContents::class, $response);
-            $this->assertEquals(
-                'Error: File not found',
+            $this->assertStringContainsString(
+                'does not exist',
                 $response->getMessages()[0]->getText(),
-                "Expected 'File not found' error for path '$path'"
+                "Expected 'does not exist' error for path '$path'"
             );
         }
     }
@@ -311,7 +311,7 @@ class TextEditorToolSecurityTest extends TestCase {
             'file_text' => 'New file content',
         ]);
         $this->assertInstanceOf(LLMMessageContents::class, $response);
-        $this->assertStringContainsString('Successfully created', $response->getMessages()[0]->getText());
+        $this->assertStringContainsString('File created successfully at:', $response->getMessages()[0]->getText());
 
         // Verify the file was created in the right place
         $this->assertFileExists($this->testBaseDir . '/subdir/new_file.txt');

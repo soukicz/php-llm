@@ -9,7 +9,7 @@ use Soukicz\Llm\Message\LLMMessageContents;
 interface AnthropicNativeTool {
     public function getAnthropicType(ModelInterface $model): string;
 
-    public function getAnthropicName(): string;
+    public function getAnthropicName(ModelInterface $model): string;
 
     public function handle(array $input): LLMMessageContents|PromiseInterface;
 }
