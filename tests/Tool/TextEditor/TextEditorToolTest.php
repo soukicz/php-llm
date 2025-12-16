@@ -102,10 +102,10 @@ class TextEditorToolTest extends TestCase {
         $this->assertInstanceOf(LLMMessageContents::class, $response);
         $content = $response->getMessages()[0]->getText();
 
-        $this->assertStringContainsString('Directory contents of', $content);
-        $this->assertStringContainsString('FILE: simple.txt', $content);
-        $this->assertStringContainsString('FILE: multiline.txt', $content);
-        $this->assertStringContainsString('DIR: subdir', $content);
+        $this->assertStringContainsString("Here's the files and directories in", $content);
+        $this->assertStringContainsString('simple.txt', $content);
+        $this->assertStringContainsString('multiline.txt', $content);
+        $this->assertStringContainsString('subdir', $content);
     }
 
     public function testViewSubdirectory(): void {
@@ -114,8 +114,8 @@ class TextEditorToolTest extends TestCase {
         $this->assertInstanceOf(LLMMessageContents::class, $response);
         $content = $response->getMessages()[0]->getText();
 
-        $this->assertStringContainsString('Directory contents of', $content);
-        $this->assertStringContainsString('FILE: nested.txt', $content);
+        $this->assertStringContainsString("Here's the files and directories in", $content);
+        $this->assertStringContainsString('nested.txt', $content);
     }
 
     public function testViewNonExistentFile(): void {
@@ -123,6 +123,41 @@ class TextEditorToolTest extends TestCase {
 
         $this->assertInstanceOf(LLMMessageContents::class, $response);
         $this->assertStringContainsString('does not exist', $response->getMessages()[0]->getText());
+    }
+
+    public function testViewDirectoryWithViewRangeReturnsError(): void {
+        $response = $this->tool->handle(['command' => 'view', 'path' => 'subdir', 'view_range' => [1, 5]]);
+
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertStringContainsString('view_range', $response->getMessages()[0]->getText());
+        $this->assertStringContainsString('not allowed', $response->getMessages()[0]->getText());
+    }
+
+    public function testViewInvalidViewRangeStart(): void {
+        $response = $this->tool->handle(['command' => 'view', 'path' => 'multiline.txt', 'view_range' => [0, 3]]);
+
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $text = $response->getMessages()[0]->getText();
+        $this->assertStringContainsString('Invalid `view_range`', $text);
+        $this->assertStringContainsString('should be within the range', $text);
+    }
+
+    public function testViewInvalidViewRangeEnd(): void {
+        $response = $this->tool->handle(['command' => 'view', 'path' => 'multiline.txt', 'view_range' => [1, 100]]);
+
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $text = $response->getMessages()[0]->getText();
+        $this->assertStringContainsString('Invalid `view_range`', $text);
+        $this->assertStringContainsString('should be smaller than', $text);
+    }
+
+    public function testViewInvalidViewRangeOrder(): void {
+        $response = $this->tool->handle(['command' => 'view', 'path' => 'multiline.txt', 'view_range' => [4, 2]]);
+
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $text = $response->getMessages()[0]->getText();
+        $this->assertStringContainsString('Invalid `view_range`', $text);
+        $this->assertStringContainsString('should be larger or equal', $text);
     }
 
     public function testCreateFile(): void {
@@ -200,6 +235,7 @@ class TextEditorToolTest extends TestCase {
         $this->assertInstanceOf(LLMMessageContents::class, $response);
         $text = $response->getMessages()[0]->getText();
         $this->assertStringContainsString('The file simple.txt has been edited.', $text);
+        $this->assertStringContainsString("Here's the result of running `cat -n` on a snippet of simple.txt:", $text);
         $this->assertStringContainsString('Hi World', $text);
         $this->assertStringContainsString('Review the changes', $text);
 
@@ -258,7 +294,7 @@ class TextEditorToolTest extends TestCase {
         $text = $response->getMessages()[0]->getText();
         $this->assertStringContainsString('No replacement was performed', $text);
         $this->assertStringContainsString('Multiple occurrences', $text);
-        $this->assertStringContainsString('in lines 1, 1, 1', $text); // All on same line
+        $this->assertStringContainsString('[1]', $text); // All on same line
         $this->assertStringContainsString('Please ensure it is unique', $text);
 
         // Verify content unchanged when multiple matches exist
@@ -288,6 +324,7 @@ class TextEditorToolTest extends TestCase {
         $this->assertInstanceOf(LLMMessageContents::class, $response);
         $text = $response->getMessages()[0]->getText();
         $this->assertStringContainsString('The file multiline.txt has been edited.', $text);
+        $this->assertStringContainsString("Here's the result of running `cat -n` on a snippet of the edited file:", $text);
         $this->assertStringContainsString('Inserted Line', $text);
         $this->assertStringContainsString('Review the changes', $text);
 
@@ -341,7 +378,9 @@ class TextEditorToolTest extends TestCase {
         ]);
 
         $this->assertInstanceOf(LLMMessageContents::class, $response);
-        $this->assertStringContainsString('Line number 10 is out of range', $response->getMessages()[0]->getText());
+        $text = $response->getMessages()[0]->getText();
+        $this->assertStringContainsString('Invalid `insert_line` parameter', $text);
+        $this->assertStringContainsString('should be within the range', $text);
 
         // Verify content unchanged
         $expected = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
@@ -421,5 +460,21 @@ class TextEditorToolTest extends TestCase {
         $this->assertContains('simple.txt', $contents);
         $this->assertContains('multiline.txt', $contents);
         $this->assertContains('subdir', $contents);
+    }
+
+    public function testContentTruncation(): void {
+        // Create a very large file
+        $largeContent = str_repeat("This is a line of content.\n", 1000);
+        file_put_contents($this->testBaseDir . '/large.txt', $largeContent);
+
+        $response = $this->tool->handle([
+            'command' => 'view',
+            'path' => 'large.txt',
+        ]);
+
+        $text = $response->getMessages()[0]->getText();
+        // Should contain truncation message
+        $this->assertStringContainsString('truncated', $text);
+        $this->assertStringContainsString('view_range', $text);
     }
 }

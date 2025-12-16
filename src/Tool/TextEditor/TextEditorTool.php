@@ -13,6 +13,8 @@ use Soukicz\Llm\Tool\ToolDefinition;
 
 class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
     private const SNIPPET_LINES = 4;
+    private const MAX_RESPONSE_LEN = 16000;
+    private const TRUNCATED_MESSAGE = "\n... [Response truncated due to length. Use view_range to see specific sections.]";
 
     private readonly TextEditorStorage $storage;
 
@@ -39,23 +41,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
 
     public function handle(array $input): LLMMessageContents {
         if ($input['command'] === 'view') {
-            if (isset($input['view_range'])) {
-                $fromLine = $input['view_range'][0] - 1;
-            } else {
-                $fromLine = 0;
-            }
-            if (isset($input['view_range'])) {
-                $toLine = $input['view_range'][1];
-                if ($toLine === -1) {
-                    $toLine = null;
-                } else {
-                    $toLine--;
-                }
-            } else {
-                $toLine = null;
-            }
-
-            return $this->viewFile($input['path'], $fromLine, $toLine);
+            return $this->viewFile($input['path'], $input['view_range'] ?? null);
         }
 
         if ($input['command'] === 'str_replace') {
@@ -102,7 +88,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
                 ],
                 'old_str' => [
                     'type' => 'string',
-                    'description' => 'The text to replace (for str_replace command) - only first occurrence is replaced',
+                    'description' => 'The text to replace (for str_replace command) - must appear exactly once in the file',
                 ],
                 'new_str' => [
                     'type' => 'string',
@@ -121,22 +107,60 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
         ];
     }
 
-    protected function viewFile(string $path, ?int $fromLine, ?int $toLine): LLMMessageContents {
+    /**
+     * Truncate content if it exceeds MAX_RESPONSE_LEN.
+     */
+    private function maybeTruncate(string $content, ?int $truncateAfter = null): string {
+        $truncateAfter = $truncateAfter ?? self::MAX_RESPONSE_LEN;
+
+        if ($truncateAfter === 0 || strlen($content) <= $truncateAfter) {
+            return $content;
+        }
+
+        return substr($content, 0, $truncateAfter) . self::TRUNCATED_MESSAGE;
+    }
+
+    /**
+     * Generate output for the CLI based on the content of a file.
+     * Matches Anthropic reference implementation format.
+     */
+    private function makeOutput(string $fileContent, string $fileDescriptor, int $initLine = 1): string {
+        $fileContent = $this->maybeTruncate($fileContent);
+
+        $lines = explode("\n", $fileContent);
+        $numberedLines = [];
+        foreach ($lines as $i => $line) {
+            $lineNumber = $i + $initLine;
+            // Format: 6-char right-aligned number + tab + content (cat -n style)
+            $numberedLines[] = sprintf("%6d\t%s", $lineNumber, $line);
+        }
+
+        return "Here's the result of running `cat -n` on " . $fileDescriptor . ":\n"
+            . implode("\n", $numberedLines) . "\n";
+    }
+
+    /**
+     * @param int[]|null $viewRange Optional [start_line, end_line] range (1-indexed, -1 for end)
+     */
+    protected function viewFile(string $path, ?array $viewRange): LLMMessageContents {
         try {
             // Check if it's a directory
             if ($this->storage->isDirectory($path)) {
+                if ($viewRange !== null) {
+                    return LLMMessageContents::fromErrorString(
+                        "The `view_range` parameter is not allowed when `path` points to a directory."
+                    );
+                }
+
                 $contents = $this->storage->getDirectoryContent($path);
 
-                $output = "Directory contents of $path:\n";
+                $output = "Here's the files and directories in $path, excluding hidden items:\n";
                 foreach ($contents as $item) {
-                    $fullPath = rtrim($path, '/') . '/' . $item;
-                    if ($this->storage->isDirectory($fullPath)) {
-                        $output .= "DIR: $item\n";
-                    } elseif ($this->storage->isFile($fullPath)) {
-                        $output .= "FILE: $item\n";
-                    } else {
-                        $output .= "UNKNOWN: $item\n";
+                    // Skip hidden files/directories (starting with .)
+                    if (str_starts_with($item, '.')) {
+                        continue;
                     }
+                    $output .= "$path/$item\n";
                 }
 
                 return LLMMessageContents::fromString($output);
@@ -148,26 +172,46 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
             // Split content into lines
             $lines = explode("\n", $content);
             $totalLines = count($lines);
+            $initLine = 1;
 
-            // Determine range
-            $startIndex = $fromLine ?? 0;
-            $endIndex = $toLine ?? $totalLines - 1;
+            // Handle view_range validation
+            if ($viewRange !== null) {
+                if (count($viewRange) !== 2) {
+                    return LLMMessageContents::fromErrorString(
+                        "Invalid `view_range`. It should be a list of two integers."
+                    );
+                }
 
-            // Ensure indices are within bounds
-            $startIndex = max(0, min($startIndex, $totalLines - 1));
-            $endIndex = max($startIndex, min($endIndex, $totalLines - 1));
+                $initLine = $viewRange[0];
+                $finalLine = $viewRange[1];
 
-            // Build output with line numbers in cat -n format (6-char right-aligned + tab)
-            $numberedLines = [];
-            for ($i = $startIndex; $i <= $endIndex; $i++) {
-                $lineNumber = $i + 1; // 1-indexed for display
-                $numberedLines[] = sprintf("%6d\t%s", $lineNumber, $lines[$i]);
+                if ($initLine < 1 || $initLine > $totalLines) {
+                    return LLMMessageContents::fromErrorString(
+                        "Invalid `view_range`: [" . implode(', ', $viewRange) . "]. Its first element `$initLine` should be within the range of lines of the file: [1, $totalLines]"
+                    );
+                }
+
+                if ($finalLine !== -1 && $finalLine > $totalLines) {
+                    return LLMMessageContents::fromErrorString(
+                        "Invalid `view_range`: [" . implode(', ', $viewRange) . "]. Its second element `$finalLine` should be smaller than the number of lines in the file: `$totalLines`"
+                    );
+                }
+
+                if ($finalLine !== -1 && $finalLine < $initLine) {
+                    return LLMMessageContents::fromErrorString(
+                        "Invalid `view_range`: [" . implode(', ', $viewRange) . "]. Its second element `$finalLine` should be larger or equal than its first `$initLine`"
+                    );
+                }
+
+                // Extract the requested range
+                if ($finalLine === -1) {
+                    $content = implode("\n", array_slice($lines, $initLine - 1));
+                } else {
+                    $content = implode("\n", array_slice($lines, $initLine - 1, $finalLine - $initLine + 1));
+                }
             }
 
-            // Include prefix to indicate line numbers are present (matches Anthropic reference implementation)
-            $output = "Here's the result of running `cat -n` on $path:\n" . implode("\n", $numberedLines) . "\n";
-
-            return LLMMessageContents::fromString($output);
+            return LLMMessageContents::fromString($this->makeOutput($content, $path, $initLine));
         } catch (RuntimeException|InvalidArgumentException $e) {
             $message = $e->getMessage();
             if ($message === 'File not found' || $message === 'Directory not found') {
@@ -192,27 +236,39 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
             }
 
             if ($matchCount > 1) {
-                $lineNumbers = $this->findMatchLineNumbers($content, $oldString);
-                $linesStr = implode(', ', $lineNumbers);
+                // Find line numbers where old_str appears (matches reference implementation)
+                $contentLines = explode("\n", $content);
+                $lineNumbers = [];
+                foreach ($contentLines as $idx => $line) {
+                    if (str_contains($line, $oldString)) {
+                        $lineNumbers[] = $idx + 1;
+                    }
+                }
 
                 return LLMMessageContents::fromErrorString(
-                    "No replacement was performed. Multiple occurrences of old_str `$oldString` in lines $linesStr. Please ensure it is unique."
+                    "No replacement was performed. Multiple occurrences of old_str `$oldString` in lines [" . implode(', ', $lineNumbers) . "]. Please ensure it is unique"
                 );
             }
 
-            $position = strpos($content, $oldString);
-            $newContent = substr_replace($content, $newString, $position, strlen($oldString));
+            // Perform replacement
+            $newContent = str_replace($oldString, $newString, $content);
 
             $this->storage->setFileContent($path, $newContent);
 
-            // Find the line number where replacement occurred (1-indexed)
-            $replacementLine = substr_count(substr($content, 0, $position), "\n") + 1;
-            $snippet = $this->makeSnippet($newContent, $replacementLine);
+            // Calculate snippet range (matches reference implementation)
+            $parts = explode($oldString, $content);
+            $replacementLine = substr_count($parts[0], "\n");
+            $startLine = max(0, $replacementLine - self::SNIPPET_LINES);
+            $endLine = $replacementLine + self::SNIPPET_LINES + substr_count($newString, "\n");
 
-            return LLMMessageContents::fromString(
-                "The file $path has been edited. " . $snippet
-                . "Review the changes and make sure they are as expected. Edit the file again if necessary."
-            );
+            $newContentLines = explode("\n", $newContent);
+            $snippet = implode("\n", array_slice($newContentLines, $startLine, $endLine - $startLine + 1));
+
+            $successMsg = "The file $path has been edited. ";
+            $successMsg .= $this->makeOutput($snippet, "a snippet of $path", $startLine + 1);
+            $successMsg .= "Review the changes and make sure they are as expected. Edit the file again if necessary.";
+
+            return LLMMessageContents::fromString($successMsg);
         } catch (RuntimeException|InvalidArgumentException $e) {
             $message = $e->getMessage();
             if ($message === 'File not found') {
@@ -223,7 +279,7 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
         }
     }
 
-    protected function insertToFile(string $path, string $newString, int $afterLine): LLMMessageContents {
+    protected function insertToFile(string $path, string $newString, int $insertLine): LLMMessageContents {
         try {
             $content = $this->storage->getFileContent($path);
 
@@ -232,27 +288,41 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
             $totalLines = count($lines);
 
             // Validate line number (0-indexed: 0 means insert at beginning, totalLines means at end)
-            if ($afterLine < 0 || $afterLine > $totalLines) {
-                return LLMMessageContents::fromErrorString("Error: Line number $afterLine is out of range. File has $totalLines lines.");
+            if ($insertLine < 0 || $insertLine > $totalLines) {
+                return LLMMessageContents::fromErrorString(
+                    "Invalid `insert_line` parameter: $insertLine. It should be within the range of lines of the file: [0, $totalLines]"
+                );
             }
 
-            // Insert the new string after the specified line
-            // If afterLine is 0, insert at the beginning
-            // If afterLine equals totalLines, insert at the end
-            array_splice($lines, $afterLine, 0, $newString);
+            // Calculate snippet (matches reference implementation)
+            $newStrLines = explode("\n", $newString);
+            $snippetLines = array_merge(
+                array_slice($lines, max(0, $insertLine - self::SNIPPET_LINES), min($insertLine, self::SNIPPET_LINES)),
+                $newStrLines,
+                array_slice($lines, $insertLine, self::SNIPPET_LINES)
+            );
 
-            $newContent = implode("\n", $lines);
+            // Insert the new string
+            $newFileLines = array_merge(
+                array_slice($lines, 0, $insertLine),
+                $newStrLines,
+                array_slice($lines, $insertLine)
+            );
+
+            $newContent = implode("\n", $newFileLines);
+            $snippet = implode("\n", $snippetLines);
 
             $this->storage->setFileContent($path, $newContent);
 
-            // The inserted line is at position afterLine + 1 (1-indexed)
-            $insertedLine = $afterLine + 1;
-            $snippet = $this->makeSnippet($newContent, $insertedLine);
-
-            return LLMMessageContents::fromString(
-                "The file $path has been edited. " . $snippet
-                . "Review the changes and make sure they are as expected (correct indentation, no duplicate lines, etc). Edit the file again if necessary."
+            $successMsg = "The file $path has been edited. ";
+            $successMsg .= $this->makeOutput(
+                $snippet,
+                "a snippet of the edited file",
+                max(1, $insertLine - self::SNIPPET_LINES + 1)
             );
+            $successMsg .= "Review the changes and make sure they are as expected (correct indentation, no duplicate lines, etc). Edit the file again if necessary.";
+
+            return LLMMessageContents::fromString($successMsg);
         } catch (RuntimeException|InvalidArgumentException $e) {
             $message = $e->getMessage();
             if ($message === 'File not found') {
@@ -276,47 +346,5 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
 
             return LLMMessageContents::fromErrorString('Error: ' . $message);
         }
-    }
-
-    /**
-     * Generate a context snippet around an edited area.
-     * Shows SNIPPET_LINES lines before and after the edit location.
-     */
-    private function makeSnippet(string $content, int $editLine): string {
-        $lines = explode("\n", $content);
-        $totalLines = count($lines);
-
-        // Calculate range (0-indexed internally, but editLine is 1-indexed)
-        $editIndex = $editLine - 1;
-        $startIndex = max(0, $editIndex - self::SNIPPET_LINES);
-        $endIndex = min($totalLines - 1, $editIndex + self::SNIPPET_LINES);
-
-        $snippet = [];
-        for ($i = $startIndex; $i <= $endIndex; $i++) {
-            $lineNumber = $i + 1; // 1-indexed for display
-            $snippet[] = sprintf("%6d\t%s", $lineNumber, $lines[$i]);
-        }
-
-        return "Here's the result of running `cat -n` on a snippet of the edited file:\n"
-             . implode("\n", $snippet) . "\n";
-    }
-
-    /**
-     * Find all line numbers where a string occurs in content.
-     *
-     * @return int[]
-     */
-    private function findMatchLineNumbers(string $content, string $needle): array {
-        $lineNumbers = [];
-        $offset = 0;
-
-        while (($pos = strpos($content, $needle, $offset)) !== false) {
-            // Count newlines before this position to get line number (1-indexed)
-            $lineNumber = substr_count(substr($content, 0, $pos), "\n") + 1;
-            $lineNumbers[] = $lineNumber;
-            $offset = $pos + 1;
-        }
-
-        return $lineNumbers;
     }
 }
