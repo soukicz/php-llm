@@ -118,7 +118,17 @@ class OpenAIEncoder implements ModelEncoder {
         $reasoningConfig = $request->getReasoningConfig();
         if ($reasoningConfig) {
             if ($reasoningConfig instanceof ReasoningEffort) {
-                $requestData['reasoning_effort'] = $reasoningConfig->value;
+                $reasoningValue = match ($reasoningConfig) {
+                    ReasoningEffort::NONE => 'none',
+                    ReasoningEffort::LOW => 'low',
+                    ReasoningEffort::MINIMAL => 'minimal',
+                    ReasoningEffort::MEDIUM => 'medium',
+                    ReasoningEffort::HIGH => 'high',
+                    ReasoningEffort::EXTRA_HIGH => 'xhigh',
+                };
+                if ($reasoningValue !== null) {
+                    $requestData['reasoning_effort'] = $reasoningValue;
+                }
             } else {
                 throw new InvalidArgumentException('Unsupported reasoning config type');
             }
