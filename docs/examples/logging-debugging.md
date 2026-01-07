@@ -153,27 +153,29 @@ Log HTTP requests with Guzzle middleware:
 
 ```php
 <?php
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Middleware;
 use GuzzleHttp\MessageFormatter;
-use Monolog\Logger;
-use Monolog\Handler\StreamHandler;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 
-$logger = new Logger('http');
-$logger->pushHandler(new StreamHandler(__DIR__ . '/http.log'));
+$logFile = __DIR__ . '/http.log';
+$formatter = new MessageFormatter('{method} {uri} - {code} - {res_body}');
 
-$stack = HandlerStack::create();
-$stack->push(
-    Middleware::log(
-        $logger,
-        new MessageFormatter('{method} {uri} - {code} - {res_body}')
-    )
-);
+$loggingMiddleware = function (callable $handler) use ($logFile, $formatter) {
+    return function (RequestInterface $request, array $options) use ($handler, $logFile, $formatter) {
+        return $handler($request, $options)->then(
+            function (ResponseInterface $response) use ($request, $logFile, $formatter) {
+                $message = $formatter->format($request, $response);
+                file_put_contents($logFile, $message . "\n", FILE_APPEND);
+                return $response;
+            }
+        );
+    };
+};
 
 $client = new AnthropicClient(
     apiKey: 'sk-xxxxx',
     cache: $cache,
-    handler: $stack
+    customHttpMiddleware: $loggingMiddleware
 );
 ```
 
