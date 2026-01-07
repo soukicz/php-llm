@@ -7,15 +7,19 @@ use Soukicz\Llm\Cache\CacheInterface;
 class OpenAIClient extends AbstractOpenAIClient {
     public const CODE = 'openai';
 
-    public function __construct(private readonly string $apiKey, private readonly string $apiOrganization, ?CacheInterface $cache = null, $customHttpMiddleware = null) {
+    public function __construct(private readonly string $apiKey, private readonly ?string $apiOrganization, ?CacheInterface $cache = null, $customHttpMiddleware = null) {
         parent::__construct($cache, $customHttpMiddleware);
     }
 
     protected function getHeaders(): array {
-        return [
+        $headers = [
             'Authorization' => 'Bearer ' . $this->apiKey,
-            'OpenAI-Organization' => $this->apiOrganization,
         ];
+        if ($this->apiOrganization !== null) {
+            $headers['OpenAI-Organization'] = $this->apiOrganization;
+        }
+
+        return $headers;
     }
 
     protected function getBaseUrl(): string {
