@@ -15,6 +15,8 @@ use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageContents;
+use Soukicz\Llm\Message\LLMMessageImage;
+use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Tool\CallbackToolDefinition;
 
 /**
@@ -408,6 +410,65 @@ class UniversalLLMIntegrationTest extends IntegrationTestBase {
 
         if ($this->verbose) {
             echo "\n[$name] Stop sequence response: " . $responseText;
+        }
+    }
+
+    /**
+     * @dataProvider clientProvider
+     */
+    public function testImageAnalysis($client, $model, $name): void {
+        // Load test image
+        $imagePath = __DIR__ . '/fixtures/test-image.png';
+        if (!file_exists($imagePath)) {
+            $this->markTestSkipped('Test image file not found at ' . $imagePath);
+        }
+
+        $imageData = base64_encode(file_get_contents($imagePath));
+
+        // Create message with image
+        $userMessage = LLMMessage::createFromUser(new LLMMessageContents([
+            new LLMMessageText('What colors do you see in this image? Describe the shapes briefly.'),
+            new LLMMessageImage('base64', 'image/png', $imageData, false),
+        ]));
+
+        $conversation = new LLMConversation([$userMessage]);
+
+        $request = new LLMRequest(
+            model: $model,
+            conversation: $conversation,
+            temperature: 0.1,
+            maxTokens: 200
+        );
+
+        $startTime = microtime(true);
+        $response = $this->agentClient->run($client, $request);
+        $duration = microtime(true) - $startTime;
+
+        // Track cost
+        $cost = ($response->getInputPriceUsd() ?? 0) + ($response->getOutputPriceUsd() ?? 0);
+        $this->trackCost($cost);
+
+        // Assertions
+        $this->assertEquals(StopReason::FINISHED, $response->getStopReason());
+        $this->assertNotEmpty($response->getLastText());
+
+        // The test image has a red background with a blue circle
+        // The model should identify at least one of these colors
+        $responseText = strtolower($response->getLastText());
+        $foundColor = stripos($responseText, 'red') !== false
+            || stripos($responseText, 'blue') !== false;
+
+        $this->assertTrue(
+            $foundColor,
+            "[$name] Expected response to mention red or blue colors. Response: " . $response->getLastText()
+        );
+
+        // Performance check
+        $this->assertLessThan(60, $duration, "$name image request took too long");
+
+        if ($this->verbose) {
+            echo "\n[$name] Image analysis response: " . $response->getLastText();
+            echo sprintf("\n[$name] Cost: $%.6f, Duration: %.2fs", $cost, $duration);
         }
     }
 

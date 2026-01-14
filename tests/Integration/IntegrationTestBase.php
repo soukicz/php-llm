@@ -163,6 +163,14 @@ abstract class IntegrationTestBase extends TestCase {
             ];
         }
 
+        if (!empty($_ENV['SCALEWAY_API_KEY'])) {
+            $clients[] = [
+                'client' => new OpenAICompatibleClient($_ENV['SCALEWAY_API_KEY'], 'https://api.scaleway.ai/v1', $this->cache),
+                'model' => new LocalModel('mistral-small-3.2-24b-instruct-2506'),
+                'name' => 'Scaleway Mistral Small',
+            ];
+        }
+
         return $clients;
     }
 
