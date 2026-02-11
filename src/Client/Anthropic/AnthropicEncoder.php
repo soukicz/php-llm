@@ -8,6 +8,7 @@ use Soukicz\Llm\Client\ModelEncoder;
 use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Client\StopReason;
 use Soukicz\Llm\Config\ReasoningBudget;
+use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Message\LLMMessage;
@@ -155,6 +156,20 @@ class AnthropicEncoder implements ModelEncoder {
                     'type' => 'enabled',
                     'budget_tokens' => $reasoningConfig->getMaxTokens(),
                 ];
+            } elseif ($reasoningConfig instanceof ReasoningEffort) {
+                if ($reasoningConfig !== ReasoningEffort::NONE) {
+                    $options['thinking'] = [
+                        'type' => 'adaptive',
+                    ];
+                    $options['output_config'] = [
+                        'effort' => match ($reasoningConfig) {
+                            ReasoningEffort::MINIMAL, ReasoningEffort::LOW => 'low',
+                            ReasoningEffort::MEDIUM => 'medium',
+                            ReasoningEffort::HIGH => 'high',
+                            ReasoningEffort::EXTRA_HIGH => 'max',
+                        },
+                    ];
+                }
             } else {
                 throw new \InvalidArgumentException('Unsupported reasoning config type');
             }

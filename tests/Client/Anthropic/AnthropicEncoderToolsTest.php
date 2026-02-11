@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Client\Anthropic\AnthropicEncoder;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude35Sonnet;
 use Soukicz\Llm\Config\ReasoningBudget;
+use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
@@ -145,5 +146,85 @@ class AnthropicEncoderToolsTest extends TestCase {
         $this->assertArrayHasKey('thinking', $encoded);
         $this->assertEquals('enabled', $encoded['thinking']['type']);
         $this->assertEquals(2000, $encoded['thinking']['budget_tokens']);
+    }
+
+    public function testReasoningEffort(): void {
+        $encoder = new AnthropicEncoder();
+
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('Solve this complex problem'),
+        ]);
+
+        $request = new LLMRequest(
+            model: new AnthropicClaude35Sonnet(AnthropicClaude35Sonnet::VERSION_20241022),
+            conversation: $conversation,
+            reasoningConfig: ReasoningEffort::HIGH
+        );
+
+        $encoded = $encoder->encodeRequest($request);
+
+        $this->assertArrayHasKey('thinking', $encoded);
+        $this->assertEquals('adaptive', $encoded['thinking']['type']);
+        $this->assertArrayHasKey('output_config', $encoded);
+        $this->assertEquals('high', $encoded['output_config']['effort']);
+    }
+
+    public function testReasoningEffortLow(): void {
+        $encoder = new AnthropicEncoder();
+
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('Simple question'),
+        ]);
+
+        $request = new LLMRequest(
+            model: new AnthropicClaude35Sonnet(AnthropicClaude35Sonnet::VERSION_20241022),
+            conversation: $conversation,
+            reasoningConfig: ReasoningEffort::LOW
+        );
+
+        $encoded = $encoder->encodeRequest($request);
+
+        $this->assertArrayHasKey('thinking', $encoded);
+        $this->assertEquals('adaptive', $encoded['thinking']['type']);
+        $this->assertEquals('low', $encoded['output_config']['effort']);
+    }
+
+    public function testReasoningEffortNone(): void {
+        $encoder = new AnthropicEncoder();
+
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('Hello'),
+        ]);
+
+        $request = new LLMRequest(
+            model: new AnthropicClaude35Sonnet(AnthropicClaude35Sonnet::VERSION_20241022),
+            conversation: $conversation,
+            reasoningConfig: ReasoningEffort::NONE
+        );
+
+        $encoded = $encoder->encodeRequest($request);
+
+        $this->assertArrayNotHasKey('thinking', $encoded);
+        $this->assertArrayNotHasKey('output_config', $encoded);
+    }
+
+    public function testReasoningEffortMax(): void {
+        $encoder = new AnthropicEncoder();
+
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('Very complex problem'),
+        ]);
+
+        $request = new LLMRequest(
+            model: new AnthropicClaude35Sonnet(AnthropicClaude35Sonnet::VERSION_20241022),
+            conversation: $conversation,
+            reasoningConfig: ReasoningEffort::EXTRA_HIGH
+        );
+
+        $encoded = $encoder->encodeRequest($request);
+
+        $this->assertArrayHasKey('thinking', $encoded);
+        $this->assertEquals('adaptive', $encoded['thinking']['type']);
+        $this->assertEquals('max', $encoded['output_config']['effort']);
     }
 }
