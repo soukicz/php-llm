@@ -31,6 +31,9 @@ The LLM model to use. Create model instances from provider-specific classes:
 ```php
 <?php
 // Anthropic
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude46Opus;
+$model = new AnthropicClaude46Opus();
+
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
 $model = new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929);
 
