@@ -9,6 +9,7 @@ use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude4Opus;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude4Sonnet;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude41Opus;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Haiku;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
 use Soukicz\Llm\Client\Anthropic\Tool\AnthropicToolTypeResolver;
 
@@ -19,6 +20,7 @@ class AnthropicToolTypeResolverTest extends TestCase {
             new AnthropicClaude4Opus(AnthropicClaude4Opus::VERSION_20250514),
             new AnthropicClaude41Opus(AnthropicClaude41Opus::VERSION_20250805),
             new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
+            new AnthropicClaude45Haiku(AnthropicClaude45Haiku::VERSION_20251001),
         ];
 
         foreach ($models as $model) {
