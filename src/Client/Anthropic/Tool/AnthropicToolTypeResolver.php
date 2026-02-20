@@ -10,6 +10,8 @@ use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude41Opus;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Opus;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Haiku;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude46Opus;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude46Sonnet;
 
 /**
  * Resolves Anthropic native tool types based on the model being used.
@@ -28,7 +30,9 @@ class AnthropicToolTypeResolver {
             $model instanceof AnthropicClaude41Opus ||
             $model instanceof AnthropicClaude45Sonnet ||
             $model instanceof AnthropicClaude45Opus ||
-            $model instanceof AnthropicClaude45Haiku
+            $model instanceof AnthropicClaude45Haiku ||
+            $model instanceof AnthropicClaude46Opus ||
+            $model instanceof AnthropicClaude46Sonnet
         ) {
             return 'text_editor_20250728';
         }

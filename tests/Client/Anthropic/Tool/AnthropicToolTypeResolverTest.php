@@ -11,6 +11,8 @@ use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude4Sonnet;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude41Opus;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Haiku;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude46Opus;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude46Sonnet;
 use Soukicz\Llm\Client\Anthropic\Tool\AnthropicToolTypeResolver;
 
 class AnthropicToolTypeResolverTest extends TestCase {
@@ -21,6 +23,8 @@ class AnthropicToolTypeResolverTest extends TestCase {
             new AnthropicClaude41Opus(AnthropicClaude41Opus::VERSION_20250805),
             new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
             new AnthropicClaude45Haiku(AnthropicClaude45Haiku::VERSION_20251001),
+            new AnthropicClaude46Opus(),
+            new AnthropicClaude46Sonnet(),
         ];
 
         foreach ($models as $model) {
