@@ -13,6 +13,7 @@ use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessagePdf;
+use Soukicz\Llm\Message\LLMMessageStructuredData;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
@@ -81,10 +82,9 @@ class GeminiEncoder implements ModelEncoder {
                         ],
                     ];
                     continue 2;
+                } elseif ($messageContent instanceof LLMMessageStructuredData) {
+                    $parts[] = ['text' => $messageContent->getRawJson()];
                 } elseif ($messageContent instanceof LLMMessagePdf) {
-                    // PDF handling - Gemini doesn't have native PDF support like OpenAI
-                    // We could potentially convert this to a different format or implement
-                    // a custom solution for handling PDFs with Gemini
                     throw new \InvalidArgumentException('PDF content type not supported for Gemini');
                 } else {
                     throw new \InvalidArgumentException('Unsupported message content type for Gemini');
@@ -121,6 +121,12 @@ class GeminiEncoder implements ModelEncoder {
             }
         }
 
+        $structuredOutputConfig = $request->getStructuredOutputConfig();
+        if ($structuredOutputConfig !== null) {
+            $requestData['generationConfig']['responseMimeType'] = 'application/json';
+            $requestData['generationConfig']['responseSchema'] = self::normalizeSchemaForGemini($structuredOutputConfig->getSchema());
+        }
+
         if (!empty($request->getStopSequences())) {
             $requestData['generationConfig']['stopSequences'] = $request->getStopSequences();
         }
@@ -133,23 +139,19 @@ class GeminiEncoder implements ModelEncoder {
         $reasoningConfig = $request->getReasoningConfig();
         if ($reasoningConfig) {
             if ($reasoningConfig instanceof ReasoningEffort) {
-                switch ($reasoningConfig->value) {
-                    case 'default':
-                        // Default, no adjustments needed
-                        break;
-                    case 'high':
-                        // For high reasoning, increase temperature slightly and adjust topP/topK
-                        $requestData['generationConfig']['temperature'] = min(1.0, $request->getTemperature() * 1.2);
-                        $requestData['generationConfig']['topP'] = 0.9;
-                        $requestData['generationConfig']['topK'] = 40;
-                        break;
-                    case 'auto':
-                        // Auto reasoning, use more balanced settings
-                        $requestData['generationConfig']['topP'] = 0.8;
-                        $requestData['generationConfig']['topK'] = 20;
-                        break;
-                    default:
-                        throw new \InvalidArgumentException('Unsupported reasoning effort: ' . $reasoningConfig->value);
+                if ($reasoningConfig === ReasoningEffort::NONE) {
+                    $requestData['generationConfig']['thinkingConfig'] = [
+                        'thinkingBudget' => 0,
+                    ];
+                } else {
+                    $requestData['generationConfig']['thinkingConfig'] = [
+                        'thinkingLevel' => match ($reasoningConfig) {
+                            ReasoningEffort::MINIMAL => 'minimal',
+                            ReasoningEffort::LOW => 'low',
+                            ReasoningEffort::MEDIUM => 'medium',
+                            ReasoningEffort::HIGH, ReasoningEffort::EXTRA_HIGH => 'high',
+                        },
+                    ];
                 }
             } else {
                 throw new \InvalidArgumentException('Unsupported reasoning config type');
@@ -189,7 +191,12 @@ class GeminiEncoder implements ModelEncoder {
         if (isset($candidate['content']['parts'])) {
             foreach ($candidate['content']['parts'] as $part) {
                 if (isset($part['text'])) {
-                    $responseContents[] = new LLMMessageText($part['text']);
+                    if ($request->getStructuredOutputConfig() !== null) {
+                        $parsed = json_decode($part['text'], true, 512, JSON_THROW_ON_ERROR);
+                        $responseContents[] = new LLMMessageStructuredData($parsed, $part['text']);
+                    } else {
+                        $responseContents[] = new LLMMessageText($part['text']);
+                    }
                 } elseif (isset($part['functionCall'])) {
                     $toolCall = true;
                     $responseContents[] = new LLMMessageToolUse(
@@ -248,5 +255,26 @@ class GeminiEncoder implements ModelEncoder {
             $request->getPreviousOutputCostUSD(),
             $request->getPreviousTimeMs()
         );
+    }
+
+    /**
+     * Normalize a JSON Schema for Gemini by stripping unsupported properties.
+     * Gemini does not support "additionalProperties" — it is silently removed.
+     */
+    private static function normalizeSchemaForGemini(array $schema): array {
+        unset($schema['additionalProperties']);
+
+        if (isset($schema['properties'])) {
+            foreach ($schema['properties'] as $key => $property) {
+                if (is_array($property)) {
+                    $schema['properties'][$key] = self::normalizeSchemaForGemini($property);
+                }
+            }
+        }
+        if (isset($schema['items']) && is_array($schema['items'])) {
+            $schema['items'] = self::normalizeSchemaForGemini($schema['items']);
+        }
+
+        return $schema;
     }
 }

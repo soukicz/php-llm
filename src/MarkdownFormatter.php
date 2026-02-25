@@ -8,6 +8,7 @@ use Soukicz\Llm\Message\LLMMessageContent;
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessagePdf;
 use Soukicz\Llm\Message\LLMMessageReasoning;
+use Soukicz\Llm\Message\LLMMessageStructuredData;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
@@ -36,6 +37,10 @@ class MarkdownFormatter {
 
         if ($content instanceof LLMMessagePdf) {
             return '**PDF** (' . $this->formatByteSize(strlen(base64_decode($content->getData()))) . ')';
+        }
+
+        if ($content instanceof LLMMessageStructuredData) {
+            return "**Structured output:**\n\n```json\n" . json_encode($content->getData(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n```\n";
         }
 
         throw new RuntimeException('Unknown message content type');

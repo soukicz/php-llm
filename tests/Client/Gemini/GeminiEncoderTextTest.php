@@ -7,6 +7,7 @@ namespace Soukicz\Llm\Tests\Client\Gemini;
 use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Client\Gemini\GeminiEncoder;
 use Soukicz\Llm\Client\Gemini\Model\Gemini20Flash;
+use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
@@ -101,5 +102,103 @@ class GeminiEncoderTextTest extends TestCase {
         $this->assertArrayHasKey('stopSequences', $encoded['generationConfig']);
         $this->assertCount(2, $encoded['generationConfig']['stopSequences']);
         $this->assertEquals(['END', 'FINISH'], $encoded['generationConfig']['stopSequences']);
+    }
+
+    public function testReasoningEffortHigh(): void {
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('Solve this complex problem'),
+        ]);
+
+        $request = new LLMRequest(
+            model: new Gemini20Flash(),
+            conversation: $conversation,
+            reasoningConfig: ReasoningEffort::HIGH,
+        );
+
+        $encoded = $this->encoder->encodeRequest($request);
+
+        $this->assertArrayHasKey('thinkingConfig', $encoded['generationConfig']);
+        $this->assertEquals('high', $encoded['generationConfig']['thinkingConfig']['thinkingLevel']);
+    }
+
+    public function testReasoningEffortLow(): void {
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('Simple question'),
+        ]);
+
+        $request = new LLMRequest(
+            model: new Gemini20Flash(),
+            conversation: $conversation,
+            reasoningConfig: ReasoningEffort::LOW,
+        );
+
+        $encoded = $this->encoder->encodeRequest($request);
+
+        $this->assertEquals('low', $encoded['generationConfig']['thinkingConfig']['thinkingLevel']);
+    }
+
+    public function testReasoningEffortMedium(): void {
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('Question'),
+        ]);
+
+        $request = new LLMRequest(
+            model: new Gemini20Flash(),
+            conversation: $conversation,
+            reasoningConfig: ReasoningEffort::MEDIUM,
+        );
+
+        $encoded = $this->encoder->encodeRequest($request);
+
+        $this->assertEquals('medium', $encoded['generationConfig']['thinkingConfig']['thinkingLevel']);
+    }
+
+    public function testReasoningEffortMinimal(): void {
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('Quick task'),
+        ]);
+
+        $request = new LLMRequest(
+            model: new Gemini20Flash(),
+            conversation: $conversation,
+            reasoningConfig: ReasoningEffort::MINIMAL,
+        );
+
+        $encoded = $this->encoder->encodeRequest($request);
+
+        $this->assertEquals('minimal', $encoded['generationConfig']['thinkingConfig']['thinkingLevel']);
+    }
+
+    public function testReasoningEffortExtraHigh(): void {
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('Very complex problem'),
+        ]);
+
+        $request = new LLMRequest(
+            model: new Gemini20Flash(),
+            conversation: $conversation,
+            reasoningConfig: ReasoningEffort::EXTRA_HIGH,
+        );
+
+        $encoded = $this->encoder->encodeRequest($request);
+
+        $this->assertEquals('high', $encoded['generationConfig']['thinkingConfig']['thinkingLevel']);
+    }
+
+    public function testReasoningEffortNone(): void {
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('Hello'),
+        ]);
+
+        $request = new LLMRequest(
+            model: new Gemini20Flash(),
+            conversation: $conversation,
+            reasoningConfig: ReasoningEffort::NONE,
+        );
+
+        $encoded = $this->encoder->encodeRequest($request);
+
+        $this->assertArrayHasKey('thinkingConfig', $encoded['generationConfig']);
+        $this->assertEquals(0, $encoded['generationConfig']['thinkingConfig']['thinkingBudget']);
     }
 }

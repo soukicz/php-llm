@@ -15,11 +15,35 @@ use Soukicz\Llm\Message\LLMMessageContent;
 use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessagePdf;
+use Soukicz\Llm\Message\LLMMessageStructuredData;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 
 class OpenAIEncoder implements ModelEncoder {
+    /**
+     * Normalize a JSON Schema for strict mode by adding "additionalProperties": false
+     * to all object types. OpenAI requires this for structured outputs.
+     */
+    protected static function normalizeSchemaForStrictMode(array $schema): array {
+        if (isset($schema['type']) && $schema['type'] === 'object' && !array_key_exists('additionalProperties', $schema)) {
+            $schema['additionalProperties'] = false;
+        }
+
+        if (isset($schema['properties'])) {
+            foreach ($schema['properties'] as $key => $property) {
+                if (is_array($property)) {
+                    $schema['properties'][$key] = self::normalizeSchemaForStrictMode($property);
+                }
+            }
+        }
+        if (isset($schema['items']) && is_array($schema['items'])) {
+            $schema['items'] = self::normalizeSchemaForStrictMode($schema['items']);
+        }
+
+        return $schema;
+    }
+
     private function encodeMessageContent(LLMMessageContent $content): array {
         if ($content instanceof LLMMessageText) {
             return [
@@ -48,6 +72,12 @@ class OpenAIEncoder implements ModelEncoder {
                     'file_data' => 'data:application/pdf;base64,' . $content->getData(),
                     'filename' => 'file.pdf',
                 ],
+            ];
+        }
+        if ($content instanceof LLMMessageStructuredData) {
+            return [
+                'type' => 'text',
+                'text' => $content->getRawJson(),
             ];
         }
 
@@ -152,6 +182,18 @@ class OpenAIEncoder implements ModelEncoder {
             }
         }
 
+        $structuredOutputConfig = $request->getStructuredOutputConfig();
+        if ($structuredOutputConfig !== null) {
+            $requestData['response_format'] = [
+                'type' => 'json_schema',
+                'json_schema' => [
+                    'name' => 'response_schema',
+                    'strict' => true,
+                    'schema' => self::normalizeSchemaForStrictMode($structuredOutputConfig->getSchema()),
+                ],
+            ];
+        }
+
         return $requestData;
     }
 
@@ -175,7 +217,12 @@ class OpenAIEncoder implements ModelEncoder {
         $responseContents = [];
 
         if (isset($assistantMessage['content'])) {
-            $responseContents[] = new LLMMessageText($assistantMessage['content']);
+            if ($request->getStructuredOutputConfig() !== null) {
+                $parsed = json_decode($assistantMessage['content'], true, 512, JSON_THROW_ON_ERROR);
+                $responseContents[] = new LLMMessageStructuredData($parsed, $assistantMessage['content']);
+            } else {
+                $responseContents[] = new LLMMessageText($assistantMessage['content']);
+            }
         }
 
         if (!empty($assistantMessage['tool_calls'])) {

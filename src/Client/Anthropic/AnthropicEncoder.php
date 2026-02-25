@@ -18,11 +18,35 @@ use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessagePdf;
 use Soukicz\Llm\Message\LLMMessageReasoning;
+use Soukicz\Llm\Message\LLMMessageStructuredData;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 
 class AnthropicEncoder implements ModelEncoder {
+    /**
+     * Normalize a JSON Schema for strict mode by adding "additionalProperties": false
+     * to all object types. Anthropic requires this for structured outputs.
+     */
+    private static function normalizeSchemaForStrictMode(array $schema): array {
+        if (isset($schema['type']) && $schema['type'] === 'object' && !array_key_exists('additionalProperties', $schema)) {
+            $schema['additionalProperties'] = false;
+        }
+
+        if (isset($schema['properties'])) {
+            foreach ($schema['properties'] as $key => $property) {
+                if (is_array($property)) {
+                    $schema['properties'][$key] = self::normalizeSchemaForStrictMode($property);
+                }
+            }
+        }
+        if (isset($schema['items']) && is_array($schema['items'])) {
+            $schema['items'] = self::normalizeSchemaForStrictMode($schema['items']);
+        }
+
+        return $schema;
+    }
+
     private function addCacheAttribute(LLMMessageContent $content, array $data): array {
         if ($content->isCached()) {
             $data['cache_control'] = ['type' => 'ephemeral'];
@@ -69,6 +93,12 @@ class AnthropicEncoder implements ModelEncoder {
                     'media_type' => 'application/pdf',
                     'data' => $messageContent->getData(),
                 ],
+            ]);
+        }
+        if ($messageContent instanceof LLMMessageStructuredData) {
+            return $this->addCacheAttribute($messageContent, [
+                'type' => 'text',
+                'text' => $messageContent->getRawJson(),
             ]);
         }
 
@@ -161,18 +191,28 @@ class AnthropicEncoder implements ModelEncoder {
                     $options['thinking'] = [
                         'type' => 'adaptive',
                     ];
-                    $options['output_config'] = [
-                        'effort' => match ($reasoningConfig) {
-                            ReasoningEffort::MINIMAL, ReasoningEffort::LOW => 'low',
-                            ReasoningEffort::MEDIUM => 'medium',
-                            ReasoningEffort::HIGH => 'high',
-                            ReasoningEffort::EXTRA_HIGH => 'max',
-                        },
-                    ];
+                    $outputConfig = $options['output_config'] ?? [];
+                    $outputConfig['effort'] = match ($reasoningConfig) {
+                        ReasoningEffort::MINIMAL, ReasoningEffort::LOW => 'low',
+                        ReasoningEffort::MEDIUM => 'medium',
+                        ReasoningEffort::HIGH => 'high',
+                        ReasoningEffort::EXTRA_HIGH => 'max',
+                    };
+                    $options['output_config'] = $outputConfig;
                 }
             } else {
                 throw new \InvalidArgumentException('Unsupported reasoning config type');
             }
+        }
+
+        $structuredOutputConfig = $request->getStructuredOutputConfig();
+        if ($structuredOutputConfig !== null) {
+            $outputConfig = $options['output_config'] ?? [];
+            $outputConfig['format'] = [
+                'type' => 'json_schema',
+                'schema' => self::normalizeSchemaForStrictMode($structuredOutputConfig->getSchema()),
+            ];
+            $options['output_config'] = $outputConfig;
         }
 
         if ($systemPrompt !== null) {
@@ -202,6 +242,7 @@ class AnthropicEncoder implements ModelEncoder {
                 $options['tools'][] = [
                     'name' => $tool->getName(),
                     'description' => $tool->getDescription(),
+                    'strict' => true,
                     'input_schema' => $schema,
                 ];
             }
@@ -217,7 +258,12 @@ class AnthropicEncoder implements ModelEncoder {
         $responseContents = [];
         foreach ($response['content'] as $content) {
             if ($content['type'] === 'text') {
-                $responseContents[] = new LLMMessageText($content['text']);
+                if ($request->getStructuredOutputConfig() !== null) {
+                    $parsed = json_decode($content['text'], true, 512, JSON_THROW_ON_ERROR);
+                    $responseContents[] = new LLMMessageStructuredData($parsed, $content['text']);
+                } else {
+                    $responseContents[] = new LLMMessageText($content['text']);
+                }
             } elseif ($content['type'] === 'thinking') {
                 $responseContents[] = new LLMMessageReasoning($content['thinking'], $content['signature']);
             } elseif ($content['type'] === 'tool_use') {

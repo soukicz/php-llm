@@ -3,6 +3,7 @@
 namespace Soukicz\Llm;
 
 use Soukicz\Llm\Client\StopReason;
+use Soukicz\Llm\Message\LLMMessageStructuredData;
 use Soukicz\Llm\Message\LLMMessageText;
 
 class LLMResponse {
@@ -18,7 +19,7 @@ class LLMResponse {
     }
 
     public function getLastText(): string {
-        $lastMessage = $this->getConversation()->getMessages()[count($this->getConversation()->getMessages()) - 1];
+        $lastMessage = $this->getConversation()->getLastMessage();
         foreach (array_reverse(iterator_to_array($lastMessage->getContents())) as $content) {
             if ($content instanceof LLMMessageText) {
                 return $content->getText();
@@ -26,6 +27,17 @@ class LLMResponse {
         }
 
         throw new \RuntimeException('No text message found');
+    }
+
+    public function getLastStructuredData(): array {
+        $lastMessage = $this->getConversation()->getLastMessage();
+        foreach (array_reverse(iterator_to_array($lastMessage->getContents())) as $content) {
+            if ($content instanceof LLMMessageStructuredData) {
+                return $content->getData();
+            }
+        }
+
+        throw new \RuntimeException('No structured data message found');
     }
 
     public function getStopReason(): StopReason {

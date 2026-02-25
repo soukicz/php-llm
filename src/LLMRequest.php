@@ -5,6 +5,7 @@ namespace Soukicz\Llm;
 use Soukicz\Llm\Client\ModelInterface;
 use Soukicz\Llm\Config\ReasoningConfig;
 use Soukicz\Llm\Config\ReasoningEffort;
+use Soukicz\Llm\Config\StructuredOutputConfig;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageText;
@@ -24,6 +25,7 @@ class LLMRequest {
         private readonly array   $tools = [],
         private readonly array   $stopSequences = [],
         private readonly ReasoningConfig|ReasoningEffort|null $reasoningConfig = null,
+        private readonly ?StructuredOutputConfig $structuredOutputConfig = null,
         private int              $previousInputTokens = 0,
         private int              $previousOutputTokens = 0,
         private int              $previousMaximumOutputTokens = 0,
@@ -120,6 +122,10 @@ class LLMRequest {
 
     public function getReasoningConfig(): ReasoningConfig|ReasoningEffort|null {
         return $this->reasoningConfig;
+    }
+
+    public function getStructuredOutputConfig(): ?StructuredOutputConfig {
+        return $this->structuredOutputConfig;
     }
 
 }
