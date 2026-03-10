@@ -272,9 +272,11 @@ The `LLMAgentClient` needs zero changes. The stream listener is a `readonly` pro
 
 ### Cache Interaction
 
-- **Streaming bypasses the response cache.** Cached responses return instantly, so there is nothing to stream. When a stream listener is present, the request always goes to the API.
-- **Without a listener**, caching works exactly as before.
-- This means the same request with and without a listener may produce separate cache entries. In practice this is fine since streaming is for interactive UX, while caching is for development/testing.
+Streaming and caching work together seamlessly. Cache entries are shared between streaming and non-streaming requests:
+
+- **Cache hit with streaming:** When a cached response exists for the request, stream events are replayed from the cached data (full content emitted as single deltas). The listener receives `MESSAGE_START`, content deltas, and `MESSAGE_COMPLETE` — same event types as a live stream, just instant.
+- **Cache miss with streaming:** The request goes to the API via SSE. After the stream completes, the accumulated response is stored in the cache for future use.
+- **Cross-mode sharing:** A non-streaming call populates the cache, and a subsequent streaming call can hit it (and vice versa). Both paths use the same cache key.
 
 ### Error Handling
 

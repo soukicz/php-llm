@@ -9,6 +9,7 @@ All PHP LLM clients support caching at the HTTP request level. When enabled:
 - No API calls are made for cached requests
 - Original response time is preserved in metadata
 - Costs are eliminated for cached responses
+- Streaming and non-streaming requests share the same cache entries
 
 ## File Cache
 
@@ -202,7 +203,6 @@ $client = new AnthropicClient('sk-xxxxx', null);
 
 ❌ Failed requests (errors)
 ❌ Incomplete responses
-❌ Stream responses (partial)
 ❌ Async requests in progress
 
 ## Monitoring Cache Performance
