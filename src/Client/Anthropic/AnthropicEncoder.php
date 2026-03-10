@@ -26,11 +26,28 @@ use Soukicz\Llm\Message\LLMMessageToolUse;
 class AnthropicEncoder implements ModelEncoder {
     /**
      * Normalize a JSON Schema for strict mode by adding "additionalProperties": false
-     * to all object types. Anthropic requires this for structured outputs.
+     * to all object types and removing unsupported constraints (moving them to descriptions).
+     * Anthropic strict mode does not support: minItems, maxItems, minimum, maximum,
+     * minLength, maxLength, pattern.
      */
     private static function normalizeSchemaForStrictMode(array $schema): array {
         if (isset($schema['type']) && $schema['type'] === 'object' && !array_key_exists('additionalProperties', $schema)) {
             $schema['additionalProperties'] = false;
+        }
+
+        // Remove constraints not supported by Anthropic strict mode, preserve in description
+        $unsupportedConstraints = [];
+        foreach (['minItems', 'maxItems', 'minimum', 'maximum', 'minLength', 'maxLength', 'pattern'] as $constraint) {
+            if (array_key_exists($constraint, $schema)) {
+                $unsupportedConstraints[] = "$constraint: " . $schema[$constraint];
+                unset($schema[$constraint]);
+            }
+        }
+        if (!empty($unsupportedConstraints)) {
+            $constraintNote = 'Constraints: ' . implode(', ', $unsupportedConstraints) . '.';
+            $schema['description'] = isset($schema['description'])
+                ? $schema['description'] . ' ' . $constraintNote
+                : $constraintNote;
         }
 
         if (isset($schema['properties'])) {
@@ -235,7 +252,7 @@ class AnthropicEncoder implements ModelEncoder {
                     ];
                     continue;
                 }
-                $schema = $tool->getInputSchema();
+                $schema = self::normalizeSchemaForStrictMode($tool->getInputSchema());
                 if (empty($schema['properties'])) {
                     $schema['properties'] = new \stdClass();
                 }
