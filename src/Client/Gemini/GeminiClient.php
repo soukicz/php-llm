@@ -13,6 +13,8 @@ use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Http\HttpClientFactory;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
+use Soukicz\Llm\Stream\GeminiStreamAccumulator;
+use Soukicz\Llm\Stream\StreamListenerInterface;
 
 class GeminiClient extends GeminiEncoder implements LLMClient {
     public const CODE = 'gemini';
@@ -68,8 +70,29 @@ class GeminiClient extends GeminiEncoder implements LLMClient {
         });
     }
 
+    private function sendStreamingRequestAsync(RequestInterface $httpRequest, StreamListenerInterface $streamListener): PromiseInterface {
+        $requestStart = microtime(true);
+
+        return $this->getHttpClient()->sendAsync($httpRequest, [
+            'stream' => true,
+        ])->then(function (ResponseInterface $response) use ($streamListener, $requestStart) {
+            $result = GeminiStreamAccumulator::consume($response->getBody(), $streamListener);
+            $timeMs = (int) round((microtime(true) - $requestStart) * 1000);
+
+            return new ModelResponse($result, $timeMs);
+        });
+    }
+
     public function sendRequestAsync(LLMRequest $request): PromiseInterface {
-        return $this->sendCachedRequestAsync($this->getGenerateContentRequest($request))->then(function (ModelResponse $modelResponse) use ($request) {
+        $streamListener = $request->getStreamListener();
+
+        if ($streamListener !== null) {
+            $modelPromise = $this->sendStreamingRequestAsync($this->getStreamGenerateContentRequest($request), $streamListener);
+        } else {
+            $modelPromise = $this->sendCachedRequestAsync($this->getGenerateContentRequest($request));
+        }
+
+        return $modelPromise->then(function (ModelResponse $modelResponse) use ($request) {
             $encodedResponseOrRequest = $this->decodeResponse($request, $modelResponse);
             if ($encodedResponseOrRequest instanceof LLMResponse) {
                 return $encodedResponseOrRequest;
@@ -85,6 +108,15 @@ class GeminiClient extends GeminiEncoder implements LLMClient {
         return new Request('POST', $url, [
             'Content-Type' => 'application/json',
             'accept-encoding' => 'gzip',
+        ], json_encode($this->encodeRequest($request), JSON_THROW_ON_ERROR));
+    }
+
+    private function getStreamGenerateContentRequest(LLMRequest $request): RequestInterface {
+        $url = "{$this->apiEndpoint}/models/{$request->getModel()->getCode()}:streamGenerateContent?alt=sse&key={$this->apiKey}";
+
+        return new Request('POST', $url, [
+            'Content-Type' => 'application/json',
+            'accept-encoding' => 'identity',
         ], json_encode($this->encodeRequest($request), JSON_THROW_ON_ERROR));
     }
 

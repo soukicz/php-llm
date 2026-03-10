@@ -9,6 +9,7 @@ use Soukicz\Llm\Config\StructuredOutputConfig;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageText;
+use Soukicz\Llm\Stream\StreamListenerInterface;
 use Soukicz\Llm\Tool\ToolDefinition;
 
 class LLMRequest {
@@ -26,6 +27,7 @@ class LLMRequest {
         private readonly array   $stopSequences = [],
         private readonly ReasoningConfig|ReasoningEffort|null $reasoningConfig = null,
         private readonly ?StructuredOutputConfig $structuredOutputConfig = null,
+        private readonly ?StreamListenerInterface $streamListener = null,
         private int              $previousInputTokens = 0,
         private int              $previousOutputTokens = 0,
         private int              $previousMaximumOutputTokens = 0,
@@ -126,6 +128,10 @@ class LLMRequest {
 
     public function getStructuredOutputConfig(): ?StructuredOutputConfig {
         return $this->structuredOutputConfig;
+    }
+
+    public function getStreamListener(): ?StreamListenerInterface {
+        return $this->streamListener;
     }
 
 }

@@ -23,8 +23,8 @@ Practical, copy-paste ready examples to help you get started with PHP LLM and bu
 ## What You'll Learn
 
 These examples cover:
-- **Basic usage**: Simple requests, conversations, streaming
-- **Advanced features**: Tools, multimodal, caching, reasoning models
+- **Basic usage**: Simple requests, conversations
+- **Advanced features**: Tools, multimodal, [streaming](../guides/streaming.md), caching, reasoning models
 - **Production patterns**: Error handling, logging, retries, resilience
 - **Best practices**: Security, performance, cost optimization
 - **Real-world scenarios**: Practical code you can adapt to your needs

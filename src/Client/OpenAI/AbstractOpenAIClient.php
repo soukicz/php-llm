@@ -13,6 +13,8 @@ use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Http\HttpClientFactory;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
+use Soukicz\Llm\Stream\OpenAIStreamAccumulator;
+use Soukicz\Llm\Stream\StreamListenerInterface;
 
 abstract class AbstractOpenAIClient extends OpenAIEncoder implements LLMBatchClient {
     private ?Client $httpClient = null;
@@ -54,8 +56,29 @@ abstract class AbstractOpenAIClient extends OpenAIEncoder implements LLMBatchCli
         });
     }
 
+    private function sendStreamingRequestAsync(RequestInterface $httpRequest, StreamListenerInterface $streamListener): PromiseInterface {
+        $requestStart = microtime(true);
+
+        return $this->getHttpClient()->sendAsync($httpRequest, [
+            'stream' => true,
+        ])->then(function (ResponseInterface $response) use ($streamListener, $requestStart) {
+            $result = OpenAIStreamAccumulator::consume($response->getBody(), $streamListener);
+            $timeMs = (int) round((microtime(true) - $requestStart) * 1000);
+
+            return new ModelResponse($result, $timeMs);
+        });
+    }
+
     public function sendRequestAsync(LLMRequest $request): PromiseInterface {
-        return $this->sendCachedRequestAsync($this->getChatRequest($request))->then(function (ModelResponse $modelResponse) use ($request) {
+        $streamListener = $request->getStreamListener();
+
+        if ($streamListener !== null) {
+            $modelPromise = $this->sendStreamingRequestAsync($this->getStreamingChatRequest($request), $streamListener);
+        } else {
+            $modelPromise = $this->sendCachedRequestAsync($this->getChatRequest($request));
+        }
+
+        return $modelPromise->then(function (ModelResponse $modelResponse) use ($request) {
             $encodedResponseOrRequest = $this->decodeResponse($request, $modelResponse);
             if ($encodedResponseOrRequest instanceof LLMResponse) {
                 return $encodedResponseOrRequest;
@@ -70,6 +93,17 @@ abstract class AbstractOpenAIClient extends OpenAIEncoder implements LLMBatchCli
             'Content-Type' => 'application/json',
             'accept-encoding' => 'gzip',
         ]), json_encode($this->encodeRequest($request), JSON_THROW_ON_ERROR));
+    }
+
+    private function getStreamingChatRequest(LLMRequest $request): RequestInterface {
+        $data = $this->encodeRequest($request);
+        $data['stream'] = true;
+        $data['stream_options'] = ['include_usage' => true];
+
+        return new Request('POST', $this->getBaseUrl() . '/chat/completions', array_merge($this->getHeaders(), [
+            'Content-Type' => 'application/json',
+            'accept-encoding' => 'identity',
+        ]), json_encode($data, JSON_THROW_ON_ERROR));
     }
 
     public function getBatchEmbeddings(array $texts, string $model = 'text-embedding-3-small', int $dimensions = 512): array {

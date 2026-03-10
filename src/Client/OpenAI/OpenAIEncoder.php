@@ -225,6 +225,10 @@ class OpenAIEncoder implements ModelEncoder {
             }
         }
 
+        if (!empty($assistantMessage['refusal'])) {
+            $responseContents[] = new LLMMessageText($assistantMessage['refusal']);
+        }
+
         if (!empty($assistantMessage['tool_calls'])) {
             foreach ($assistantMessage['tool_calls'] as $toolCall) {
                 if ($toolCall['type'] === 'function') {
@@ -243,6 +247,7 @@ class OpenAIEncoder implements ModelEncoder {
             'stop' => StopReason::FINISHED,
             'length' => StopReason::LENGTH,
             'tool_calls' => StopReason::TOOL_USE,
+            'content_filter' => StopReason::SAFETY,
             default => throw new InvalidArgumentException('Unsupported finish reason "' . $response['choices'][0]['finish_reason'] . '"'),
         };
 

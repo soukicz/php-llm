@@ -25,6 +25,7 @@ composer require soukicz/llm
 - ✅ **Self-Correcting** - Validate and refine outputs with feedback loops
 - 📸 **Multimodal** - Process images and PDFs alongside text (with caching support)
 - 🧠 **Reasoning Models** - Advanced thinking with o3 and o4-mini reasoning models
+- 📡 **Streaming** - Real-time response streaming with optional listener for live progress updates
 - ⚡ **Async & Caching** - Fast, cost-effective operations with prompt caching
 - 💾 **State Persistence** - Save and resume conversations with thread IDs
 - 📊 **Monitoring** - Built-in logging, cost tracking, and debugging interfaces
@@ -216,6 +217,36 @@ $message = LLMMessage::createFromUser(new LLMMessageContents([
 
 **→ [Multimodal Documentation](docs/guides/multimodal.md)**
 
+### 📡 Streaming
+
+Show real-time progress while keeping the simple request/response API:
+
+```php
+use Soukicz\Llm\Stream\CallableStreamListener;
+use Soukicz\Llm\Stream\StreamEvent;
+use Soukicz\Llm\Stream\StreamEventType;
+
+$response = $agentClient->run($client, new LLMRequest(
+    model: $model,
+    conversation: $conversation,
+    tools: $tools,
+    streamListener: new CallableStreamListener(function (StreamEvent $event) {
+        match ($event->type) {
+            StreamEventType::TEXT_DELTA => print($event->delta),
+            StreamEventType::TOOL_USE_START => print("\n🔧 {$event->toolName}\n"),
+            default => null,
+        };
+    }),
+));
+
+// $response is identical to non-streaming — streaming is just a side-effect
+echo "\nTokens: {$response->getInputTokens()} in, {$response->getOutputTokens()} out\n";
+```
+
+> **Key design:** Streaming is transparent. The listener auto-propagates through tool loops, so you get updates for every step of an agentic workflow. No changes needed to `LLMAgentClient`, tools, or feedback loops.
+
+**→ [Streaming Documentation](docs/guides/streaming.md)**
+
 ### 🧠 Reasoning Models
 
 Use advanced reasoning for complex problems:
@@ -338,6 +369,9 @@ $request = new LLMRequest(
     reasoningConfig: ReasoningEffort::HIGH,
     // OR
     reasoningConfig: new ReasoningBudget(10000),
+
+    // Optional: Stream responses for real-time progress
+    // streamListener: new CallableStreamListener(fn($e) => print($e->delta)),
 );
 
 // Access cost and token information
@@ -371,6 +405,7 @@ echo "Stop reason: " . $response->getStopReason()->value . "\n"; // END_TURN, TO
 - [Tools & Function Calling](docs/guides/tools.md) - External tools, TextEditorTool, custom functions
 - [Feedback Loops](docs/guides/feedback-loops.md) - Self-correcting agents and validation
 - [Multimodal Support](docs/guides/multimodal.md) - Images, PDFs, and caching
+- [Streaming](docs/guides/streaming.md) - Real-time response streaming with progress listeners
 - [Reasoning Models](docs/guides/reasoning.md) - o3/o4-mini with effort and budget control
 
 ### Advanced Features

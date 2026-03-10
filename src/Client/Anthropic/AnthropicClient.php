@@ -13,6 +13,8 @@ use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Http\HttpClientFactory;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
+use Soukicz\Llm\Stream\AnthropicStreamAccumulator;
+use Soukicz\Llm\Stream\StreamListenerInterface;
 
 class AnthropicClient extends AnthropicEncoder implements LLMBatchClient {
     public const CODE = 'anthropic';
@@ -73,8 +75,43 @@ class AnthropicClient extends AnthropicEncoder implements LLMBatchClient {
         });
     }
 
+    private function invokeModelStreaming(array $data, StreamListenerInterface $streamListener): PromiseInterface {
+        $data['stream'] = true;
+        $requestStart = microtime(true);
+
+        $headers = $this->getHeaders();
+        // Avoid gzip compression on SSE streams
+        $headers['accept-encoding'] = 'identity';
+
+        return $this->getHttpClient()->postAsync('https://api.anthropic.com/v1/messages', [
+            'headers' => $headers,
+            'json' => $data,
+            'stream' => true,
+        ])->then(function (ResponseInterface $response) use ($streamListener, $requestStart) {
+            $result = AnthropicStreamAccumulator::consume($response->getBody(), $streamListener);
+            $timeMs = (int) round((microtime(true) - $requestStart) * 1000);
+
+            return new ModelResponse($result, $timeMs);
+        }, function (\Throwable $e) {
+            if ($e instanceof ClientException && $e->getResponse()->getStatusCode() === 400) {
+                $data = json_decode((string) $e->getResponse()->getBody(), true, 512, JSON_THROW_ON_ERROR);
+                if (isset($data['type'], $data['error']['type'], $data['error']['message']) && $data['type'] === 'error') {
+                    throw new LLMClientException($data['error']['type'] . ': ' . $data['error']['message'], 400, $e);
+                }
+            }
+            throw $e;
+        });
+    }
+
     public function sendRequestAsync(LLMRequest $request): PromiseInterface {
-        return $this->invokeModel($this->encodeRequest($request))->then(function (ModelResponse $modelResponse) use ($request): LLMResponse|PromiseInterface {
+        $encoded = $this->encodeRequest($request);
+        $streamListener = $request->getStreamListener();
+
+        $modelPromise = $streamListener !== null
+            ? $this->invokeModelStreaming($encoded, $streamListener)
+            : $this->invokeModel($encoded);
+
+        return $modelPromise->then(function (ModelResponse $modelResponse) use ($request): LLMResponse|PromiseInterface {
             $encodedResponseOrRequest = $this->decodeResponse($request, $modelResponse);
             if ($encodedResponseOrRequest instanceof LLMResponse) {
                 return $encodedResponseOrRequest;

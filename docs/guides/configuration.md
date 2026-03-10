@@ -19,6 +19,9 @@ $request = new LLMRequest(
     stopSequences: ['###', 'END'],              // Optional: Stop generation strings
     reasoningConfig: ReasoningEffort::HIGH,     // Optional: For reasoning models
     reasoningConfig: new ReasoningBudget(10000),// Optional: Token budget for reasoning
+    streamListener: new CallableStreamListener( // Optional: Real-time progress updates
+        fn($event) => print($event->delta)
+    ),
 );
 ```
 
@@ -147,6 +150,33 @@ $request = new LLMRequest(
 ```
 
 See [Tools Guide](tools.md) for detailed tool documentation.
+
+### streamListener
+
+Attach a listener to receive real-time streaming updates. The response remains identical — streaming is a side-effect for progress display:
+
+```php
+<?php
+use Soukicz\Llm\Stream\CallableStreamListener;
+use Soukicz\Llm\Stream\StreamEvent;
+use Soukicz\Llm\Stream\StreamEventType;
+
+$request = new LLMRequest(
+    model: $model,
+    conversation: $conversation,
+    streamListener: new CallableStreamListener(function (StreamEvent $event) {
+        match ($event->type) {
+            StreamEventType::TEXT_DELTA => print($event->delta),
+            StreamEventType::TOOL_USE_START => print("\n[Tool: {$event->toolName}]\n"),
+            default => null,
+        };
+    }),
+);
+```
+
+Or implement `StreamListenerInterface` for a reusable class-based listener. See [Streaming Guide](streaming.md) for full documentation and practical examples.
+
+**Note:** Streaming bypasses the response cache. When a listener is present, the request always goes to the API.
 
 ## Reasoning Parameters
 
@@ -328,6 +358,7 @@ $response = $agentClient->run($client, $request);
 ## See Also
 
 - [Reasoning Models](reasoning.md) - Reasoning-specific configuration
+- [Streaming](streaming.md) - Real-time response streaming
 - [Tools Guide](tools.md) - Tool configuration
 - [Caching Guide](caching.md) - Cache configuration
 - [Provider Documentation](../providers/README.md) - Provider-specific options
