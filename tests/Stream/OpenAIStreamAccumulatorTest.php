@@ -163,6 +163,87 @@ class OpenAIStreamAccumulatorTest extends TestCase {
         $this->assertEquals('content_filter', $result['choices'][0]['finish_reason']);
     }
 
+    public function testReplayTextResponse(): void {
+        $responseData = [
+            'choices' => [
+                ['message' => ['content' => 'Hello world'], 'finish_reason' => 'stop'],
+            ],
+            'usage' => ['prompt_tokens' => 10, 'completion_tokens' => 5],
+        ];
+
+        $events = [];
+        $listener = new CallableStreamListener(function (StreamEvent $event) use (&$events) {
+            $events[] = $event;
+        });
+
+        OpenAIStreamAccumulator::replay($responseData, $listener);
+
+        $this->assertEquals(StreamEventType::MESSAGE_START, $events[0]->type);
+        $this->assertEquals(StreamEventType::MESSAGE_COMPLETE, $events[array_key_last($events)]->type);
+
+        $textDeltas = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TEXT_DELTA));
+        $this->assertCount(1, $textDeltas);
+        $this->assertEquals('Hello world', $textDeltas[0]->delta);
+        $this->assertEquals(0, $textDeltas[0]->blockIndex);
+    }
+
+    public function testReplayToolCallResponse(): void {
+        $responseData = [
+            'choices' => [
+                [
+                    'message' => [
+                        'tool_calls' => [
+                            ['id' => 'call_abc', 'type' => 'function', 'function' => ['name' => 'search', 'arguments' => '{"query":"test"}']],
+                        ],
+                    ],
+                    'finish_reason' => 'tool_calls',
+                ],
+            ],
+            'usage' => ['prompt_tokens' => 20, 'completion_tokens' => 10],
+        ];
+
+        $events = [];
+        $listener = new CallableStreamListener(function (StreamEvent $event) use (&$events) {
+            $events[] = $event;
+        });
+
+        OpenAIStreamAccumulator::replay($responseData, $listener);
+
+        $toolStarts = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TOOL_USE_START));
+        $this->assertCount(1, $toolStarts);
+        $this->assertEquals('search', $toolStarts[0]->toolName);
+        $this->assertEquals('call_abc', $toolStarts[0]->toolId);
+        $this->assertEquals(1, $toolStarts[0]->blockIndex);
+
+        $toolDeltas = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TOOL_INPUT_DELTA));
+        $this->assertCount(1, $toolDeltas);
+        $this->assertEquals('{"query":"test"}', $toolDeltas[0]->delta);
+
+        // OpenAI consume() never emits CONTENT_BLOCK_STOP, so replay() shouldn't either
+        $blockStops = array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::CONTENT_BLOCK_STOP);
+        $this->assertCount(0, $blockStops);
+    }
+
+    public function testReplayRefusalResponse(): void {
+        $responseData = [
+            'choices' => [
+                ['message' => ['refusal' => "I can't help with that."], 'finish_reason' => 'stop'],
+            ],
+            'usage' => ['prompt_tokens' => 8, 'completion_tokens' => 4],
+        ];
+
+        $events = [];
+        $listener = new CallableStreamListener(function (StreamEvent $event) use (&$events) {
+            $events[] = $event;
+        });
+
+        OpenAIStreamAccumulator::replay($responseData, $listener);
+
+        $textDeltas = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TEXT_DELTA));
+        $this->assertCount(1, $textDeltas);
+        $this->assertEquals("I can't help with that.", $textDeltas[0]->delta);
+    }
+
     private function buildSse(array $chunks): string {
         $sse = '';
         foreach ($chunks as $chunk) {

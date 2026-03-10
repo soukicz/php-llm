@@ -200,6 +200,120 @@ class AnthropicStreamAccumulatorTest extends TestCase {
         $this->assertEquals('Ok', $result['content'][0]['text']);
     }
 
+    public function testReplayTextResponse(): void {
+        $responseData = [
+            'content' => [
+                ['type' => 'text', 'text' => 'Hello world'],
+            ],
+            'stop_reason' => 'end_turn',
+            'usage' => ['input_tokens' => 25, 'output_tokens' => 12],
+        ];
+
+        $events = [];
+        $listener = new CallableStreamListener(function (StreamEvent $event) use (&$events) {
+            $events[] = $event;
+        });
+
+        AnthropicStreamAccumulator::replay($responseData, $listener);
+
+        $this->assertEquals(StreamEventType::MESSAGE_START, $events[0]->type);
+        $this->assertEquals(StreamEventType::MESSAGE_COMPLETE, $events[array_key_last($events)]->type);
+
+        $textDeltas = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TEXT_DELTA));
+        $this->assertCount(1, $textDeltas);
+        $this->assertEquals('Hello world', $textDeltas[0]->delta);
+        $this->assertEquals(0, $textDeltas[0]->blockIndex);
+
+        $blockStops = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::CONTENT_BLOCK_STOP));
+        $this->assertCount(1, $blockStops);
+    }
+
+    public function testReplayToolUseResponse(): void {
+        $responseData = [
+            'content' => [
+                ['type' => 'text', 'text' => 'Let me search.'],
+                ['type' => 'tool_use', 'id' => 'toolu_123', 'name' => 'search', 'input' => ['query' => 'test']],
+            ],
+            'stop_reason' => 'tool_use',
+            'usage' => ['input_tokens' => 50, 'output_tokens' => 30],
+        ];
+
+        $events = [];
+        $listener = new CallableStreamListener(function (StreamEvent $event) use (&$events) {
+            $events[] = $event;
+        });
+
+        AnthropicStreamAccumulator::replay($responseData, $listener);
+
+        $toolStarts = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TOOL_USE_START));
+        $this->assertCount(1, $toolStarts);
+        $this->assertEquals('search', $toolStarts[0]->toolName);
+        $this->assertEquals('toolu_123', $toolStarts[0]->toolId);
+        $this->assertEquals(1, $toolStarts[0]->blockIndex);
+
+        $toolDeltas = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TOOL_INPUT_DELTA));
+        $this->assertCount(1, $toolDeltas);
+        $this->assertEquals('{"query":"test"}', $toolDeltas[0]->delta);
+        $this->assertEquals('search', $toolDeltas[0]->toolName);
+        $this->assertEquals('toolu_123', $toolDeltas[0]->toolId);
+    }
+
+    public function testReplayToolUseWithEmptyInput(): void {
+        $responseData = [
+            'content' => [
+                ['type' => 'tool_use', 'id' => 'toolu_456', 'name' => 'get_time', 'input' => []],
+            ],
+            'stop_reason' => 'tool_use',
+            'usage' => ['input_tokens' => 10, 'output_tokens' => 5],
+        ];
+
+        $events = [];
+        $listener = new CallableStreamListener(function (StreamEvent $event) use (&$events) {
+            $events[] = $event;
+        });
+
+        AnthropicStreamAccumulator::replay($responseData, $listener);
+
+        $toolStarts = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TOOL_USE_START));
+        $this->assertCount(1, $toolStarts);
+        $this->assertEquals('get_time', $toolStarts[0]->toolName);
+
+        // Empty input should NOT produce a TOOL_INPUT_DELTA (matching consume() behavior)
+        $toolDeltas = array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TOOL_INPUT_DELTA);
+        $this->assertCount(0, $toolDeltas);
+    }
+
+    public function testReplayThinkingResponse(): void {
+        $responseData = [
+            'content' => [
+                ['type' => 'thinking', 'thinking' => 'Let me think...', 'signature' => 'sig_abc123'],
+                ['type' => 'text', 'text' => 'The answer is 42.'],
+            ],
+            'stop_reason' => 'end_turn',
+            'usage' => ['input_tokens' => 10, 'output_tokens' => 20],
+        ];
+
+        $events = [];
+        $listener = new CallableStreamListener(function (StreamEvent $event) use (&$events) {
+            $events[] = $event;
+        });
+
+        AnthropicStreamAccumulator::replay($responseData, $listener);
+
+        $thinkingDeltas = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::THINKING_DELTA));
+        $this->assertCount(1, $thinkingDeltas);
+        $this->assertEquals('Let me think...', $thinkingDeltas[0]->delta);
+        $this->assertEquals(0, $thinkingDeltas[0]->blockIndex);
+
+        $textDeltas = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TEXT_DELTA));
+        $this->assertCount(1, $textDeltas);
+        $this->assertEquals('The answer is 42.', $textDeltas[0]->delta);
+        $this->assertEquals(1, $textDeltas[0]->blockIndex);
+
+        $blockStops = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::CONTENT_BLOCK_STOP));
+        $this->assertCount(2, $blockStops);
+    }
+
     private function buildSse(array $events): string {
         $sse = '';
         foreach ($events as $event) {

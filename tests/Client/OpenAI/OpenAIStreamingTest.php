@@ -19,6 +19,7 @@ use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Stream\CallableStreamListener;
 use Soukicz\Llm\Stream\StreamEvent;
 use Soukicz\Llm\Stream\StreamEventType;
+use Soukicz\Llm\Tests\Cache\InMemoryCache;
 use Soukicz\Llm\Tool\CallbackToolDefinition;
 use GuzzleHttp\Promise\Create;
 use Soukicz\Llm\Message\LLMMessageContents;
@@ -26,7 +27,7 @@ use Soukicz\Llm\Message\LLMMessageContents;
 class OpenAIStreamingTest extends TestCase {
     private array $requestHistory = [];
 
-    private function createClientWithMockHandler(MockHandler $mockHandler): OpenAICompatibleClient {
+    private function createClientWithMockHandler(MockHandler $mockHandler, ?InMemoryCache $cache = null): OpenAICompatibleClient {
         $this->requestHistory = [];
         $handlerStack = HandlerStack::create($mockHandler);
         $handlerStack->push(Middleware::history($this->requestHistory));
@@ -40,7 +41,7 @@ class OpenAIStreamingTest extends TestCase {
         return new OpenAICompatibleClient(
             apiKey: 'fake-api-key',
             baseUrl: 'https://api.openai.com/v1',
-            cache: null,
+            cache: $cache,
             customHttpMiddleware: $customMiddleware,
         );
     }
@@ -240,6 +241,84 @@ class OpenAIStreamingTest extends TestCase {
         $this->assertEquals($nonStreamingResponse->getStopReason(), $streamingResponse->getStopReason());
         $this->assertEquals($nonStreamingResponse->getInputTokens(), $streamingResponse->getInputTokens());
         $this->assertEquals($nonStreamingResponse->getOutputTokens(), $streamingResponse->getOutputTokens());
+    }
+
+    public function testStreamingPopulatesCache(): void {
+        $cache = new InMemoryCache();
+
+        $sseBody = $this->buildSseBody([
+            ['choices' => [['delta' => ['role' => 'assistant', 'content' => ''], 'finish_reason' => null]]],
+            ['choices' => [['delta' => ['content' => 'Hello world!'], 'finish_reason' => null]]],
+            ['choices' => [['delta' => [], 'finish_reason' => 'stop']]],
+            ['choices' => [], 'usage' => ['prompt_tokens' => 10, 'completion_tokens' => 5]],
+            '[DONE]',
+        ]);
+
+        $mockHandler = new MockHandler([
+            new Response(200, ['Content-Type' => 'text/event-stream'], $sseBody),
+        ]);
+
+        $client = $this->createClientWithMockHandler($mockHandler, $cache);
+
+        $request = new LLMRequest(
+            model: new LocalModel('gpt-4o-mini'),
+            conversation: new LLMConversation([LLMMessage::createFromUserString('Hello')]),
+            streamListener: new CallableStreamListener(function (StreamEvent $event) {}),
+        );
+
+        $response = $client->sendRequestAsync($request)->wait();
+        $this->assertEquals('Hello world!', $response->getLastText());
+        $this->assertEquals(1, $cache->count());
+    }
+
+    public function testStreamingReadsFromCache(): void {
+        $cache = new InMemoryCache();
+
+        $sseBody = $this->buildSseBody([
+            ['choices' => [['delta' => ['role' => 'assistant', 'content' => ''], 'finish_reason' => null]]],
+            ['choices' => [['delta' => ['content' => 'Hello world!'], 'finish_reason' => null]]],
+            ['choices' => [['delta' => [], 'finish_reason' => 'stop']]],
+            ['choices' => [], 'usage' => ['prompt_tokens' => 10, 'completion_tokens' => 5]],
+            '[DONE]',
+        ]);
+
+        $mockHandler = new MockHandler([
+            new Response(200, ['Content-Type' => 'text/event-stream'], $sseBody),
+        ]);
+
+        $client = $this->createClientWithMockHandler($mockHandler, $cache);
+        $model = new LocalModel('gpt-4o-mini');
+        $conversation = new LLMConversation([LLMMessage::createFromUserString('Hello')]);
+
+        $request1 = new LLMRequest(
+            model: $model,
+            conversation: $conversation,
+            streamListener: new CallableStreamListener(function (StreamEvent $event) {}),
+        );
+        $client->sendRequestAsync($request1)->wait();
+
+        // Second call: cache hit
+        $mockHandler2 = new MockHandler([]);
+        $client2 = $this->createClientWithMockHandler($mockHandler2, $cache);
+
+        $events = [];
+        $request2 = new LLMRequest(
+            model: $model,
+            conversation: $conversation,
+            streamListener: new CallableStreamListener(function (StreamEvent $event) use (&$events) {
+                $events[] = $event;
+            }),
+        );
+        $response = $client2->sendRequestAsync($request2)->wait();
+
+        $this->assertEquals('Hello world!', $response->getLastText());
+        $this->assertEquals(StopReason::FINISHED, $response->getStopReason());
+
+        $this->assertEquals(StreamEventType::MESSAGE_START, $events[0]->type);
+        $textDeltas = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TEXT_DELTA));
+        $this->assertCount(1, $textDeltas);
+        $this->assertEquals('Hello world!', $textDeltas[0]->delta);
+        $this->assertEquals(StreamEventType::MESSAGE_COMPLETE, $events[array_key_last($events)]->type);
     }
 
     public function testStreamingRequestUsesIdentityEncoding(): void {

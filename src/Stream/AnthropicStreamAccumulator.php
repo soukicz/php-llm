@@ -8,6 +8,65 @@ use Psr\Http\Message\StreamInterface;
 
 class AnthropicStreamAccumulator {
     /**
+     * Replay a cached response as stream events.
+     * Fires the same event types as consume() but with complete content in single deltas.
+     */
+    public static function replay(array $responseData, StreamListenerInterface $listener): void {
+        $listener->onStreamEvent(new StreamEvent(
+            type: StreamEventType::MESSAGE_START,
+            blockIndex: -1,
+        ));
+
+        foreach ($responseData['content'] as $index => $block) {
+            switch ($block['type']) {
+                case 'text':
+                    $listener->onStreamEvent(new StreamEvent(
+                        type: StreamEventType::TEXT_DELTA,
+                        blockIndex: $index,
+                        delta: $block['text'],
+                    ));
+                    break;
+
+                case 'thinking':
+                    $listener->onStreamEvent(new StreamEvent(
+                        type: StreamEventType::THINKING_DELTA,
+                        blockIndex: $index,
+                        delta: $block['thinking'],
+                    ));
+                    break;
+
+                case 'tool_use':
+                    $listener->onStreamEvent(new StreamEvent(
+                        type: StreamEventType::TOOL_USE_START,
+                        blockIndex: $index,
+                        toolName: $block['name'],
+                        toolId: $block['id'],
+                    ));
+                    if (!empty($block['input'])) {
+                        $listener->onStreamEvent(new StreamEvent(
+                            type: StreamEventType::TOOL_INPUT_DELTA,
+                            blockIndex: $index,
+                            delta: json_encode($block['input'], JSON_THROW_ON_ERROR),
+                            toolName: $block['name'],
+                            toolId: $block['id'],
+                        ));
+                    }
+                    break;
+            }
+
+            $listener->onStreamEvent(new StreamEvent(
+                type: StreamEventType::CONTENT_BLOCK_STOP,
+                blockIndex: $index,
+            ));
+        }
+
+        $listener->onStreamEvent(new StreamEvent(
+            type: StreamEventType::MESSAGE_COMPLETE,
+            blockIndex: -1,
+        ));
+    }
+
+    /**
      * Parse an Anthropic SSE stream, call the listener for each delta,
      * and return the fully reconstructed response array matching the
      * non-streaming format expected by AnthropicEncoder::decodeResponse().

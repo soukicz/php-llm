@@ -3,8 +3,10 @@
 namespace Soukicz\Llm\Client\OpenAI;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Soukicz\Llm\Cache\CacheInterface;
@@ -56,14 +58,32 @@ abstract class AbstractOpenAIClient extends OpenAIEncoder implements LLMBatchCli
         });
     }
 
-    private function sendStreamingRequestAsync(RequestInterface $httpRequest, StreamListenerInterface $streamListener): PromiseInterface {
+    private function sendStreamingRequestAsync(RequestInterface $httpRequest, StreamListenerInterface $streamListener, ?RequestInterface $cacheKeyRequest = null): PromiseInterface {
+        // Check cache
+        if ($this->cache !== null && $cacheKeyRequest !== null) {
+            $cachedResponse = $this->cache->fetch($cacheKeyRequest);
+            if ($cachedResponse !== null) {
+                $responseData = json_decode((string) $cachedResponse->getBody(), true, 512, JSON_THROW_ON_ERROR);
+                OpenAIStreamAccumulator::replay($responseData, $streamListener);
+                $timeMs = (int) $cachedResponse->getHeaderLine('X-Request-Duration-ms');
+
+                return Create::promiseFor(new ModelResponse($responseData, $timeMs));
+            }
+        }
+
         $requestStart = microtime(true);
 
         return $this->getHttpClient()->sendAsync($httpRequest, [
             'stream' => true,
-        ])->then(function (ResponseInterface $response) use ($streamListener, $requestStart) {
+        ])->then(function (ResponseInterface $response) use ($streamListener, $requestStart, $cacheKeyRequest) {
             $result = OpenAIStreamAccumulator::consume($response->getBody(), $streamListener);
             $timeMs = (int) round((microtime(true) - $requestStart) * 1000);
+
+            // Store in cache
+            if ($this->cache !== null && $cacheKeyRequest !== null) {
+                $syntheticResponse = new Response(200, ['Content-Type' => 'application/json', 'X-Request-Duration-ms' => (string) $timeMs], json_encode($result, JSON_THROW_ON_ERROR));
+                $this->cache->store($cacheKeyRequest, $syntheticResponse);
+            }
 
             return new ModelResponse($result, $timeMs);
         });
@@ -73,7 +93,7 @@ abstract class AbstractOpenAIClient extends OpenAIEncoder implements LLMBatchCli
         $streamListener = $request->getStreamListener();
 
         if ($streamListener !== null) {
-            $modelPromise = $this->sendStreamingRequestAsync($this->getStreamingChatRequest($request), $streamListener);
+            $modelPromise = $this->sendStreamingRequestAsync($this->getStreamingChatRequest($request), $streamListener, $this->getChatRequest($request));
         } else {
             $modelPromise = $this->sendCachedRequestAsync($this->getChatRequest($request));
         }

@@ -18,12 +18,13 @@ use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Stream\CallableStreamListener;
 use Soukicz\Llm\Stream\StreamEvent;
 use Soukicz\Llm\Stream\StreamEventType;
+use Soukicz\Llm\Tests\Cache\InMemoryCache;
 use Soukicz\Llm\Tool\CallbackToolDefinition;
 use GuzzleHttp\Promise\Create;
 use Soukicz\Llm\Message\LLMMessageContents;
 
 class AnthropicStreamingTest extends TestCase {
-    private function createClientWithMockHandler(MockHandler $mockHandler): AnthropicClient {
+    private function createClientWithMockHandler(MockHandler $mockHandler, ?InMemoryCache $cache = null): AnthropicClient {
         $handlerStack = HandlerStack::create($mockHandler);
 
         $customMiddleware = function (callable $handler) use ($handlerStack) {
@@ -32,7 +33,7 @@ class AnthropicStreamingTest extends TestCase {
             };
         };
 
-        return new AnthropicClient('fake-api-key', null, $customMiddleware);
+        return new AnthropicClient('fake-api-key', $cache, $customMiddleware);
     }
 
     private function buildSseBody(array $events): string {
@@ -241,6 +242,92 @@ class AnthropicStreamingTest extends TestCase {
         $this->assertEquals($nonStreamingResponse->getStopReason(), $streamingResponse->getStopReason());
         $this->assertEquals($nonStreamingResponse->getInputTokens(), $streamingResponse->getInputTokens());
         $this->assertEquals($nonStreamingResponse->getOutputTokens(), $streamingResponse->getOutputTokens());
+    }
+
+    public function testStreamingPopulatesCache(): void {
+        $cache = new InMemoryCache();
+
+        $sseBody = $this->buildSseBody([
+            ['message_start', ['message' => ['usage' => ['input_tokens' => 25, 'output_tokens' => 0]]]],
+            ['content_block_start', ['index' => 0, 'content_block' => ['type' => 'text', 'text' => '']]],
+            ['content_block_delta', ['index' => 0, 'delta' => ['type' => 'text_delta', 'text' => 'Hello world!']]],
+            ['content_block_stop', ['index' => 0]],
+            ['message_delta', ['delta' => ['stop_reason' => 'end_turn'], 'usage' => ['output_tokens' => 12]]],
+            ['message_stop', []],
+        ]);
+
+        $mockHandler = new MockHandler([
+            new Response(200, ['Content-Type' => 'text/event-stream'], $sseBody),
+        ]);
+
+        $client = $this->createClientWithMockHandler($mockHandler, $cache);
+
+        $request = new LLMRequest(
+            model: new AnthropicClaude35Haiku(AnthropicClaude35Haiku::VERSION_20241022),
+            conversation: new LLMConversation([LLMMessage::createFromUserString('Hello')]),
+            streamListener: new CallableStreamListener(function (StreamEvent $event) {}),
+        );
+
+        $response = $client->sendRequestAsync($request)->wait();
+        $this->assertEquals('Hello world!', $response->getLastText());
+
+        // Cache should be populated
+        $this->assertEquals(1, $cache->count());
+    }
+
+    public function testStreamingReadsFromCache(): void {
+        $cache = new InMemoryCache();
+
+        // First call: streaming populates cache
+        $sseBody = $this->buildSseBody([
+            ['message_start', ['message' => ['usage' => ['input_tokens' => 25, 'output_tokens' => 0]]]],
+            ['content_block_start', ['index' => 0, 'content_block' => ['type' => 'text', 'text' => '']]],
+            ['content_block_delta', ['index' => 0, 'delta' => ['type' => 'text_delta', 'text' => 'Hello world!']]],
+            ['content_block_stop', ['index' => 0]],
+            ['message_delta', ['delta' => ['stop_reason' => 'end_turn'], 'usage' => ['output_tokens' => 12]]],
+            ['message_stop', []],
+        ]);
+
+        $mockHandler = new MockHandler([
+            new Response(200, ['Content-Type' => 'text/event-stream'], $sseBody),
+        ]);
+
+        $client = $this->createClientWithMockHandler($mockHandler, $cache);
+        $model = new AnthropicClaude35Haiku(AnthropicClaude35Haiku::VERSION_20241022);
+        $conversation = new LLMConversation([LLMMessage::createFromUserString('Hello')]);
+
+        $request1 = new LLMRequest(
+            model: $model,
+            conversation: $conversation,
+            streamListener: new CallableStreamListener(function (StreamEvent $event) {}),
+        );
+        $client->sendRequestAsync($request1)->wait();
+
+        // Second call: should hit cache and replay events (empty mock handler - no HTTP requests available)
+        $mockHandler2 = new MockHandler([]);
+        $client2 = $this->createClientWithMockHandler($mockHandler2, $cache);
+
+        $events = [];
+        $request2 = new LLMRequest(
+            model: $model,
+            conversation: $conversation,
+            streamListener: new CallableStreamListener(function (StreamEvent $event) use (&$events) {
+                $events[] = $event;
+            }),
+        );
+        $response = $client2->sendRequestAsync($request2)->wait();
+
+        // Response should come from cache
+        $this->assertEquals('Hello world!', $response->getLastText());
+        $this->assertEquals(StopReason::FINISHED, $response->getStopReason());
+
+        // Events should have been replayed
+        $this->assertEquals(StreamEventType::MESSAGE_START, $events[0]->type);
+        $this->assertEquals(StreamEventType::MESSAGE_COMPLETE, $events[array_key_last($events)]->type);
+
+        $textDeltas = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TEXT_DELTA));
+        $this->assertCount(1, $textDeltas);
+        $this->assertEquals('Hello world!', $textDeltas[0]->delta);
     }
 
     public function testStreamingWithCacheTokens(): void {

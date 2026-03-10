@@ -8,6 +8,60 @@ use Psr\Http\Message\StreamInterface;
 
 class OpenAIStreamAccumulator {
     /**
+     * Replay a cached response as stream events.
+     * Fires the same event types as consume() but with complete content in single deltas.
+     */
+    public static function replay(array $responseData, StreamListenerInterface $listener): void {
+        $listener->onStreamEvent(new StreamEvent(
+            type: StreamEventType::MESSAGE_START,
+            blockIndex: -1,
+        ));
+
+        $message = $responseData['choices'][0]['message'];
+
+        if (isset($message['content']) && $message['content'] !== '') {
+            $listener->onStreamEvent(new StreamEvent(
+                type: StreamEventType::TEXT_DELTA,
+                blockIndex: 0,
+                delta: $message['content'],
+            ));
+        }
+
+        if (isset($message['refusal']) && $message['refusal'] !== '') {
+            $listener->onStreamEvent(new StreamEvent(
+                type: StreamEventType::TEXT_DELTA,
+                blockIndex: 0,
+                delta: $message['refusal'],
+            ));
+        }
+
+        if (isset($message['tool_calls'])) {
+            foreach ($message['tool_calls'] as $index => $toolCall) {
+                $listener->onStreamEvent(new StreamEvent(
+                    type: StreamEventType::TOOL_USE_START,
+                    blockIndex: $index + 1,
+                    toolName: $toolCall['function']['name'],
+                    toolId: $toolCall['id'],
+                ));
+                if ($toolCall['function']['arguments'] !== '') {
+                    $listener->onStreamEvent(new StreamEvent(
+                        type: StreamEventType::TOOL_INPUT_DELTA,
+                        blockIndex: $index + 1,
+                        delta: $toolCall['function']['arguments'],
+                        toolName: $toolCall['function']['name'],
+                        toolId: $toolCall['id'],
+                    ));
+                }
+            }
+        }
+
+        $listener->onStreamEvent(new StreamEvent(
+            type: StreamEventType::MESSAGE_COMPLETE,
+            blockIndex: -1,
+        ));
+    }
+
+    /**
      * Parse an OpenAI SSE stream, call the listener for each delta,
      * and return the fully reconstructed response array matching the
      * non-streaming format expected by OpenAIEncoder::decodeResponse().

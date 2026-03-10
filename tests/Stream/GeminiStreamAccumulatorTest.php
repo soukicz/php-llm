@@ -129,6 +129,93 @@ class GeminiStreamAccumulatorTest extends TestCase {
         $this->assertEquals('The answer is 42.', $textDeltas[0]->delta);
     }
 
+    public function testReplayTextResponse(): void {
+        $responseData = [
+            'candidates' => [
+                ['content' => ['parts' => [['text' => 'Hello'], ['text' => ' world']]], 'finishReason' => 'STOP'],
+            ],
+            'usageMetadata' => ['promptTokenCount' => 10, 'candidatesTokenCount' => 5],
+        ];
+
+        $events = [];
+        $listener = new CallableStreamListener(function (StreamEvent $event) use (&$events) {
+            $events[] = $event;
+        });
+
+        GeminiStreamAccumulator::replay($responseData, $listener);
+
+        $this->assertEquals(StreamEventType::MESSAGE_START, $events[0]->type);
+        $this->assertEquals(StreamEventType::MESSAGE_COMPLETE, $events[array_key_last($events)]->type);
+
+        $textDeltas = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TEXT_DELTA));
+        $this->assertCount(2, $textDeltas);
+        $this->assertEquals('Hello', $textDeltas[0]->delta);
+        $this->assertEquals(0, $textDeltas[0]->blockIndex);
+        $this->assertEquals(' world', $textDeltas[1]->delta);
+        $this->assertEquals(1, $textDeltas[1]->blockIndex);
+    }
+
+    public function testReplayToolCallResponse(): void {
+        $responseData = [
+            'candidates' => [
+                ['content' => ['parts' => [
+                    ['text' => 'Let me search.'],
+                    ['functionCall' => ['name' => 'search', 'args' => ['query' => 'test']]],
+                ]], 'finishReason' => 'FUNCTION_CALL'],
+            ],
+            'usageMetadata' => ['promptTokenCount' => 20, 'candidatesTokenCount' => 8],
+        ];
+
+        $events = [];
+        $listener = new CallableStreamListener(function (StreamEvent $event) use (&$events) {
+            $events[] = $event;
+        });
+
+        GeminiStreamAccumulator::replay($responseData, $listener);
+
+        $toolStarts = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TOOL_USE_START));
+        $this->assertCount(1, $toolStarts);
+        $this->assertEquals('search', $toolStarts[0]->toolName);
+        $this->assertEquals(1, $toolStarts[0]->blockIndex);
+
+        $toolDeltas = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TOOL_INPUT_DELTA));
+        $this->assertCount(1, $toolDeltas);
+        $this->assertEquals('{"query":"test"}', $toolDeltas[0]->delta);
+
+        $blockStops = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::CONTENT_BLOCK_STOP));
+        $this->assertCount(1, $blockStops);
+        $this->assertEquals(1, $blockStops[0]->blockIndex);
+    }
+
+    public function testReplayThinkingResponse(): void {
+        $responseData = [
+            'candidates' => [
+                ['content' => ['parts' => [
+                    ['thought' => 'Let me think about this...'],
+                    ['text' => 'The answer is 42.'],
+                ]], 'finishReason' => 'STOP'],
+            ],
+            'usageMetadata' => ['promptTokenCount' => 10, 'candidatesTokenCount' => 8],
+        ];
+
+        $events = [];
+        $listener = new CallableStreamListener(function (StreamEvent $event) use (&$events) {
+            $events[] = $event;
+        });
+
+        GeminiStreamAccumulator::replay($responseData, $listener);
+
+        $thinkingDeltas = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::THINKING_DELTA));
+        $this->assertCount(1, $thinkingDeltas);
+        $this->assertEquals('Let me think about this...', $thinkingDeltas[0]->delta);
+        $this->assertEquals(0, $thinkingDeltas[0]->blockIndex);
+
+        $textDeltas = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TEXT_DELTA));
+        $this->assertCount(1, $textDeltas);
+        $this->assertEquals('The answer is 42.', $textDeltas[0]->delta);
+        $this->assertEquals(1, $textDeltas[0]->blockIndex);
+    }
+
     private function buildSse(array $chunks): string {
         $sse = '';
         foreach ($chunks as $chunk) {

@@ -8,6 +8,60 @@ use Psr\Http\Message\StreamInterface;
 
 class GeminiStreamAccumulator {
     /**
+     * Replay a cached response as stream events.
+     * Fires the same event types as consume() but with complete content in single deltas.
+     */
+    public static function replay(array $responseData, StreamListenerInterface $listener): void {
+        $listener->onStreamEvent(new StreamEvent(
+            type: StreamEventType::MESSAGE_START,
+            blockIndex: -1,
+        ));
+
+        $blockIndex = 0;
+        foreach ($responseData['candidates'][0]['content']['parts'] as $part) {
+            if (isset($part['text'])) {
+                $listener->onStreamEvent(new StreamEvent(
+                    type: StreamEventType::TEXT_DELTA,
+                    blockIndex: $blockIndex,
+                    delta: $part['text'],
+                ));
+                $blockIndex++;
+            } elseif (isset($part['thought'])) {
+                $listener->onStreamEvent(new StreamEvent(
+                    type: StreamEventType::THINKING_DELTA,
+                    blockIndex: $blockIndex,
+                    delta: $part['thought'],
+                ));
+                $blockIndex++;
+            } elseif (isset($part['functionCall'])) {
+                $listener->onStreamEvent(new StreamEvent(
+                    type: StreamEventType::TOOL_USE_START,
+                    blockIndex: $blockIndex,
+                    toolName: $part['functionCall']['name'],
+                ));
+                $listener->onStreamEvent(new StreamEvent(
+                    type: StreamEventType::TOOL_INPUT_DELTA,
+                    blockIndex: $blockIndex,
+                    delta: json_encode($part['functionCall']['args'] ?? [], JSON_THROW_ON_ERROR),
+                    toolName: $part['functionCall']['name'],
+                ));
+                $listener->onStreamEvent(new StreamEvent(
+                    type: StreamEventType::CONTENT_BLOCK_STOP,
+                    blockIndex: $blockIndex,
+                ));
+                $blockIndex++;
+            } elseif (isset($part['inlineData'])) {
+                $blockIndex++;
+            }
+        }
+
+        $listener->onStreamEvent(new StreamEvent(
+            type: StreamEventType::MESSAGE_COMPLETE,
+            blockIndex: -1,
+        ));
+    }
+
+    /**
      * Parse a Gemini SSE stream, call the listener for each delta,
      * and return the fully reconstructed response array matching the
      * non-streaming format expected by GeminiEncoder::decodeResponse().
