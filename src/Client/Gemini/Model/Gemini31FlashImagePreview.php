@@ -4,8 +4,9 @@ namespace Soukicz\Llm\Client\Gemini\Model;
 
 /**
  * @see https://ai.google.dev/gemini-api/docs/pricing
+ * @see https://ai.google.dev/gemini-api/docs/image-generation
  */
-class Gemini25FlashImagePreview extends GeminiModel implements GeminiImageModel {
+class Gemini31FlashImagePreview extends GeminiModel implements GeminiImageModel {
     public function __construct(
         private readonly ?string $imageAspectRatio = null,
         private readonly ?string $imageSize = null,
@@ -21,15 +22,15 @@ class Gemini25FlashImagePreview extends GeminiModel implements GeminiImageModel 
     }
 
     public function getCode(): string {
-        return 'gemini-2.5-flash-image-preview';
+        return 'gemini-3.1-flash-image-preview';
     }
 
     public function getInputPricePerMillionTokens(): float {
-        return 0.30;
+        return 0.50;
     }
 
     public function getOutputPricePerMillionTokens(): float {
-        return 30.0;
+        return 60.0;
     }
 
     public function getCachedInputPricePerMillionTokens(): float {

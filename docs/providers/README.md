@@ -172,7 +172,8 @@ $model = new Gemini25Flash();
 **Available model classes:**
 - `Gemini20Flash`, `Gemini20FlashLite`
 - `Gemini25Flash`, `Gemini25FlashLite`
-- `Gemini25FlashImagePreview`
+- `Gemini25FlashImagePreview`, `Gemini25FlashImage` — [image generation](https://ai.google.dev/gemini-api/docs/image-generation)
+- `Gemini3ProImagePreview`, `Gemini31FlashImagePreview` — [image generation](https://ai.google.dev/gemini-api/docs/image-generation)
 - `Gemini25Pro`, `Gemini25ProPreview`
 
 ### Safety Settings Configuration
