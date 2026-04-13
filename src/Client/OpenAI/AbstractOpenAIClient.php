@@ -162,6 +162,7 @@ abstract class AbstractOpenAIClient extends OpenAIEncoder implements LLMBatchCli
         ]);
 
         $pool->promise()->wait();
+        ksort($results);
 
         return $results;
     }
