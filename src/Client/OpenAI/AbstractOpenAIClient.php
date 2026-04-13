@@ -129,7 +129,7 @@ abstract class AbstractOpenAIClient extends OpenAIEncoder implements LLMBatchCli
     public function getBatchEmbeddings(array $texts, string $model = 'text-embedding-3-small', int $dimensions = 512): array {
         $results = [];
         $totalTokens = 0;
-        foreach (array_chunk($texts, 100, true) as $chunk) {
+        foreach (array_chunk($texts, 2048, true) as $chunk) {
             $keys = array_keys($chunk);
             $response = json_decode($this->getHttpClient()->post($this->getBaseUrl().'/embeddings', [
                 'json' => [
