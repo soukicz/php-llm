@@ -5,6 +5,7 @@ namespace Soukicz\Llm\Client\OpenAI;
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
+use GuzzleHttp\Pool;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use Psr\Http\Message\RequestInterface;
@@ -127,22 +128,40 @@ abstract class AbstractOpenAIClient extends OpenAIEncoder implements LLMBatchCli
     }
 
     public function getBatchEmbeddings(array $texts, string $model = 'text-embedding-3-small', int $dimensions = 512): array {
+        $chunks = array_chunk($texts, 100, true);
+        $chunkKeys = [];
         $results = [];
         $totalTokens = 0;
-        foreach (array_chunk($texts, 2048, true) as $chunk) {
-            $keys = array_keys($chunk);
-            $response = json_decode($this->getHttpClient()->post($this->getBaseUrl().'/embeddings', [
-                'json' => [
+
+        $requests = function () use ($chunks, &$chunkKeys, $model, $dimensions) {
+            foreach ($chunks as $i => $chunk) {
+                $chunkKeys[$i] = array_keys($chunk);
+                yield $i => new Request('POST', $this->getBaseUrl() . '/embeddings', [
+                    'Content-Type' => 'application/json',
+                ], json_encode([
                     'model' => $model,
                     'dimensions' => $dimensions,
                     'input' => array_values($chunk),
-                ],
-            ])->getBody(), true, 512, JSON_THROW_ON_ERROR);
-            foreach ($response['data'] as $embedding) {
-                $results[$keys[$embedding['index']]] = $embedding['embedding'];
+                ], JSON_THROW_ON_ERROR));
             }
-            $totalTokens += $response['usage']['total_tokens'];
-        }
+        };
+
+        $pool = new Pool($this->getHttpClient(), $requests(), [
+            'concurrency' => 32,
+            'fulfilled' => function (ResponseInterface $response, int $i) use (&$results, &$totalTokens, &$chunkKeys) {
+                $data = json_decode($response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+                $keys = $chunkKeys[$i];
+                foreach ($data['data'] as $embedding) {
+                    $results[$keys[$embedding['index']]] = $embedding['embedding'];
+                }
+                $totalTokens += $data['usage']['total_tokens'];
+            },
+            'rejected' => function (\Throwable $reason) {
+                throw $reason;
+            },
+        ]);
+
+        $pool->promise()->wait();
 
         return $results;
     }
