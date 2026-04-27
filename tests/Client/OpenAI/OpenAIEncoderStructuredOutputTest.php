@@ -54,6 +54,31 @@ class OpenAIEncoderStructuredOutputTest extends TestCase {
         $this->assertEquals($this->testSchema, $encoded['response_format']['json_schema']['schema']);
     }
 
+    public function testEncodeRequestWithStrictDisabled(): void {
+        $schema = [
+            'type' => 'object',
+            'properties' => [
+                'name' => ['type' => 'string'],
+            ],
+            'required' => ['name'],
+        ];
+
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('Test'),
+        ]);
+
+        $request = new LLMRequest(
+            model: new GPT41(GPT41::VERSION_2025_04_14),
+            conversation: $conversation,
+            structuredOutputConfig: new StructuredOutputConfig($schema, strict: false),
+        );
+
+        $encoded = $this->encoder->encodeRequest($request);
+
+        $this->assertFalse($encoded['response_format']['json_schema']['strict']);
+        $this->assertFalse($encoded['response_format']['json_schema']['schema']['additionalProperties']);
+    }
+
     public function testEncodeRequestWithoutStructuredOutput(): void {
         $conversation = new LLMConversation([
             LLMMessage::createFromUserString('Hello'),

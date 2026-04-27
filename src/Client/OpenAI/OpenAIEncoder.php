@@ -188,7 +188,7 @@ class OpenAIEncoder implements ModelEncoder {
                 'type' => 'json_schema',
                 'json_schema' => [
                     'name' => 'response_schema',
-                    'strict' => true,
+                    'strict' => $structuredOutputConfig->isStrict(),
                     'schema' => self::normalizeSchemaForStrictMode($structuredOutputConfig->getSchema()),
                 ],
             ];
