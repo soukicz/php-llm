@@ -196,6 +196,8 @@ class AnthropicEncoder implements ModelEncoder {
             'model' => $request->getModel()->getCode(),
         ];
 
+        $outputConfig = [];
+
         $reasoningConfig = $request->getReasoningConfig();
         if ($reasoningConfig) {
             if ($reasoningConfig instanceof ReasoningBudget) {
@@ -208,14 +210,12 @@ class AnthropicEncoder implements ModelEncoder {
                     $options['thinking'] = [
                         'type' => 'adaptive',
                     ];
-                    $outputConfig = $options['output_config'] ?? [];
                     $outputConfig['effort'] = match ($reasoningConfig) {
                         ReasoningEffort::MINIMAL, ReasoningEffort::LOW => 'low',
                         ReasoningEffort::MEDIUM => 'medium',
                         ReasoningEffort::HIGH => 'high',
                         ReasoningEffort::EXTRA_HIGH => 'max',
                     };
-                    $options['output_config'] = $outputConfig;
                 }
             } else {
                 throw new \InvalidArgumentException('Unsupported reasoning config type');
@@ -224,11 +224,13 @@ class AnthropicEncoder implements ModelEncoder {
 
         $structuredOutputConfig = $request->getStructuredOutputConfig();
         if ($structuredOutputConfig !== null) {
-            $outputConfig = $options['output_config'] ?? [];
             $outputConfig['format'] = [
                 'type' => 'json_schema',
                 'schema' => self::normalizeSchemaForStrictMode($structuredOutputConfig->getSchema()),
             ];
+        }
+
+        if (!empty($outputConfig)) {
             $options['output_config'] = $outputConfig;
         }
 
@@ -298,7 +300,8 @@ class AnthropicEncoder implements ModelEncoder {
         $outputPrice = $response['usage']['output_tokens'] * ($request->getModel()->getOutputPricePerMillionTokens() / 1000 / 1000);
 
         $inputPrice += $cacheInputTokens * ($request->getModel()->getCachedInputPricePerMillionTokens() / 1000 / 1000);
-        $outputPrice += $cacheReadInputTokens * ($request->getModel()->getCachedOutputPricePerMillionTokens() / 1000 / 1000);
+        // Cache reads are input tokens, so their cost belongs to the input bucket
+        $inputPrice += $cacheReadInputTokens * ($request->getModel()->getCachedOutputPricePerMillionTokens() / 1000 / 1000);
 
         $request = $request
             ->withCost(
