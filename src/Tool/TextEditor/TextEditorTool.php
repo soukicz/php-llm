@@ -236,14 +236,14 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
             }
 
             if ($matchCount > 1) {
-                // Find line numbers where old_str appears (matches reference implementation)
-                $contentLines = explode("\n", $content);
+                // Find line numbers where old_str appears (works for multi-line strings too)
                 $lineNumbers = [];
-                foreach ($contentLines as $idx => $line) {
-                    if (str_contains($line, $oldString)) {
-                        $lineNumbers[] = $idx + 1;
-                    }
+                $offset = 0;
+                while (($pos = strpos($content, $oldString, $offset)) !== false) {
+                    $lineNumbers[] = substr_count($content, "\n", 0, $pos) + 1;
+                    $offset = $pos + 1;
                 }
+                $lineNumbers = array_values(array_unique($lineNumbers));
 
                 return LLMMessageContents::fromErrorString(
                     "No replacement was performed. Multiple occurrences of old_str `$oldString` in lines [" . implode(', ', $lineNumbers) . "]. Please ensure it is unique"
