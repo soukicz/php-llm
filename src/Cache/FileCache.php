@@ -22,12 +22,22 @@ class FileCache extends AbstractCache {
             return null;
         }
 
-        return $this->responseFromJson(file_get_contents($path));
+        $contents = @file_get_contents($path);
+        if ($contents === false) {
+            return null;
+        }
+
+        try {
+            return $this->responseFromJson($contents);
+        } catch (\JsonException) {
+            // Treat a corrupted cache file as a cache miss
+            return null;
+        }
     }
 
     public function store(RequestInterface $request, ResponseInterface $response): void {
         $key = $this->getCacheKey($request);
-        file_put_contents($this->getPath($key), $this->responseToJson($response));
+        file_put_contents($this->getPath($key), $this->responseToJson($response), LOCK_EX);
     }
 
     public function invalidate(RequestInterface $request): void {
