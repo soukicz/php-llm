@@ -7,6 +7,8 @@ namespace Soukicz\Llm\Tests\Client\Gemini;
 use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Client\Gemini\GeminiEncoder;
 use Soukicz\Llm\Client\Gemini\Model\Gemini20Flash;
+use Soukicz\Llm\Client\Gemini\Model\Gemini25FlashLite;
+use Soukicz\Llm\Client\Gemini\Model\Gemini3ProPreview;
 use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
@@ -110,7 +112,7 @@ class GeminiEncoderTextTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: new Gemini20Flash(),
+            model: new Gemini3ProPreview(),
             conversation: $conversation,
             reasoningConfig: ReasoningEffort::HIGH,
         );
@@ -127,7 +129,7 @@ class GeminiEncoderTextTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: new Gemini20Flash(),
+            model: new Gemini3ProPreview(),
             conversation: $conversation,
             reasoningConfig: ReasoningEffort::LOW,
         );
@@ -143,7 +145,7 @@ class GeminiEncoderTextTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: new Gemini20Flash(),
+            model: new Gemini3ProPreview(),
             conversation: $conversation,
             reasoningConfig: ReasoningEffort::MEDIUM,
         );
@@ -159,7 +161,7 @@ class GeminiEncoderTextTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: new Gemini20Flash(),
+            model: new Gemini3ProPreview(),
             conversation: $conversation,
             reasoningConfig: ReasoningEffort::MINIMAL,
         );
@@ -175,7 +177,7 @@ class GeminiEncoderTextTest extends TestCase {
         ]);
 
         $request = new LLMRequest(
-            model: new Gemini20Flash(),
+            model: new Gemini3ProPreview(),
             conversation: $conversation,
             reasoningConfig: ReasoningEffort::EXTRA_HIGH,
         );
@@ -200,5 +202,33 @@ class GeminiEncoderTextTest extends TestCase {
 
         $this->assertArrayHasKey('thinkingConfig', $encoded['generationConfig']);
         $this->assertEquals(0, $encoded['generationConfig']['thinkingConfig']['thinkingBudget']);
+    }
+
+    /**
+     * Gemini 2.x models reject thinkingLevel ("Thinking level is not supported for this
+     * model") - reasoning effort must be translated to a token budget instead
+     */
+    public function testReasoningEffortUsesThinkingBudgetOnGemini2x(): void {
+        $expectedBudgets = [
+            ReasoningEffort::MINIMAL->value => 512,
+            ReasoningEffort::LOW->value => 1024,
+            ReasoningEffort::MEDIUM->value => 8192,
+            ReasoningEffort::HIGH->value => 24576,
+            ReasoningEffort::EXTRA_HIGH->value => 24576,
+        ];
+
+        foreach ($expectedBudgets as $effort => $expectedBudget) {
+            $request = new LLMRequest(
+                model: new Gemini25FlashLite(),
+                conversation: new LLMConversation([LLMMessage::createFromUserString('Question')]),
+                reasoningConfig: ReasoningEffort::from($effort),
+            );
+
+            $encoded = $this->encoder->encodeRequest($request);
+
+            $thinkingConfig = $encoded['generationConfig']['thinkingConfig'];
+            $this->assertArrayNotHasKey('thinkingLevel', $thinkingConfig, "Effort $effort must not produce thinkingLevel on a 2.x model");
+            $this->assertSame($expectedBudget, $thinkingConfig['thinkingBudget'], "Wrong budget for effort $effort");
+        }
     }
 }

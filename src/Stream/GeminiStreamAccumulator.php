@@ -76,7 +76,6 @@ class GeminiStreamAccumulator {
         $allParts = [];
         $finishReason = null;
         $usageMetadata = [];
-        $blockIndex = 0;
 
         $listener->onStreamEvent(new StreamEvent(
             type: StreamEventType::MESSAGE_START,
@@ -102,48 +101,59 @@ class GeminiStreamAccumulator {
                 $finishReason = $candidate['finishReason'];
             }
 
-            // Process parts
+            // Process parts. Gemini streams text in many small parts that all belong to
+            // the same logical block - consecutive parts of the same kind are merged so
+            // the reconstructed response matches the non-streaming format (a single text
+            // part) and decodeResponse()/getLastText() see the full text.
             if (isset($candidate['content']['parts'])) {
                 foreach ($candidate['content']['parts'] as $part) {
-                    if (isset($part['text'])) {
-                        $allParts[] = $part;
+                    $lastIndex = count($allParts) - 1;
+                    if (isset($part['text']) && !isset($part['thought'])) {
+                        if ($lastIndex >= 0 && isset($allParts[$lastIndex]['text']) && !isset($allParts[$lastIndex]['thought'])) {
+                            $allParts[$lastIndex]['text'] .= $part['text'];
+                        } else {
+                            $allParts[] = $part;
+                            $lastIndex++;
+                        }
                         $listener->onStreamEvent(new StreamEvent(
                             type: StreamEventType::TEXT_DELTA,
-                            blockIndex: $blockIndex,
+                            blockIndex: $lastIndex,
                             delta: $part['text'],
                         ));
-                        $blockIndex++;
                     } elseif (isset($part['thought'])) {
-                        $allParts[] = $part;
+                        if ($lastIndex >= 0 && isset($allParts[$lastIndex]['thought']) && is_string($allParts[$lastIndex]['thought']) && is_string($part['thought'])) {
+                            $allParts[$lastIndex]['thought'] .= $part['thought'];
+                        } else {
+                            $allParts[] = $part;
+                            $lastIndex++;
+                        }
                         $listener->onStreamEvent(new StreamEvent(
                             type: StreamEventType::THINKING_DELTA,
-                            blockIndex: $blockIndex,
-                            delta: $part['thought'],
+                            blockIndex: $lastIndex,
+                            delta: is_string($part['thought']) ? $part['thought'] : ($part['text'] ?? ''),
                         ));
-                        $blockIndex++;
                     } elseif (isset($part['functionCall'])) {
                         $allParts[] = $part;
+                        $lastIndex++;
                         $listener->onStreamEvent(new StreamEvent(
                             type: StreamEventType::TOOL_USE_START,
-                            blockIndex: $blockIndex,
+                            blockIndex: $lastIndex,
                             toolName: $part['functionCall']['name'],
                         ));
                         // Emit the full input as a single delta since Gemini sends complete tool calls
                         $inputJson = json_encode($part['functionCall']['args'] ?? [], JSON_THROW_ON_ERROR);
                         $listener->onStreamEvent(new StreamEvent(
                             type: StreamEventType::TOOL_INPUT_DELTA,
-                            blockIndex: $blockIndex,
+                            blockIndex: $lastIndex,
                             delta: $inputJson,
                             toolName: $part['functionCall']['name'],
                         ));
                         $listener->onStreamEvent(new StreamEvent(
                             type: StreamEventType::CONTENT_BLOCK_STOP,
-                            blockIndex: $blockIndex,
+                            blockIndex: $lastIndex,
                         ));
-                        $blockIndex++;
                     } elseif (isset($part['inlineData'])) {
                         $allParts[] = $part;
-                        $blockIndex++;
                     }
                 }
             }

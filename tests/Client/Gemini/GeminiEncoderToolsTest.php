@@ -133,9 +133,42 @@ class GeminiEncoderToolsTest extends TestCase {
 
         // Check function result structure
         $functionResult = $encoded['contents'][2];
-        $this->assertEquals('function', $functionResult['role']);
+        $this->assertEquals('user', $functionResult['role']);
         $this->assertCount(1, $functionResult['parts']);
         $this->assertArrayHasKey('function_response', $functionResult['parts'][0]);
+        // Gemini correlates function responses by name, which must match the original function call
+        $this->assertEquals('get_weather', $functionResult['parts'][0]['function_response']['name']);
+        $this->assertEquals(
+            ['temperature' => 22, 'condition' => 'sunny'],
+            $functionResult['parts'][0]['function_response']['response']
+        );
+    }
+
+    public function testMultipleToolsInSingleDeclaration(): void {
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('What is the weather like in Prague?'),
+        ]);
+
+        $makeTool = fn(string $name) => new CallbackToolDefinition(
+            $name,
+            'Description of ' . $name,
+            ['type' => 'object', 'properties' => [], 'required' => []],
+            fn(array $input) => []
+        );
+
+        $request = new LLMRequest(
+            model: new Gemini20Flash(),
+            conversation: $conversation,
+            tools: [$makeTool('tool_one'), $makeTool('tool_two')]
+        );
+
+        $encoded = $this->encoder->encodeRequest($request);
+
+        // Gemini requires all function declarations in a single tools entry
+        $this->assertCount(1, $encoded['tools']);
+        $this->assertCount(2, $encoded['tools'][0]['functionDeclarations']);
+        $this->assertEquals('tool_one', $encoded['tools'][0]['functionDeclarations'][0]['name']);
+        $this->assertEquals('tool_two', $encoded['tools'][0]['functionDeclarations'][1]['name']);
     }
 
     public function testCompleteFunctionFlow(): void {

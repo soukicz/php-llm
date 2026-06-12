@@ -6,6 +6,10 @@ namespace Soukicz\Llm\Client\Gemini\Model;
  * @see https://ai.google.dev/gemini-api/docs/pricing
  */
 class Gemini3ProPreview extends GeminiModel {
+    public function supportsThinkingLevel(): bool {
+        return true;
+    }
+
     public function getCode(): string {
         return 'gemini-3-pro-preview';
     }

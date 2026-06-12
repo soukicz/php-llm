@@ -78,8 +78,8 @@ class GeminiStreamingTest extends TestCase {
 
         $response = $client->sendRequestAsync($request)->wait();
 
-        // Gemini produces separate text parts per chunk, getLastText() returns the last one
-        $this->assertEquals(' world!', $response->getLastText());
+        // Streamed text chunks are merged so getLastText() returns the complete text
+        $this->assertEquals('Hello world!', $response->getLastText());
         $this->assertEquals(StopReason::FINISHED, $response->getStopReason());
         $this->assertEquals(10, $response->getInputTokens());
         $this->assertEquals(5, $response->getOutputTokens());
