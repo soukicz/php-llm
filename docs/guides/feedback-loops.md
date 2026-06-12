@@ -259,10 +259,12 @@ feedbackCallback: function (LLMResponse $response) use (&$attempt): ?LLMMessage 
 
 ### With Tools
 
-Validate tool outputs in feedback loops:
+Feedback loops and tools combine naturally: `LLMAgentClient` first runs the tool loop to completion, and **only then** invokes the feedback callback on the final response. The callback therefore never sees a pending tool call — but you can inspect the conversation history to verify which tools were actually used:
 
 ```php
 <?php
+use Soukicz\Llm\Message\LLMMessageToolUse;
+
 $response = $agentClient->run(
     client: $anthropic,
     request: new LLMRequest(
@@ -271,11 +273,16 @@ $response = $agentClient->run(
         tools: [$calculatorTool],
     ),
     feedbackCallback: function (LLMResponse $response): ?LLMMessage {
-        // Ensure the agent used the calculator tool
-        if (!$response->hasToolCalls()) {
-            return LLMMessage::createFromUserString('Please use the calculator tool for this calculation');
+        // Ensure the agent used the calculator tool at some point in the conversation
+        foreach ($response->getConversation()->getMessages() as $message) {
+            foreach ($message->getContents() as $content) {
+                if ($content instanceof LLMMessageToolUse && $content->getName() === 'calculator') {
+                    return null; // Tool was used - accept the response
+                }
+            }
         }
-        return null;
+
+        return LLMMessage::createFromUserString('Please use the calculator tool for this calculation');
     }
 );
 ```
@@ -286,15 +293,15 @@ Validate reasoning model outputs:
 
 ```php
 <?php
-use Soukicz\Llm\Client\OpenAI\Model\OpenAIGPTo3;
+use Soukicz\Llm\Client\OpenAI\Model\GPTo3;
 use Soukicz\Llm\Config\ReasoningEffort;
 
 $response = $agentClient->run(
     client: $openai,
     request: new LLMRequest(
-        model: new OpenAIGPTo3(),
+        model: new GPTo3(GPTo3::VERSION_2025_04_16),
         conversation: $conversation,
-        reasoningEffort: ReasoningEffort::HIGH
+        reasoningConfig: ReasoningEffort::HIGH
     ),
     feedbackCallback: function (LLMResponse $response): ?LLMMessage {
         // Verify mathematical accuracy
@@ -356,6 +363,7 @@ return LLMMessage::createFromUserString('The JSON is missing the required "email
 ## See Also
 
 - [Tools Guide](tools.md) - Validate tool usage in feedback loops
+- [Structured Output](structured-output.md) - Guarantee JSON shape without re-prompting
 - [Reasoning Models](reasoning.md) - Combine reasoning with validation
 - [Examples](../examples/index.md) - More feedback loop examples
 - [Configuration](configuration.md) - Configure request behavior

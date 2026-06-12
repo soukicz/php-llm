@@ -16,10 +16,12 @@ The LLM decides when to use tools based on your prompts and the tool description
 
 ```php
 <?php
-use Soukicz\Llm\Tool\CallbackToolDefinition;
-use Soukicz\Llm\Message\LLMMessageContents;
-use Soukicz\Llm\Message\LLMMessageText;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude46Sonnet;
+use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
+use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageContents;
+use Soukicz\Llm\Tool\CallbackToolDefinition;
 
 // Define a simple calculator tool
 $calculator = new CallbackToolDefinition(
@@ -61,7 +63,7 @@ $calculator = new CallbackToolDefinition(
 
 // Use the tool in a request
 $request = new LLMRequest(
-    model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
+    model: new AnthropicClaude46Sonnet(),
     conversation: new LLMConversation([
         LLMMessage::createFromUserString('What is 157 * 832?')
     ]),
@@ -196,8 +198,24 @@ $tools = [
     new CallbackToolDefinition(
         name: 'get_weather',
         description: 'Get current weather for a location',
-        inputSchema: [...],
-        handler: fn($input) => // weather logic
+        inputSchema: [
+            'type' => 'object',
+            'properties' => [
+                'city' => [
+                    'type' => 'string',
+                    'description' => 'City name (e.g., "London", "New York")',
+                ],
+            ],
+            'required' => ['city'],
+        ],
+        handler: function (array $input): LLMMessageContents {
+            // ... call your weather API here ...
+            return LLMMessageContents::fromArrayData([
+                'city' => $input['city'],
+                'temperature' => 18,
+                'description' => 'partly cloudy',
+            ]);
+        }
     ),
 
     // Stock price tool
@@ -214,7 +232,14 @@ $tools = [
             ],
             'required' => ['ticker'],
         ],
-        handler: fn($input) => // stock API logic
+        handler: function (array $input): LLMMessageContents {
+            // ... call your stock API here ...
+            return LLMMessageContents::fromArrayData([
+                'ticker' => $input['ticker'],
+                'price' => 187.42,
+                'currency' => 'USD',
+            ]);
+        }
     ),
 
     // Calculator
@@ -237,60 +262,40 @@ $response = $agentClient->run($client, $request);
 
 ## Multi-Step Tool Usage
 
-Handle conversations where the LLM uses tools multiple times:
+You don't need to handle the tool-use loop yourself. `LLMAgentClient::run()` does it automatically: whenever the LLM stops to call a tool (`StopReason::TOOL_USE`), the agent client executes the matching tool handler, appends the tool result to the conversation, and sends a follow-up request - repeating until the LLM produces a final answer. Calls to unknown tools are answered with an error result so the LLM can recover.
 
 ```php
 <?php
-$conversation = new LLMConversation([
-    LLMMessage::createFromUserString('Calculate 50 * 30, then add 100 to the result')
-]);
-
-// First request
 $response = $agentClient->run(
     client: $client,
     request: new LLMRequest(
         model: $model,
-        conversation: $conversation,
+        conversation: new LLMConversation([
+            LLMMessage::createFromUserString('Calculate 50 * 30, then add 100 to the result')
+        ]),
         tools: [$calculator]
     )
 );
 
-// Check if the LLM used a tool
-if ($response->getLastMessage()->hasToolUse()) {
-    // Add the assistant's response (including tool use) to conversation
-    $conversation = $conversation->withMessage($response->getLastMessage());
+// The final answer, after any number of intermediate tool calls
+echo $response->getLastText();
+```
 
-    // Execute the tool and add result
-    foreach ($response->getLastMessage()->getContents()->getToolUses() as $toolUse) {
-        $tool = $tools[$toolUse->getName()] ?? null;
+If you need to inspect the intermediate steps, the conversation returned with the response contains every tool call and tool result:
 
-        if ($tool) {
-            $result = $tool->handle($toolUse->getInput());
-            $conversation = $conversation->withMessage(
-                LLMMessage::createFromUser(
-                    new LLMMessageContents([
-                        new LLMMessageToolResult(
-                            toolUseId: $toolUse->getId(),
-                            content: $result,
-                            isError: false
-                        )
-                    ])
-                )
-            );
+```php
+<?php
+use Soukicz\Llm\Message\LLMMessageToolResult;
+use Soukicz\Llm\Message\LLMMessageToolUse;
+
+foreach ($response->getConversation()->getMessages() as $message) {
+    foreach ($message->getContents() as $content) {
+        if ($content instanceof LLMMessageToolUse) {
+            echo "Tool call: " . $content->getName() . " " . json_encode($content->getInput()) . "\n";
+        } elseif ($content instanceof LLMMessageToolResult) {
+            echo "Tool result for call " . $content->getId() . "\n";
         }
     }
-
-    // Continue the conversation
-    $finalResponse = $agentClient->run(
-        client: $client,
-        request: new LLMRequest(
-            model: $model,
-            conversation: $conversation,
-            tools: [$calculator]
-        )
-    );
-
-    echo $finalResponse->getLastText();
 }
 ```
 
@@ -424,11 +429,13 @@ Test tools independently before using with LLMs:
 // Unit test a tool
 $calculator = new CallbackToolDefinition(...);
 
+// The handler returns LLMMessageContents, which supports array access;
+// the first item is an LLMMessageArrayData holding the returned array
 $result = $calculator->handle(['expression' => '2 + 2']);
-assert($result->toArray()['result'] === 4);
+assert($result[0]->getData()['result'] === 4);
 
 $result = $calculator->handle(['expression' => 'invalid']);
-assert(isset($result->toArray()['error']));
+assert(isset($result[0]->getData()['error']));
 ```
 
 ## See Also

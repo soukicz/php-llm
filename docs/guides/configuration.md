@@ -6,19 +6,20 @@ Configure your AI agent requests with various parameters to control behavior, ou
 
 ```php
 <?php
-use Soukicz\Llm\Config\ReasoningBudget;
 use Soukicz\Llm\Config\ReasoningEffort;
+use Soukicz\Llm\Config\StructuredOutputConfig;
 use Soukicz\Llm\LLMRequest;
+use Soukicz\Llm\Stream\CallableStreamListener;
 
 $request = new LLMRequest(
     model: $model,                              // Required: Model instance
     conversation: $conversation,                // Required: LLMConversation
+    temperature: 0.7,                           // Optional: 0.0 to 1.0 (default 0.0)
+    maxTokens: 4096,                            // Optional: Maximum response tokens (default 4096)
     tools: $tools,                              // Optional: Array of tool definitions
-    temperature: 0.7,                           // Optional: 0.0 to 1.0
-    maxTokens: 4096,                            // Optional: Maximum response tokens
     stopSequences: ['###', 'END'],              // Optional: Stop generation strings
-    reasoningConfig: ReasoningEffort::HIGH,     // Optional: For reasoning models
-    reasoningConfig: new ReasoningBudget(10000),// Optional: Token budget for reasoning
+    reasoningConfig: ReasoningEffort::HIGH,     // Optional: ReasoningEffort or ReasoningBudget
+    structuredOutputConfig: new StructuredOutputConfig($schema), // Optional: JSON Schema output
     streamListener: new CallableStreamListener( // Optional: Real-time progress updates
         fn($event) => print($event->delta)
     ),
@@ -71,8 +72,8 @@ $conversation = new LLMConversation([
 
 Controls randomness in responses (0.0 to 1.0):
 
-- **0.0** - Deterministic, focused responses
-- **0.5** - Balanced (default for most models)
+- **0.0** - Deterministic, focused responses (the library default)
+- **0.5** - Balanced
 - **1.0** - Creative, varied responses
 
 ```php
@@ -176,18 +177,44 @@ $request = new LLMRequest(
 
 Or implement `StreamListenerInterface` for a reusable class-based listener. See [Streaming Guide](streaming.md) for full documentation and practical examples.
 
-**Note:** Streaming bypasses the response cache. When a listener is present, the request always goes to the API.
+**Note:** Streaming works with the response cache. On a cache hit, the cached response is replayed through the stream listener, and a completed live stream is stored in the cache for future requests.
 
-## Reasoning Parameters
+### structuredOutputConfig
 
-For reasoning models (o3, o4):
-
-### reasoningEffort
-
-Control computational effort:
+Force the model to return JSON matching a schema:
 
 ```php
 <?php
+use Soukicz\Llm\Config\StructuredOutputConfig;
+
+$request = new LLMRequest(
+    model: $model,
+    conversation: $conversation,
+    structuredOutputConfig: new StructuredOutputConfig([
+        'type' => 'object',
+        'properties' => [
+            'name' => ['type' => 'string'],
+        ],
+        'required' => ['name'],
+    ]),
+);
+
+$data = $agentClient->run($client, $request)->getLastStructuredData();
+```
+
+See [Structured Output Guide](structured-output.md) for full documentation.
+
+## Reasoning Parameters
+
+### reasoningConfig
+
+The `reasoningConfig` parameter accepts either a `ReasoningEffort` enum case or a `ReasoningBudget` instance. When left at `null` (the default), the provider's default behavior is used.
+
+Control computational effort with `ReasoningEffort` (works with Anthropic, OpenAI, and Gemini):
+
+```php
+<?php
+use Soukicz\Llm\Client\OpenAI\Model\GPTo3;
 use Soukicz\Llm\Config\ReasoningEffort;
 
 $request = new LLMRequest(
@@ -198,22 +225,24 @@ $request = new LLMRequest(
 ```
 
 **Options:**
+- `ReasoningEffort::NONE` - Disable reasoning
+- `ReasoningEffort::MINIMAL` - Minimal reasoning
 - `ReasoningEffort::LOW` - Fast, less thorough
-- `ReasoningEffort::MEDIUM` - Balanced (default)
+- `ReasoningEffort::MEDIUM` - Balanced
 - `ReasoningEffort::HIGH` - Thorough, slower
+- `ReasoningEffort::EXTRA_HIGH` - Maximum effort
 
-### reasoningConfig
-
-Limit reasoning tokens for cost control using `ReasoningBudget`:
+Or limit reasoning tokens for cost control using `ReasoningBudget` (**Anthropic only** — the OpenAI and Gemini encoders throw `InvalidArgumentException`):
 
 ```php
 <?php
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude46Sonnet;
 use Soukicz\Llm\Config\ReasoningBudget;
 
 $request = new LLMRequest(
-    model: new GPTo3(GPTo3::VERSION_2025_04_16),
+    model: new AnthropicClaude46Sonnet(),
     conversation: $conversation,
-    reasoningConfig: new ReasoningBudget(5000)  // Max 5k reasoning tokens
+    reasoningConfig: new ReasoningBudget(5000)  // Max 5k thinking tokens
 );
 ```
 
@@ -238,22 +267,33 @@ See [Caching Guide](caching.md) for cache options.
 
 ### HTTP Middleware
 
-Add Guzzle middleware for logging or custom behavior:
+All clients accept a `customHttpMiddleware` parameter — a single Guzzle middleware callable that is pushed onto the client's internal handler stack. Use it for logging or custom behavior:
 
 ```php
 <?php
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Middleware;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 
-$stack = HandlerStack::create();
-$stack->push(Middleware::log($logger, $formatter));
+$loggingMiddleware = function (callable $handler) {
+    return function (RequestInterface $request, array $options) use ($handler) {
+        return $handler($request, $options)->then(
+            function (ResponseInterface $response) use ($request) {
+                error_log($request->getMethod() . ' ' . $request->getUri() . ' - ' . $response->getStatusCode());
+
+                return $response;
+            }
+        );
+    };
+};
 
 $client = new AnthropicClient(
     apiKey: 'sk-xxxxx',
     cache: $cache,
-    handler: $stack
+    customHttpMiddleware: $loggingMiddleware
 );
 ```
+
+See [Logging & Debugging](../examples/logging-debugging.md) for a complete middleware example.
 
 ## Provider-Specific Configuration
 
@@ -303,10 +343,10 @@ use Soukicz\Llm\Client\Universal\LocalModel;
 
 $client = new OpenAICompatibleClient(
     apiKey: 'your-api-key',
-    baseUrl: 'https://api.openrouter.ai/v1'
+    baseUrl: 'https://openrouter.ai/api/v1'
 );
 
-$model = new LocalModel('anthropic/claude-3.5-sonnet');
+$model = new LocalModel('anthropic/claude-haiku-4.5');
 ```
 
 ## Configuration Best Practices
@@ -318,7 +358,7 @@ $model = new LocalModel('anthropic/claude-3.5-sonnet');
 5. **Use higher temperature** for creative tasks
 6. **Set stopSequences** for structured outputs
 7. **Configure safety settings** appropriately for your use case
-8. **Use reasoning budgets** in production
+8. **Limit reasoning costs in production** - `ReasoningBudget` on Anthropic, lower `ReasoningEffort` elsewhere
 
 ## Example: Complete Configuration
 
@@ -358,6 +398,7 @@ $response = $agentClient->run($client, $request);
 ## See Also
 
 - [Reasoning Models](reasoning.md) - Reasoning-specific configuration
+- [Structured Output](structured-output.md) - JSON Schema constrained responses
 - [Streaming](streaming.md) - Real-time response streaming
 - [Tools Guide](tools.md) - Tool configuration
 - [Caching Guide](caching.md) - Cache configuration

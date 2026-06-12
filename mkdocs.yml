@@ -38,6 +38,7 @@ nav:
   - Getting Started:
       - Quick Start: examples/quick-start.md
   - Examples:
+      - Examples Overview: examples/index.md
       - Quick Start: examples/quick-start.md
       - Best Practices: examples/best-practices.md
       - Tools & Function Calling: examples/tools-and-function-calling.md
@@ -50,7 +51,9 @@ nav:
       - Caching: guides/caching.md
       - Batch Processing: guides/batch-processing.md
       - Multimodal: guides/multimodal.md
+      - Streaming: guides/streaming.md
       - Reasoning: guides/reasoning.md
+      - Structured Output: guides/structured-output.md
       - Feedback Loops: guides/feedback-loops.md
   - Providers:
       - Overview: providers/README.md

@@ -151,7 +151,7 @@ $message = LLMMessage::createFromUser(new LLMMessageContents([
 **PDF Support:**
 - ✅ Anthropic (Claude) - All models
 - ✅ OpenAI (GPT) - GPT-4o and later models
-- ❌ Google Gemini - Not currently supported
+- ✅ Google Gemini - Supported (sent as inline `application/pdf` data)
 - ⚠️ OpenAI-compatible - Depends on the underlying model
 
 ## Provider-Specific Notes
