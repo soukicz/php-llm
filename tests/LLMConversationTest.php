@@ -132,4 +132,33 @@ class LLMConversationTest extends TestCase {
 
         $this->assertCount(2, $deserializedConversation->getMessages());
     }
+
+    public function testErrorFlagSurvivesSerializationRoundTrip(): void {
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUser(new LLMMessageContents([
+                new LLMMessageToolResult('tool-1', LLMMessageContents::fromErrorString('ERROR: something failed')),
+            ])),
+        ]);
+
+        $data = json_decode(json_encode($conversation, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+        $deserialized = LLMConversation::fromJson($data);
+
+        $toolResult = $deserialized->getMessages()[0]->getContents()[0];
+        $this->assertInstanceOf(LLMMessageToolResult::class, $toolResult);
+        $this->assertTrue($toolResult->getContent()->isError());
+    }
+
+    public function testFromJsonAcceptsLegacyContentFormat(): void {
+        // Before the isError flag was serialized, contents were stored as a plain list
+        $legacyContents = [
+            ['class' => LLMMessageText::class, 'data' => ['text' => 'Hello', 'cached' => false]],
+        ];
+
+        $contents = LLMMessageContents::fromJson($legacyContents);
+
+        $this->assertCount(1, $contents);
+        $this->assertInstanceOf(LLMMessageText::class, $contents[0]);
+        $this->assertSame('Hello', $contents[0]->getText());
+        $this->assertFalse($contents->isError());
+    }
 }

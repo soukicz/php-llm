@@ -3,7 +3,7 @@
 namespace Soukicz\Llm\Message;
 
 class LLMMessageReasoning implements LLMMessageContent {
-    public function __construct(private string $text, private readonly ?string $signature, private readonly bool $cached = false) {
+    public function __construct(private readonly string $text, private readonly ?string $signature, private readonly bool $cached = false) {
     }
 
     public function getText(): string {

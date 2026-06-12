@@ -100,7 +100,7 @@ class LLMRequest {
 
         $clone->previousInputTokens += $inputTokens;
         $clone->previousOutputTokens += $outputTokens;
-        if ($outputTokens > $this->previousMaximumOutputTokens) {
+        if ($outputTokens > $clone->previousMaximumOutputTokens) {
             $clone->previousMaximumOutputTokens = $outputTokens;
         }
         $clone->previousInputCostUSD += $previousInputCostUSD;
