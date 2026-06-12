@@ -225,11 +225,15 @@ abstract class AbstractOpenAIClient extends OpenAIEncoder implements LLMBatchCli
             $result = json_decode($row, true, 512, JSON_THROW_ON_ERROR);
             $content = '';
             foreach ($result['response']['body']['choices'] as $contentPart) {
-                $content = $contentPart['message']['content'];
-                if (is_string($content)) {
-                    $content .= $content;
-                } elseif ($content['type'] === 'text') {
-                    $content .= $content['text'];
+                $messageContent = $contentPart['message']['content'];
+                if (is_string($messageContent)) {
+                    $content .= $messageContent;
+                } elseif (is_array($messageContent)) {
+                    foreach ($messageContent as $part) {
+                        if (($part['type'] ?? null) === 'text') {
+                            $content .= $part['text'];
+                        }
+                    }
                 }
             }
             $responses[$result['custom_id']] = $content;

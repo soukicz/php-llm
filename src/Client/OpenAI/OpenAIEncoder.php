@@ -148,7 +148,7 @@ class OpenAIEncoder implements ModelEncoder {
         $reasoningConfig = $request->getReasoningConfig();
         if ($reasoningConfig) {
             if ($reasoningConfig instanceof ReasoningEffort) {
-                $reasoningValue = match ($reasoningConfig) {
+                $requestData['reasoning_effort'] = match ($reasoningConfig) {
                     ReasoningEffort::NONE => 'none',
                     ReasoningEffort::LOW => 'low',
                     ReasoningEffort::MINIMAL => 'minimal',
@@ -156,9 +156,6 @@ class OpenAIEncoder implements ModelEncoder {
                     ReasoningEffort::HIGH => 'high',
                     ReasoningEffort::EXTRA_HIGH => 'xhigh',
                 };
-                if ($reasoningValue !== null) {
-                    $requestData['reasoning_effort'] = $reasoningValue;
-                }
             } else {
                 throw new InvalidArgumentException('Unsupported reasoning config type');
             }
@@ -204,8 +201,10 @@ class OpenAIEncoder implements ModelEncoder {
         if (isset($response['usage'])) {
             $promptTokens = $response['usage']['prompt_tokens'];
             $completionTokens = $response['usage']['completion_tokens'];
+            $cachedTokens = $response['usage']['prompt_tokens_details']['cached_tokens'] ?? 0;
 
-            $inputPrice = $promptTokens * ($model->getInputPricePerMillionTokens() / 1_000_000);
+            $inputPrice = ($promptTokens - $cachedTokens) * ($model->getInputPricePerMillionTokens() / 1_000_000)
+                + $cachedTokens * ($model->getCachedInputPricePerMillionTokens() / 1_000_000);
             $outputPrice = $completionTokens * ($model->getOutputPricePerMillionTokens() / 1_000_000);
 
             $request = $request->withCost($promptTokens, $completionTokens, $inputPrice, $outputPrice);
