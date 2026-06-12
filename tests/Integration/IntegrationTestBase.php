@@ -8,9 +8,9 @@ use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Cache\CacheInterface;
 use Soukicz\Llm\Cache\FileCache;
 use Soukicz\Llm\Client\Anthropic\AnthropicClient;
-use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude35Haiku;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Haiku;
 use Soukicz\Llm\Client\Gemini\GeminiClient;
-use Soukicz\Llm\Client\Gemini\Model\Gemini20Flash;
+use Soukicz\Llm\Client\Gemini\Model\Gemini25FlashLite;
 use Soukicz\Llm\Client\LLMClient;
 use Soukicz\Llm\Client\ModelInterface;
 use Soukicz\Llm\Client\OpenAI\Model\GPT4oMini;
@@ -134,8 +134,8 @@ abstract class IntegrationTestBase extends TestCase {
         if (!empty($_ENV['ANTHROPIC_API_KEY'])) {
             $clients[] = [
                 'client' => new AnthropicClient($_ENV['ANTHROPIC_API_KEY'], $this->cache),
-                'model' => new AnthropicClaude35Haiku(AnthropicClaude35Haiku::VERSION_20241022),
-                'name' => 'Anthropic Claude 3.5 Haiku',
+                'model' => new AnthropicClaude45Haiku(AnthropicClaude45Haiku::VERSION_20251001),
+                'name' => 'Anthropic Claude 4.5 Haiku',
             ];
         }
 
@@ -150,15 +150,15 @@ abstract class IntegrationTestBase extends TestCase {
         if (!empty($_ENV['GEMINI_API_KEY'])) {
             $clients[] = [
                 'client' => new GeminiClient($_ENV['GEMINI_API_KEY'], $this->cache),
-                'model' => new Gemini20Flash(),
-                'name' => 'Google Gemini 2.0 Flash',
+                'model' => new Gemini25FlashLite(),
+                'name' => 'Google Gemini 2.5 Flash Lite',
             ];
         }
 
         if (!empty($_ENV['OPENROUTER_API_KEY'])) {
             $clients[] = [
                 'client' => new OpenAICompatibleClient($_ENV['OPENROUTER_API_KEY'], 'https://openrouter.ai/api/v1', $this->cache),
-                'model' => new LocalModel('openrouter/horizon-beta'),
+                'model' => new LocalModel('openai/gpt-4o-mini'),
                 'name' => 'OpenRouter',
             ];
         }
