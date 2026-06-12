@@ -3,6 +3,7 @@
 namespace Soukicz\Llm\Http;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Promise\Create;
@@ -66,15 +67,21 @@ class HttpClientFactory {
     }
 
     private static function addRetryMiddleware(HandlerStack $handler): void {
-        $decider = static function (int $retries, RequestInterface $request, ?ResponseInterface $response = null): bool {
+        $decider = static function (int $retries, RequestInterface $request, ?ResponseInterface $response = null, ?\Throwable $exception = null): bool {
+            if ($retries >= self::MAX_RETRIES) {
+                return false;
+            }
+            if ($exception instanceof ConnectException) {
+                return true;
+            }
+
             return
-                $retries < self::MAX_RETRIES
-                && null !== $response
+                null !== $response
                 && in_array($response->getStatusCode(), [429, 529, 500, 502, 503, 504], true);
         };
 
-        $delay = static function (int $retries, ResponseInterface $response): int {
-            if (!$response->hasHeader('Retry-After')) {
+        $delay = static function (int $retries, ?ResponseInterface $response = null): int {
+            if ($response === null || !$response->hasHeader('Retry-After')) {
                 return RetryMiddleware::exponentialDelay($retries);
             }
 
