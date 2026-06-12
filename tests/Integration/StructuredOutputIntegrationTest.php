@@ -7,7 +7,7 @@ namespace Soukicz\Llm\Tests\Integration;
 use Soukicz\Llm\Client\Anthropic\AnthropicClient;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Haiku;
 use Soukicz\Llm\Client\Gemini\GeminiClient;
-use Soukicz\Llm\Client\Gemini\Model\Gemini20Flash;
+use Soukicz\Llm\Client\Gemini\Model\Gemini25FlashLite;
 use Soukicz\Llm\Client\LLMAgentClient;
 use Soukicz\Llm\Client\LLMClient;
 use Soukicz\Llm\Client\ModelInterface;
@@ -177,8 +177,8 @@ class StructuredOutputIntegrationTest extends IntegrationTestBase {
         if (!empty($_ENV['GEMINI_API_KEY'])) {
             $clients[] = [
                 'client' => new GeminiClient($_ENV['GEMINI_API_KEY'], $this->cache),
-                'model' => new Gemini20Flash(),
-                'name' => 'Google Gemini 2.0 Flash',
+                'model' => new Gemini25FlashLite(),
+                'name' => 'Google Gemini 2.5 Flash Lite',
             ];
         }
 

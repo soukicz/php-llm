@@ -377,7 +377,7 @@ class UniversalLLMIntegrationTest extends IntegrationTestBase {
     public function testStopSequence($client, $model, $name): void {
         $conversation = new LLMConversation([
             LLMMessage::createFromUserString(
-                'Count from 1 to 10 with "STOP" after 5. Like this: 1 2 3 4 5 STOP'
+                'Output the numbers 1 to 10 separated by spaces, with no other text. Like this: 1 2 3 ...'
             ),
         ]);
 
@@ -386,7 +386,7 @@ class UniversalLLMIntegrationTest extends IntegrationTestBase {
             conversation: $conversation,
             temperature: 0.1,
             maxTokens: 200,
-            stopSequences: ['STOP']
+            stopSequences: ['8']
         );
 
         $response = $this->agentClient->run($client, $request);
@@ -401,12 +401,13 @@ class UniversalLLMIntegrationTest extends IntegrationTestBase {
         $this->assertEquals(StopReason::FINISHED, $response->getStopReason(),
             "Expected stop reason to be FINISHED for $name, but got: " . $response->getStopReason()->value);
 
-        // Should contain numbers 1-5
+        // Should contain numbers up to the stop sequence
         $this->assertContainsAny(['1'], $responseText);
         $this->assertContainsAny(['5'], $responseText);
 
-        // Should not contain numbers after 5 (allowing some flexibility)
-        $this->assertStringNotContainsString('10', $responseText);
+        // Should not contain numbers after the stop sequence ("10" is excluded because
+        // models often echo the "1 to 10" instruction in a preamble)
+        $this->assertStringNotContainsString('9', $responseText);
 
         if ($this->verbose) {
             echo "\n[$name] Stop sequence response: " . $responseText;
