@@ -8,6 +8,8 @@ Save and resume AI agent conversations using JSON serialization. Conversation st
 
 **Immutability**: Remember that `LLMConversation` is immutable - use `withMessage()` to add messages, which returns a new instance.
 
+**Thread ID**: Every `LLMConversation` has a thread ID - an auto-generated UUID, or a value you pass as the second constructor argument (`new LLMConversation([], 'my-thread-id')`). It is preserved by `withMessage()` and JSON serialization, and `getThreadId()` makes it a convenient key for persisting conversations.
+
 ## Saving Conversations
 
 ```php
@@ -165,7 +167,7 @@ $_SESSION['conversation'] = json_encode($conversation);
 // Load from session
 $conversation = isset($_SESSION['conversation'])
     ? LLMConversation::fromJson(json_decode($_SESSION['conversation'], true))
-    : new LLMConversation();
+    : new LLMConversation([]);
 ```
 
 ## Conversation History Management
@@ -188,10 +190,10 @@ function trimConversation(LLMConversation $conversation, int $maxMessages): LLMC
         return $conversation;
     }
 
-    // Keep most recent messages
+    // Keep most recent messages (preserve the thread ID)
     $trimmedMessages = array_slice($messages, -$maxMessages);
 
-    return new LLMConversation($trimmedMessages);
+    return new LLMConversation($trimmedMessages, $conversation->getThreadId());
 }
 
 $conversation = trimConversation($conversation, 20); // Keep last 20 messages
@@ -259,7 +261,7 @@ class ChatService {
         }
 
         // Create new conversation
-        $conversation = new LLMConversation();
+        $conversation = new LLMConversation([]);
         $this->saveConversation($userId, $conversation);
 
         return $conversation;
@@ -281,9 +283,9 @@ class ChatService {
             )
         );
 
-        // Add AI response (immutable - returns new instance)
-        $conversation = $conversation->withMessage($response->getLastMessage());
-        $this->saveConversation($userId, $conversation);
+        // The response's conversation already includes the assistant reply
+        // (and any tool use/result messages) - persist that
+        $this->saveConversation($userId, $response->getConversation());
 
         return $response->getLastText();
     }

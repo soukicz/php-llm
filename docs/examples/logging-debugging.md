@@ -12,36 +12,32 @@ use Soukicz\Llm\MarkdownFormatter;
 
 $formatter = new MarkdownFormatter();
 
-// Format response
+// Format a response (includes the request parameters, the full conversation and stats)
 $markdown = $formatter->responseToMarkdown($response);
 echo $markdown;
 
-// Format request
-$markdown = $formatter->requestToMarkdown($request);
+// The same method also accepts a request (e.g. before a response is available)
+$markdown = $formatter->responseToMarkdown($request);
 echo $markdown;
 ```
 
 **Sample Output:**
 
 ```markdown
-## Request
-**Model:** claude-sonnet-4-5-20250929
-**Temperature:** 1.0
-**Messages:** 2
-
-### User
+ - **Model:** claude-sonnet-4-6
+ - **Temperature:** 0
+ - **Max tokens:** 4096
+## User:
 What is the capital of France?
 
----
-
-## Response
-**Stop Reason:** end_turn
-**Input Tokens:** 15
-**Output Tokens:** 8
-**Cost:** $0.000345
-
-### Assistant
+## Assistant:
 The capital of France is Paris.
+
+----------------------
+
+##### Total stats
+
+Finished in 1.823s, prompt tokens: 15, completion tokens: 8, maximum completion tokens: 4096, total tokens: 23, price: $0.000
 ```
 
 ## Custom Logger
@@ -64,7 +60,7 @@ readonly class LLMFileLogger implements LLMLogger {
     }
 
     public function requestStarted(LLMRequest $request): void {
-        $markdown = $this->formatter->requestToMarkdown($request);
+        $markdown = $this->formatter->responseToMarkdown($request);
         file_put_contents($this->logPath, $markdown . "\n\n", FILE_APPEND);
     }
 
@@ -143,8 +139,8 @@ $agentClient = new LLMAgentClient($logger);
 **Sample Log Output:**
 
 ```
-[2025-01-15 10:23:45] llm.INFO: LLM Request Started {"model":"claude-sonnet-4-5-20250929","messages":1}
-[2025-01-15 10:23:47] llm.INFO: LLM Request Finished {"model":"claude-sonnet-4-5-20250929","input_tokens":15,"output_tokens":8,"cost":0.000345,"response_time_ms":1823}
+[2026-06-12 10:23:45] llm.INFO: LLM Request Started {"model":"claude-sonnet-4-6","messages":1}
+[2026-06-12 10:23:47] llm.INFO: LLM Request Finished {"model":"claude-sonnet-4-6","input_tokens":15,"output_tokens":8,"cost":0.000345,"response_time_ms":1823}
 ```
 
 ## HTTP Middleware Logging
@@ -190,7 +186,7 @@ try {
 } catch (LLMClientException $e) {
     // Log error details
     error_log("LLM Error: " . $e->getMessage());
-    error_log("Request: " . $formatter->requestToMarkdown($request));
+    error_log("Request: " . $formatter->responseToMarkdown($request));
 
     // Check if it's a rate limit
     if ($e->getCode() === 429) {
@@ -210,13 +206,16 @@ class PerformanceLogger implements LLMLogger {
     private array $timings = [];
 
     public function requestStarted(LLMRequest $request): void {
-        $this->timings[spl_object_id($request)] = microtime(true);
+        // Key by the conversation thread ID: the LLMRequest available in
+        // requestFinished() is a different (cloned) object, so spl_object_id()
+        // would not match between the two callbacks
+        $this->timings[$request->getConversation()->getThreadId()] = microtime(true);
     }
 
     public function requestFinished(LLMResponse $response): void {
-        $requestId = spl_object_id($response->getRequest());
-        $duration = isset($this->timings[$requestId])
-            ? (microtime(true) - $this->timings[$requestId]) * 1000
+        $threadId = $response->getRequest()->getConversation()->getThreadId();
+        $duration = isset($this->timings[$threadId])
+            ? (microtime(true) - $this->timings[$threadId]) * 1000
             : $response->getTotalTimeMs();
 
         $totalTokens = $response->getInputTokens() + $response->getOutputTokens();
@@ -230,7 +229,7 @@ class PerformanceLogger implements LLMLogger {
             $totalCost
         );
 
-        unset($this->timings[$requestId]);
+        unset($this->timings[$threadId]);
     }
 }
 ```
@@ -238,8 +237,8 @@ class PerformanceLogger implements LLMLogger {
 **Sample Output:**
 
 ```
-Request claude-sonnet-4-5-20250929: 1823ms, 23 tokens, $0.000345
-Request gpt-5-2025-08-07: 956ms, 45 tokens, $0.000890
+Request claude-sonnet-4-6: 1823ms, 23 tokens, $0.000345
+Request gpt-5.4-2026-03-05: 956ms, 45 tokens, $0.000890
 Request gemini-2.5-pro: 1245ms, 31 tokens, $0.000520
 ```
 
@@ -253,15 +252,15 @@ class DebugLogger implements LLMLogger {
     public function requestStarted(LLMRequest $request): void {
         echo "=== REQUEST STARTED ===\n";
         echo "Model: " . $request->getModel()->getCode() . "\n";
-        echo "Temperature: " . ($request->getTemperature() ?? 'default') . "\n";
-        echo "Max Tokens: " . ($request->getMaxTokens() ?? 'default') . "\n";
+        echo "Temperature: " . $request->getTemperature() . "\n";
+        echo "Max Tokens: " . $request->getMaxTokens() . "\n";
         echo "Messages: " . count($request->getConversation()->getMessages()) . "\n";
         echo "Tools: " . count($request->getTools()) . "\n\n";
     }
 
     public function requestFinished(LLMResponse $response): void {
         echo "=== REQUEST FINISHED ===\n";
-        echo "Stop Reason: " . $response->getStopReason() . "\n";
+        echo "Stop Reason: " . $response->getStopReason()->value . "\n";
         echo "Response Time: " . $response->getTotalTimeMs() . "ms\n";
         echo "Input Tokens: " . $response->getInputTokens() . "\n";
         echo "Output Tokens: " . $response->getOutputTokens() . "\n";
@@ -279,14 +278,14 @@ class DebugLogger implements LLMLogger {
 
 ```
 === REQUEST STARTED ===
-Model: claude-sonnet-4-5-20250929
-Temperature: 1.0
-Max Tokens: 2048
+Model: claude-sonnet-4-6
+Temperature: 0
+Max Tokens: 4096
 Messages: 1
 Tools: 0
 
 === REQUEST FINISHED ===
-Stop Reason: end_turn
+Stop Reason: finished
 Response Time: 1823ms
 Input Tokens: 15
 Output Tokens: 8
@@ -321,7 +320,7 @@ class JSONLogger implements LLMLogger {
             'output_cost' => $outputCost,
             'total_cost' => $inputCost + $outputCost,
             'response_time_ms' => $response->getTotalTimeMs(),
-            'stop_reason' => $response->getStopReason(),
+            'stop_reason' => $response->getStopReason()->value,
         ];
 
         file_put_contents(
@@ -336,9 +335,9 @@ class JSONLogger implements LLMLogger {
 **Sample Log Output (llm.json):**
 
 ```json
-{"timestamp":"2025-01-15T10:23:47+00:00","model":"claude-sonnet-4-5-20250929","input_tokens":15,"output_tokens":8,"total_tokens":23,"input_cost":0.000045,"output_cost":0.0003,"total_cost":0.000345,"response_time_ms":1823,"stop_reason":"end_turn"}
-{"timestamp":"2025-01-15T10:24:12+00:00","model":"gpt-5-2025-08-07","input_tokens":22,"output_tokens":45,"total_tokens":67,"input_cost":0.00011,"output_cost":0.00078,"total_cost":0.00089,"response_time_ms":956,"stop_reason":"stop"}
-{"timestamp":"2025-01-15T10:25:03+00:00","model":"gemini-2.5-pro","input_tokens":18,"output_tokens":31,"total_tokens":49,"input_cost":0.00009,"output_cost":0.00043,"total_cost":0.00052,"response_time_ms":1245,"stop_reason":"STOP"}
+{"timestamp":"2026-06-12T10:23:47+00:00","model":"claude-sonnet-4-6","input_tokens":15,"output_tokens":8,"total_tokens":23,"input_cost":0.000045,"output_cost":0.0003,"total_cost":0.000345,"response_time_ms":1823,"stop_reason":"finished"}
+{"timestamp":"2026-06-12T10:24:12+00:00","model":"gpt-5.4-2026-03-05","input_tokens":22,"output_tokens":45,"total_tokens":67,"input_cost":0.00011,"output_cost":0.00078,"total_cost":0.00089,"response_time_ms":956,"stop_reason":"finished"}
+{"timestamp":"2026-06-12T10:25:03+00:00","model":"gemini-2.5-pro","input_tokens":18,"output_tokens":31,"total_tokens":49,"input_cost":0.00009,"output_cost":0.00043,"total_cost":0.00052,"response_time_ms":1245,"stop_reason":"finished"}
 ```
 
 This format is ideal for log aggregation tools like ELK stack, Splunk, or DataDog.

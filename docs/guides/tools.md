@@ -126,44 +126,35 @@ handler: function (array $input): PromiseInterface {
 
 **Note:** Tool handlers cannot return plain arrays or scalar values. Always wrap your results in `LLMMessageContents::fromArrayData()`.
 
-**Tip:** If you need to convert `LLMMessageContents` back to a plain array (e.g., for testing), use the `toArray()` method:
+**Tip:** If you need to inspect the contents of an `LLMMessageContents` (e.g., for testing), iterate over it or call `getMessages()` — it returns the individual `LLMMessageContent` items:
 ```php
 <?php
+use Soukicz\Llm\Message\LLMMessageArrayData;
+
 $result = $tool->handle(['input' => 'value']);
-$array = $result->toArray();  // Converts to plain array
+foreach ($result->getMessages() as $content) {
+    if ($content instanceof LLMMessageArrayData) {
+        $array = $content->getData();  // The plain array passed to fromArrayData()
+    }
+}
 ```
 
 ## Built-in Tools
 
 ### Text Editor Tool
 
-For building file-manipulation agents with Anthropic models, you can use the `TextEditorTool`. This tool requires a custom storage implementation.
+For building file-manipulation agents, use the `TextEditorTool`. The library ships with two ready-to-use storage backends, so no custom code is needed:
 
-**Note:** This is an advanced feature that requires implementing the `TextEditorStorage` interface to handle file operations securely.
+- `TextEditorStorageFilesystem` - Works on real files, sandboxed to a base directory (path traversal and symlink escapes are blocked)
+- `TextEditorStorageMemory` - Keeps files in memory, ideal for tests or ephemeral workspaces
 
 ```php
 <?php
+use Soukicz\Llm\Tool\TextEditor\TextEditorStorageFilesystem;
 use Soukicz\Llm\Tool\TextEditor\TextEditorTool;
-use Soukicz\Llm\Tool\TextEditor\TextEditorStorage;
 
-// You need to implement TextEditorStorage interface
-class MyTextEditorStorage implements TextEditorStorage {
-    public function __construct(private string $basePath) {}
-
-    public function read(string $path): string {
-        // Implement secure file reading
-        return file_get_contents($this->basePath . '/' . $path);
-    }
-
-    public function write(string $path, string $content): void {
-        // Implement secure file writing
-        file_put_contents($this->basePath . '/' . $path, $content);
-    }
-
-    // Implement other required methods...
-}
-
-$storage = new MyTextEditorStorage('/path/to/working/directory');
+// All file operations are restricted to this directory
+$storage = new TextEditorStorageFilesystem('/path/to/working/directory');
 $textEditorTool = new TextEditorTool($storage);
 
 $request = new LLMRequest(
@@ -181,7 +172,9 @@ The text editor tool supports:
 - `str_replace` - Replace text in files
 - `insert` - Insert text at specific line numbers
 
-**Security Considerations:** When implementing `TextEditorStorage`, ensure proper path validation, access controls, and sandboxing to prevent unauthorized file access.
+When used with Anthropic models, the tool is automatically registered as Claude's native text editor tool; with other providers it works as a regular function-calling tool.
+
+**Custom storage:** For other backends (database, S3, ...), implement the `TextEditorStorage` interface. It defines file operations (`getFileContent`, `setFileContent`, `createFile`, `deleteFile`, `renameFile`, `isFile`) and directory operations (`getDirectoryContent`, `createDirectory`, `deleteDirectory`, `renameDirectory`, `isDirectory`) — see `Soukicz\Llm\Tool\TextEditor\TextEditorStorage` for the exact signatures. Ensure proper path validation and sandboxing to prevent unauthorized file access.
 
 ## Input Schema
 
@@ -258,5 +251,6 @@ The `inputSchema` follows JSON Schema specification. Common patterns:
 ## See Also
 
 - [Feedback Loops](feedback-loops.md) - Validate tool outputs
+- [Structured Output](structured-output.md) - Combine tools with schema-constrained responses
 - [Examples](../examples/index.md) - More tool examples
 - [Provider Documentation](../providers/README.md) - Provider-specific tool features

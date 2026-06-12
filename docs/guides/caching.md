@@ -13,7 +13,7 @@ All PHP LLM clients support caching at the HTTP request level. When enabled:
 
 ## File Cache
 
-The built-in `FileCache` stores responses on the filesystem:
+The built-in `FileCache` stores responses on the filesystem. The directory must already exist — the constructor throws a `RuntimeException` otherwise:
 
 ```php
 <?php
@@ -70,33 +70,48 @@ $client = new AnthropicClient('sk-xxxxx', $cache);
 
 ## Custom Cache Implementation
 
-Implement the `CacheInterface` for custom caching:
+The cache operates on PSR-7 HTTP messages. The `CacheInterface` has three methods:
 
 ```php
 <?php
-use Soukicz\Llm\Cache\CacheInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 
-class RedisCache implements CacheInterface {
+interface CacheInterface {
+    public function fetch(RequestInterface $request): ?ResponseInterface;
+
+    public function store(RequestInterface $request, ResponseInterface $response): void;
+
+    public function invalidate(RequestInterface $request): void;
+}
+```
+
+For custom backends, extend `AbstractCache` — it provides `getCacheKey(RequestInterface): string` (a SHA-512 hash of URL, method and body) plus `responseToJson()`/`responseFromJson()` helpers for serializing PSR-7 responses:
+
+```php
+<?php
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use Soukicz\Llm\Cache\AbstractCache;
+
+class RedisCache extends AbstractCache {
     public function __construct(
-        private Redis $redis,
-        private int $ttl = 3600
+        private readonly Redis $redis,
+        private readonly int $ttl = 3600
     ) {}
 
-    public function get(string $key): ?string {
-        $value = $this->redis->get($key);
-        return $value !== false ? $value : null;
+    public function fetch(RequestInterface $request): ?ResponseInterface {
+        $json = $this->redis->get($this->getCacheKey($request));
+
+        return $json !== false ? $this->responseFromJson($json) : null;
     }
 
-    public function set(string $key, string $value): void {
-        $this->redis->setex($key, $this->ttl, $value);
+    public function store(RequestInterface $request, ResponseInterface $response): void {
+        $this->redis->setex($this->getCacheKey($request), $this->ttl, $this->responseToJson($response));
     }
 
-    public function has(string $key): bool {
-        return $this->redis->exists($key) > 0;
-    }
-
-    public function delete(string $key): void {
-        $this->redis->del($key);
+    public function invalidate(RequestInterface $request): void {
+        $this->redis->del($this->getCacheKey($request));
     }
 }
 ```
@@ -109,14 +124,16 @@ $client = new AnthropicClient('sk-xxxxx', $cache);
 
 ## Cache Keys
 
-Cache keys are generated from:
-- API endpoint
-- Model name and version
-- Request parameters (temperature, maxTokens, etc.)
-- Conversation messages
-- Tool definitions
+Cache keys are a SHA-512 hash of the HTTP request:
+- Request URL (API endpoint, including the model for Gemini)
+- HTTP method
+- Request body (model, temperature, maxTokens, conversation messages, tool definitions, ...)
+
+Any change to the request body produces a new cache key.
 
 **Important:** Always use exact model versions to prevent stale cached responses.
+
+**Security caveat:** The cache key does **not** include request headers, so API keys are not part of the key. Identical requests share cache entries regardless of which credentials were used. The cache is intended for development, testing and request deduplication — do not rely on it for multi-tenant isolation.
 
 ## Best Practices
 
@@ -207,38 +224,45 @@ $client = new AnthropicClient('sk-xxxxx', null);
 
 ## Monitoring Cache Performance
 
-Track cache hit rates:
+Track cache hit rates by decorating another cache:
 
 ```php
 <?php
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use Soukicz\Llm\Cache\CacheInterface;
+
 class CacheMonitor implements CacheInterface {
     private int $hits = 0;
     private int $misses = 0;
 
     public function __construct(
-        private CacheInterface $cache
+        private readonly CacheInterface $cache
     ) {}
 
-    public function get(string $key): ?string {
-        $value = $this->cache->get($key);
-        if ($value !== null) {
+    public function fetch(RequestInterface $request): ?ResponseInterface {
+        $response = $this->cache->fetch($request);
+        if ($response !== null) {
             $this->hits++;
         } else {
             $this->misses++;
         }
-        return $value;
+
+        return $response;
     }
 
-    public function set(string $key, string $value): void {
-        $this->cache->set($key, $value);
+    public function store(RequestInterface $request, ResponseInterface $response): void {
+        $this->cache->store($request, $response);
+    }
+
+    public function invalidate(RequestInterface $request): void {
+        $this->cache->invalidate($request);
     }
 
     public function getHitRate(): float {
         $total = $this->hits + $this->misses;
         return $total > 0 ? $this->hits / $total : 0;
     }
-
-    // Implement other interface methods...
 }
 ```
 
@@ -255,31 +279,36 @@ echo "Cache hit rate: " . ($cache->getHitRate() * 100) . "%\n";
 
 ### Manual Cleanup
 
+`invalidate()` removes the entry for a specific PSR-7 HTTP request. Since you usually don't have the underlying HTTP request at hand, the simplest cleanup for `FileCache` is to delete the cache files:
+
 ```php
 <?php
-// Clear specific cache entry
-$cache->delete($cacheKey);
-
-// Clear all cache (FileCache example)
-array_map('unlink', glob('/tmp/llm-cache/*'));
+// Clear all cache (FileCache stores one .json file per entry)
+array_map('unlink', glob('/tmp/llm-cache/*.json'));
 ```
 
 ### Automatic Expiration
 
-Implement TTL in custom cache:
+Implement TTL in a custom cache by extending `AbstractCache`:
 
 ```php
 <?php
-class TTLFileCache implements CacheInterface {
-    private int $ttl;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use Soukicz\Llm\Cache\AbstractCache;
 
-    public function __construct(string $directory, int $ttlSeconds = 3600) {
-        $this->directory = $directory;
-        $this->ttl = $ttlSeconds;
+class TTLFileCache extends AbstractCache {
+    public function __construct(
+        private readonly string $directory,
+        private readonly int $ttl = 3600
+    ) {}
+
+    private function getPath(RequestInterface $request): string {
+        return $this->directory . '/' . md5($this->getCacheKey($request)) . '.json';
     }
 
-    public function get(string $key): ?string {
-        $file = $this->getFilePath($key);
+    public function fetch(RequestInterface $request): ?ResponseInterface {
+        $file = $this->getPath($request);
 
         if (!file_exists($file)) {
             return null;
@@ -288,13 +317,20 @@ class TTLFileCache implements CacheInterface {
         // Check if expired
         if (time() - filemtime($file) > $this->ttl) {
             unlink($file);
+
             return null;
         }
 
-        return file_get_contents($file);
+        return $this->responseFromJson(file_get_contents($file));
     }
 
-    // Implement other methods...
+    public function store(RequestInterface $request, ResponseInterface $response): void {
+        file_put_contents($this->getPath($request), $this->responseToJson($response), LOCK_EX);
+    }
+
+    public function invalidate(RequestInterface $request): void {
+        @unlink($this->getPath($request));
+    }
 }
 ```
 
@@ -306,16 +342,17 @@ Example cost calculation:
 <?php
 $request = new LLMRequest(/*...*/);
 
-// First request - hits API ($0.015)
+// First request - hits the API
 $response1 = $agentClient->run($client, $request);
-echo "Cost: $" . $response1->getTokenUsage()->getTotalCost() . "\n";
+echo "Cost: $" . ($response1->getInputPriceUsd() + $response1->getOutputPriceUsd()) . "\n";
 
-// Cached request - no cost ($0.00)
+// Identical request - served from the cache, no API call is made
 $response2 = $agentClient->run($client, $request);
-echo "Cost: $" . $response2->getTokenUsage()->getTotalCost() . "\n";
 
 // 100% savings on repeated requests!
 ```
+
+Note that the reported price is calculated from the token counts in the response, so a cached response still reports the original cost — but no API call is made and nothing is billed.
 
 ## See Also
 

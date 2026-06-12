@@ -211,10 +211,9 @@ $response = $agentClient->run($client, new LLMRequest(
 $textDeltas = array_filter($events, fn($e) => $e->type === StreamEventType::TEXT_DELTA);
 assert(count($textDeltas) > 0, 'Expected text deltas');
 
-// The accumulated text matches the final response
+// The accumulated text matches the final response on all providers
 $streamedText = implode('', array_map(fn($e) => $e->delta, $textDeltas));
-// Note: For Anthropic/OpenAI, this equals $response->getLastText()
-// For Gemini, text parts are separate (each chunk is a distinct text part)
+assert($streamedText === $response->getLastText());
 ```
 
 ### Logging Tool Calls with Timing

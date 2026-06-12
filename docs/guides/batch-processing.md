@@ -11,7 +11,7 @@ Batch processing allows you to:
 - Save costs (often 50% cheaper than real-time)
 - Handle large-scale operations
 
-**Note:** Batch processing support varies by provider. Check provider-specific documentation.
+**Note:** Batch processing support varies by provider. Both `AnthropicClient` and `OpenAIClient` implement batches; Gemini does not.
 
 ## LLMBatchClient Interface
 
@@ -28,6 +28,9 @@ interface LLMBatchClient {
 }
 ```
 
+- `createBatch()` takes an array of `LLMRequest` objects **keyed by your custom ID** and returns the provider's batch ID.
+- `retrieveBatch()` returns `null` while the batch is still in progress. Once finished, it returns an array mapping each custom ID to the response text content.
+
 ## Basic Usage
 
 ### Submit Batch
@@ -43,10 +46,10 @@ use Soukicz\Llm\Message\LLMMessage;
 /** @var LLMBatchClient $client */
 $client = new OpenAIClient('sk-xxxxx', 'org-xxxxx');
 
-// Prepare multiple requests
+// Prepare multiple requests, keyed by a custom ID of your choice
 $requests = [];
 for ($i = 0; $i < 1000; $i++) {
-    $requests[] = new LLMRequest(
+    $requests["document-$i"] = new LLMRequest(
         model: new GPT5(GPT5::VERSION_2025_08_07),
         conversation: new LLMConversation([
             LLMMessage::createFromUserString("Summarize document $i")
@@ -63,13 +66,14 @@ echo "Batch created: $batchId\n";
 
 ```php
 <?php
-// Retrieve batch information (returns null if not ready, array with status and results when complete)
-$batch = $client->retrieveBatch($batchId);
+// Returns null while the batch is in progress,
+// or an array of [custom ID => response text] when finished
+$results = $client->retrieveBatch($batchId);
 
-if ($batch !== null) {
-    // Batch information available
-    // Check provider-specific documentation for exact response format
-    var_dump($batch);
+if ($results !== null) {
+    foreach ($results as $customId => $text) {
+        echo "$customId: $text\n";
+    }
 }
 ```
 
@@ -87,9 +91,9 @@ $client = new OpenAIClient('sk-xxxxx', 'org-xxxxx');
 
 // Prepare batch of classification tasks
 $texts = [
-    'This product is amazing!',
-    'Terrible service, would not recommend.',
-    'It\'s okay, nothing special.',
+    'review-1' => 'This product is amazing!',
+    'review-2' => 'Terrible service, would not recommend.',
+    'review-3' => 'It\'s okay, nothing special.',
     // ... 1000s more
 ];
 
@@ -101,7 +105,7 @@ $requests = array_map(
         ])
     ),
     $texts
-);
+); // array_map preserves the string keys, which become custom IDs
 
 // Submit batch
 $batchId = $client->createBatch($requests);
@@ -109,19 +113,16 @@ $batchId = $client->createBatch($requests);
 // Poll until complete
 do {
     sleep(60); // Wait 1 minute
-    $batch = $client->retrieveBatch($batchId);
+    $results = $client->retrieveBatch($batchId);
+} while ($results === null);
 
-    if ($batch !== null) {
-        // Check provider-specific response format for status
-        echo "Batch retrieved\n";
-        break;
-    }
-} while (true);
-
-// Process batch results
-// Note: Exact format depends on provider implementation
-var_dump($batch);
+// Process batch results: custom ID => response text
+foreach ($results as $customId => $text) {
+    echo "$customId: $text\n";
+}
 ```
+
+The same code works with `AnthropicClient` — only the client and model classes change.
 
 ## Async Polling
 
@@ -232,27 +233,33 @@ $batchId = $client->createBatch($requests);
 
 ## Error Handling
 
+There is no dedicated batch exception class. Batch creation fails with a Guzzle HTTP exception (e.g. `GuzzleHttp\Exception\ClientException`), and `retrieveBatch()` throws a `\RuntimeException` when the batch itself failed (e.g. OpenAI produced only an error file) or returned an unexpected status:
+
 ```php
 <?php
+use GuzzleHttp\Exception\GuzzleException;
+
 try {
     $batchId = $client->createBatch($requests);
-} catch (BatchCreationException $e) {
-    // Handle batch creation error
+} catch (GuzzleException $e) {
+    // Handle batch creation error (invalid request, rate limit, ...)
     echo "Failed to create batch: " . $e->getMessage();
 
     // Retry with smaller batch size
-    $smallerBatches = array_chunk($requests, 500);
+    $smallerBatches = array_chunk($requests, 500, preserve_keys: true);
     foreach ($smallerBatches as $batch) {
-        $batchId = $client->createBatch($batch);
+        $batchIds[] = $client->createBatch($batch);
     }
 }
 
 // Retrieve batch results
-$batch = $client->retrieveBatch($batchId);
-if ($batch !== null) {
-    // Process batch results according to provider-specific format
-    // Check provider documentation for exact structure
-    processResults($batch);
+try {
+    $results = $client->retrieveBatch($batchId);
+    if ($results !== null) {
+        processResults($results); // custom ID => response text
+    }
+} catch (\RuntimeException $e) {
+    echo "Batch failed: " . $e->getMessage();
 }
 ```
 
@@ -273,10 +280,16 @@ echo "Savings: $" . ($realTimeCost - $batchCost); // $50
 
 ## Provider Support
 
-- ✅ **OpenAI** - Full batch API support
-- ⚠️ **Anthropic** - Check current API documentation
-- ⚠️ **Google Gemini** - Check current API documentation
-- ❌ **OpenAI-compatible** - Varies by provider
+- ✅ **OpenAI** - `OpenAIClient` implements `LLMBatchClient` (uploads a JSONL file via `/files` and creates a `/batches` job with a 24h completion window)
+- ✅ **Anthropic** - `AnthropicClient` implements `LLMBatchClient` (uses the `/v1/messages/batches` API)
+- ❌ **Google Gemini** - Not supported by `GeminiClient`
+- ⚠️ **OpenAI-compatible** - `OpenAICompatibleClient` inherits the batch methods, but the provider must support the OpenAI files and batches endpoints
+
+## Implementation Notes
+
+- Custom IDs are the array keys you pass to `createBatch()` and they identify each result returned by `retrieveBatch()`.
+- `retrieveBatch()` extracts only the **text content** of each response. Tool calls, structured output and other content types are not decoded.
+- For OpenAI, when a completed batch produced only an error file, `retrieveBatch()` throws a `\RuntimeException` with the error details (or returns an empty array when the batch is older than 3 days).
 
 ## Limitations
 

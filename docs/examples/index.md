@@ -4,7 +4,7 @@ Practical, copy-paste ready examples to help you get started with PHP LLM and bu
 
 ## Getting Started
 
-- **[Quick Start](quick-start.md)** - Get up and running in minutes with basic examples for simple synchronous requests, conversation management, and streaming responses.
+- **[Quick Start](quick-start.md)** - Get up and running in minutes with basic examples for simple synchronous requests, async requests, and conversation management.
 
 ## Core Functionality
 
@@ -24,7 +24,7 @@ Practical, copy-paste ready examples to help you get started with PHP LLM and bu
 
 These examples cover:
 - **Basic usage**: Simple requests, conversations
-- **Advanced features**: Tools, multimodal, [streaming](../guides/streaming.md), caching, reasoning models
+- **Advanced features**: Tools, multimodal, caching, reasoning models (see also the [streaming guide](../guides/streaming.md))
 - **Production patterns**: Error handling, logging, retries, resilience
 - **Best practices**: Security, performance, cost optimization
 - **Real-world scenarios**: Practical code you can adapt to your needs

@@ -73,12 +73,12 @@ function analyzeUIScreenshot(string $screenshotPath): array {
             conversation: new LLMConversation([
                 LLMMessage::createFromUser(new LLMMessageContents([
                     new LLMMessageText(
-                        'Analyze this UI screenshot and provide:\n' .
-                        '1. Accessibility issues (contrast, font sizes, etc.)\n' .
-                        '2. Layout problems (alignment, spacing, overlapping)\n' .
-                        '3. Responsive design concerns\n' .
-                        '4. UX improvement suggestions\n\n' .
-                        'Format as a structured list with severity levels.'
+                        "Analyze this UI screenshot and provide:\n" .
+                        "1. Accessibility issues (contrast, font sizes, etc.)\n" .
+                        "2. Layout problems (alignment, spacing, overlapping)\n" .
+                        "3. Responsive design concerns\n" .
+                        "4. UX improvement suggestions\n\n" .
+                        "Format as a structured list with severity levels."
                     ),
                     new LLMMessageImage('base64', 'image/png', $imageData)
                 ]))
@@ -194,13 +194,13 @@ function reviewContract(string $contractPdfPath): array {
             conversation: new LLMConversation([
                 LLMMessage::createFromUser(new LLMMessageContents([
                     new LLMMessageText(
-                        'Review this contract and provide:\n' .
-                        '1. Key terms (parties, dates, amounts)\n' .
-                        '2. Obligations and responsibilities\n' .
-                        '3. Termination clauses\n' .
-                        '4. Potential red flags or unusual clauses\n' .
-                        '5. Missing standard clauses\n\n' .
-                        'Format as a structured report.'
+                        "Review this contract and provide:\n" .
+                        "1. Key terms (parties, dates, amounts)\n" .
+                        "2. Obligations and responsibilities\n" .
+                        "3. Termination clauses\n" .
+                        "4. Potential red flags or unusual clauses\n" .
+                        "5. Missing standard clauses\n\n" .
+                        "Format as a structured report."
                     ),
                     new LLMMessagePdf('base64', $pdfData)
                 ]))
@@ -233,13 +233,13 @@ function summarizeResearchPaper(string $paperPdfPath): string {
             conversation: new LLMConversation([
                 LLMMessage::createFromUser(new LLMMessageContents([
                     new LLMMessageText(
-                        'Summarize this research paper. Include:\n' .
-                        '- Research question/hypothesis\n' .
-                        '- Methodology\n' .
-                        '- Key findings\n' .
-                        '- Conclusions\n' .
-                        '- Limitations\n\n' .
-                        'Write for a technical but non-specialist audience (max 500 words).'
+                        "Summarize this research paper. Include:\n" .
+                        "- Research question/hypothesis\n" .
+                        "- Methodology\n" .
+                        "- Key findings\n" .
+                        "- Conclusions\n" .
+                        "- Limitations\n\n" .
+                        "Write for a technical but non-specialist audience (max 500 words)."
                     ),
                     new LLMMessagePdf('base64', $pdfData)
                 ]))
@@ -476,8 +476,9 @@ try {
 <?php
 function supportsMultimodal($model): bool {
     // Check if model supports images/PDFs
-    return $model instanceof AnthropicClaude45Sonnet ||
-           $model instanceof GPT5 ||
+    // (PDF input is supported by Anthropic, OpenAI and Gemini models)
+    return $model instanceof AnthropicClaude46Sonnet ||
+           $model instanceof GPT54 ||
            $model instanceof Gemini25Pro;
 }
 

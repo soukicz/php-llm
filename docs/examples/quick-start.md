@@ -18,7 +18,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 use Soukicz\Llm\Cache\FileCache;
 use Soukicz\Llm\Client\Anthropic\AnthropicClient;
-use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude46Sonnet;
 use Soukicz\Llm\Client\LLMAgentClient;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\LLMConversation;
@@ -37,7 +37,7 @@ $agentClient = new LLMAgentClient();
 $response = $agentClient->run(
     client: $anthropic,
     request: new LLMRequest(
-        model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
+        model: new AnthropicClaude46Sonnet(),
         conversation: new LLMConversation([
             LLMMessage::createFromUserString('What is PHP?')
         ]),
@@ -60,7 +60,7 @@ use Soukicz\Llm\LLMResponse;
 $promise = $agentClient->runAsync(
     client: $anthropic,
     request: new LLMRequest(
-        model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
+        model: new AnthropicClaude46Sonnet(),
         conversation: new LLMConversation([
             LLMMessage::createFromUserString('Explain async programming')
         ]),
@@ -90,18 +90,17 @@ $conversation = new LLMConversation([
 $response = $agentClient->run(
     client: $anthropic,
     request: new LLMRequest(
-        model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
+        model: new AnthropicClaude46Sonnet(),
         conversation: $conversation,
     )
 );
 
 echo "AI: " . $response->getLastText() . "\n"; // "4"
 
-// Add AI response to conversation (returns new instance)
-$conversation = $conversation->withMessage($response->getLastMessage());
-
+// The response's conversation already includes the assistant reply
+// (and any tool use/result messages), so continue from there.
 // Add user's follow-up question (returns new instance)
-$conversation = $conversation->withMessage(
+$conversation = $response->getConversation()->withMessage(
     LLMMessage::createFromUserString('What about 2 * 2?')
 );
 
@@ -109,7 +108,7 @@ $conversation = $conversation->withMessage(
 $response = $agentClient->run(
     client: $anthropic,
     request: new LLMRequest(
-        model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
+        model: new AnthropicClaude46Sonnet(),
         conversation: $conversation,
     )
 );
@@ -126,14 +125,14 @@ PHP LLM provides a unified interface across multiple LLM providers. Simply swap 
 ```php
 <?php
 use Soukicz\Llm\Client\OpenAI\OpenAIClient;
-use Soukicz\Llm\Client\OpenAI\Model\GPT5;
+use Soukicz\Llm\Client\OpenAI\Model\GPT54;
 
 $openai = new OpenAIClient('sk-xxxxx', 'org-xxxxx', $cache);
 
 $response = $agentClient->run(
     client: $openai,
     request: new LLMRequest(
-        model: new GPT5(GPT5::VERSION_2025_08_07),
+        model: new GPT54(GPT54::VERSION_2026_03_05),
         conversation: $conversation,
     )
 );
@@ -172,7 +171,7 @@ $client = new OpenAICompatibleClient(
 $response = $agentClient->run(
     client: $client,
     request: new LLMRequest(
-        model: new LocalModel('anthropic/claude-3.5-sonnet'),
+        model: new LocalModel('anthropic/claude-haiku-4.5'),
         conversation: $conversation,
     )
 );

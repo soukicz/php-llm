@@ -135,6 +135,8 @@ For example, if an agent needs to fetch data from three different sources, runni
 
 ```php
 <?php
+use GuzzleHttp\Promise\Utils;
+
 // Process multiple requests concurrently
 $promises = [];
 
@@ -151,7 +153,7 @@ foreach ($items as $item) {
 }
 
 // Wait for all to complete
-$responses = Promise\Utils::all($promises)->wait();
+$responses = Utils::all($promises)->wait();
 
 // Process results
 foreach ($responses as $response) {
