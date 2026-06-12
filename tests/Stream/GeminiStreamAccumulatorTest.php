@@ -25,19 +25,21 @@ class GeminiStreamAccumulatorTest extends TestCase {
 
         $result = GeminiStreamAccumulator::consume(Utils::streamFor($sse), $listener);
 
-        // Verify reconstructed response
-        $this->assertCount(2, $result['candidates'][0]['content']['parts']);
-        $this->assertEquals('Hello', $result['candidates'][0]['content']['parts'][0]['text']);
-        $this->assertEquals(' world', $result['candidates'][0]['content']['parts'][1]['text']);
+        // Consecutive text chunks must be merged into a single part so the reconstructed
+        // response matches the non-streaming format (getLastText() returns the full text)
+        $this->assertCount(1, $result['candidates'][0]['content']['parts']);
+        $this->assertEquals('Hello world', $result['candidates'][0]['content']['parts'][0]['text']);
         $this->assertEquals('STOP', $result['candidates'][0]['finishReason']);
         $this->assertEquals(10, $result['usageMetadata']['promptTokenCount']);
         $this->assertEquals(5, $result['usageMetadata']['candidatesTokenCount']);
 
-        // Verify listener events
+        // Listener still receives one delta per chunk, all within the same block
         $textDeltas = array_values(array_filter($events, fn(StreamEvent $e) => $e->type === StreamEventType::TEXT_DELTA));
         $this->assertCount(2, $textDeltas);
         $this->assertEquals('Hello', $textDeltas[0]->delta);
+        $this->assertEquals(0, $textDeltas[0]->blockIndex);
         $this->assertEquals(' world', $textDeltas[1]->delta);
+        $this->assertEquals(0, $textDeltas[1]->blockIndex);
 
         $this->assertEquals(StreamEventType::MESSAGE_START, $events[0]->type);
         $this->assertEquals(StreamEventType::MESSAGE_COMPLETE, $events[array_key_last($events)]->type);

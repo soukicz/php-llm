@@ -21,6 +21,10 @@ class Gemini31FlashImagePreview extends GeminiModel implements GeminiImageModel 
         return $this->imageSize;
     }
 
+    public function supportsThinkingLevel(): bool {
+        return true;
+    }
+
     public function getCode(): string {
         return 'gemini-3.1-flash-image-preview';
     }

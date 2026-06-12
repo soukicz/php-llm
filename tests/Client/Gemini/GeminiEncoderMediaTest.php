@@ -91,8 +91,7 @@ class GeminiEncoderMediaTest extends TestCase {
         $this->assertEquals('What breed is it?', $encoded['contents'][0]['parts'][2]['text']);
     }
 
-    public function testPdfRequestShouldThrowException(): void {
-        // PDF is not supported by Gemini directly
+    public function testPdfRequest(): void {
         $conversation = new LLMConversation([
             LLMMessage::createFromUser(new LLMMessageContents([
                 new LLMMessageText('Analyze this PDF:'),
@@ -105,9 +104,11 @@ class GeminiEncoderMediaTest extends TestCase {
             conversation: $conversation
         );
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('PDF content type not supported for Gemini');
+        $encoded = $this->encoder->encodeRequest($request);
 
-        $this->encoder->encodeRequest($request);
+        $this->assertEquals('Analyze this PDF:', $encoded['contents'][0]['parts'][0]['text']);
+        $this->assertArrayHasKey('inline_data', $encoded['contents'][0]['parts'][1]);
+        $this->assertEquals('application/pdf', $encoded['contents'][0]['parts'][1]['inline_data']['mime_type']);
+        $this->assertEquals('base64encodedpdf', $encoded['contents'][0]['parts'][1]['inline_data']['data']);
     }
 }

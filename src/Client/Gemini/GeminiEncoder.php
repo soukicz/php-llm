@@ -3,6 +3,7 @@
 namespace Soukicz\Llm\Client\Gemini;
 
 use Soukicz\Llm\Client\Gemini\Model\GeminiImageModel;
+use Soukicz\Llm\Client\Gemini\Model\GeminiModel;
 use Soukicz\Llm\Client\ModelEncoder;
 use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Client\StopReason;
@@ -10,6 +11,7 @@ use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Message\LLMMessageArrayData;
 use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessagePdf;
@@ -25,6 +27,7 @@ class GeminiEncoder implements ModelEncoder {
     public function encodeRequest(LLMRequest $request): array {
         $contents = [];
         $systemInstruction = null;
+        $toolNamesById = [];
 
         foreach ($request->getConversation()->getMessages() as $message) {
             if ($message->isSystem()) {
@@ -53,7 +56,9 @@ class GeminiEncoder implements ModelEncoder {
                         ],
                     ];
                 } elseif ($messageContent instanceof LLMMessageToolUse) {
-                    // Function call in Gemini format
+                    // Function call in Gemini format - remember the name so the matching
+                    // function response can reference it (Gemini correlates by name, not ID)
+                    $toolNamesById[$messageContent->getId()] = $messageContent->getName();
                     $contents[] = [
                         'role' => 'model',
                         'parts' => [
@@ -69,14 +74,12 @@ class GeminiEncoder implements ModelEncoder {
                 } elseif ($messageContent instanceof LLMMessageToolResult) {
                     // Function response in Gemini format
                     $contents[] = [
-                        'role' => 'function',
+                        'role' => 'user',
                         'parts' => [
                             [
                                 'function_response' => [
-                                    'name' => 'function_' . $messageContent->getId(), // Create a name from ID
-                                    'response' => [
-                                        'content' => $messageContent->getContent(),
-                                    ],
+                                    'name' => $toolNamesById[$messageContent->getId()] ?? $messageContent->getId(),
+                                    'response' => self::encodeToolResultResponse($messageContent),
                                 ],
                             ],
                         ],
@@ -84,8 +87,15 @@ class GeminiEncoder implements ModelEncoder {
                     continue 2;
                 } elseif ($messageContent instanceof LLMMessageStructuredData) {
                     $parts[] = ['text' => $messageContent->getRawJson()];
+                } elseif ($messageContent instanceof LLMMessageArrayData) {
+                    $parts[] = ['text' => json_encode($messageContent->getData(), JSON_THROW_ON_ERROR)];
                 } elseif ($messageContent instanceof LLMMessagePdf) {
-                    throw new \InvalidArgumentException('PDF content type not supported for Gemini');
+                    $parts[] = [
+                        'inline_data' => [
+                            'mime_type' => 'application/pdf',
+                            'data' => $messageContent->getData(),
+                        ],
+                    ];
                 } else {
                     throw new \InvalidArgumentException('Unsupported message content type for Gemini');
                 }
@@ -143,6 +153,16 @@ class GeminiEncoder implements ModelEncoder {
                     $requestData['generationConfig']['thinkingConfig'] = [
                         'thinkingBudget' => 0,
                     ];
+                } elseif ($model instanceof GeminiModel && !$model->supportsThinkingLevel()) {
+                    // Gemini 2.x models reject thinkingLevel and only accept a token budget
+                    $requestData['generationConfig']['thinkingConfig'] = [
+                        'thinkingBudget' => match ($reasoningConfig) {
+                            ReasoningEffort::MINIMAL => 512,
+                            ReasoningEffort::LOW => 1024,
+                            ReasoningEffort::MEDIUM => 8192,
+                            ReasoningEffort::HIGH, ReasoningEffort::EXTRA_HIGH => 24576,
+                        },
+                    ];
                 } else {
                     $requestData['generationConfig']['thinkingConfig'] = [
                         'thinkingLevel' => match ($reasoningConfig) {
@@ -159,18 +179,18 @@ class GeminiEncoder implements ModelEncoder {
         }
 
         if (!empty($request->getTools())) {
-            $requestData['tools'] = [];
+            // Gemini expects all function declarations in a single tools entry
+            $functionDeclarations = [];
             foreach ($request->getTools() as $tool) {
-                $requestData['tools'][] = [
-                    'functionDeclarations' => [
-                        [
-                            'name' => $tool->getName(),
-                            'description' => $tool->getDescription(),
-                            'parameters' => $tool->getInputSchema(),
-                        ],
-                    ],
+                $functionDeclarations[] = [
+                    'name' => $tool->getName(),
+                    'description' => $tool->getDescription(),
+                    'parameters' => $tool->getInputSchema(),
                 ];
             }
+            $requestData['tools'] = [
+                ['functionDeclarations' => $functionDeclarations],
+            ];
         }
 
         return $requestData;
@@ -228,11 +248,7 @@ class GeminiEncoder implements ModelEncoder {
 
         if (isset($response['usageMetadata'])) {
             $promptTokenCount = $response['usageMetadata']['promptTokenCount'];
-            if ($stopReason === StopReason::SAFETY && !isset($response['usageMetadata']['candidatesTokenCount'])) {
-                $outputTokenCount = 0;
-            } else {
-                $outputTokenCount = $response['usageMetadata']['candidatesTokenCount'];
-            }
+            $outputTokenCount = $response['usageMetadata']['candidatesTokenCount'] ?? 0;
 
             $inputPrice = $promptTokenCount * ($model->getInputPricePerMillionTokens() / 1_000_000);
             $outputPrice = $outputTokenCount * ($model->getOutputPricePerMillionTokens() / 1_000_000);
@@ -255,6 +271,27 @@ class GeminiEncoder implements ModelEncoder {
             $request->getPreviousOutputCostUSD(),
             $request->getPreviousTimeMs()
         );
+    }
+
+    /**
+     * Convert tool result contents to a JSON-friendly response payload for Gemini.
+     */
+    private static function encodeToolResultResponse(LLMMessageToolResult $toolResult): array {
+        $contents = $toolResult->getContent();
+        if (count($contents) === 1 && $contents[0] instanceof LLMMessageArrayData) {
+            return $contents[0]->getData();
+        }
+
+        $texts = [];
+        foreach ($contents as $content) {
+            if ($content instanceof LLMMessageText) {
+                $texts[] = $content->getText();
+            } elseif ($content instanceof LLMMessageArrayData) {
+                $texts[] = json_encode($content->getData(), JSON_THROW_ON_ERROR);
+            }
+        }
+
+        return ['content' => implode("\n", $texts)];
     }
 
     /**
