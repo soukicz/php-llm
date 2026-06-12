@@ -212,6 +212,157 @@ class LLMAgentClientTest extends TestCase {
 
 
     /**
+     * Test that a request for an unknown tool produces an error tool result instead of an empty message
+     */
+    public function testUnknownToolReturnsErrorResult(): void {
+        $calculatorTool = new CallbackToolDefinition(
+            'calculator',
+            'Basic calculator for math operations',
+            [
+                'type' => 'object',
+                'properties' => [
+                    'expression' => [
+                        'type' => 'string',
+                        'description' => 'Math expression to evaluate',
+                    ],
+                ],
+                'required' => ['expression'],
+            ],
+            function (array $input): PromiseInterface {
+                return Create::promiseFor(LLMMessageContents::fromArrayData(['result' => 4]));
+            }
+        );
+
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('What is 2+2?'),
+        ]);
+
+        $request = new LLMRequest(
+            model: new GPT41(GPT41::VERSION_2025_04_14),
+            conversation: $conversation,
+            tools: [$calculatorTool]
+        );
+
+        // Model hallucinates a tool that is not registered
+        $response1 = $this->createToolUseResponse($request, 'tool-123', 'nonexistent_tool', ['foo' => 'bar']);
+
+        $request2 = $response1->getRequest()->withMessage(
+            LLMMessage::createFromUser(new LLMMessageContents([
+                new LLMMessageToolResult('tool-123', LLMMessageContents::fromErrorString('ERROR: Tool "nonexistent_tool" is not available')),
+            ]))
+        );
+        $response2 = $this->createFinalResponse($request2, 'I could not use that tool.');
+
+        $sentRequests = [];
+        $responseQueue = [$response1, $response2];
+        $mockClient = $this->createMock(LLMClient::class);
+        $mockClient->method('sendRequestAsync')
+            ->willReturnCallback(function (LLMRequest $sentRequest) use (&$responseQueue, &$sentRequests) {
+                $sentRequests[] = $sentRequest;
+
+                return Create::promiseFor(array_shift($responseQueue));
+            });
+
+        $agentClient = new LLMAgentClient();
+        $finalResponse = $agentClient->run($mockClient, $request);
+
+        $this->assertEquals(StopReason::FINISHED, $finalResponse->getStopReason());
+
+        // The follow-up request built by the agent must contain an error tool result for the unknown tool
+        $this->assertCount(2, $sentRequests);
+        $toolResultMessage = $sentRequests[1]->getLastMessage();
+        $contents = $toolResultMessage->getContents();
+        $this->assertCount(1, $contents);
+        $this->assertInstanceOf(LLMMessageToolResult::class, $contents[0]);
+        $this->assertEquals('tool-123', $contents[0]->getId());
+        $this->assertTrue($contents[0]->getContent()->isError());
+    }
+
+    /**
+     * Test that tool input failing schema validation produces an error result
+     * without executing the tool handler
+     */
+    public function testSchemaValidationFailureSkipsToolExecution(): void {
+        $handlerCalled = false;
+        $calculatorTool = new CallbackToolDefinition(
+            'calculator',
+            'Basic calculator for math operations',
+            [
+                'type' => 'object',
+                'properties' => [
+                    'expression' => ['type' => 'string'],
+                ],
+                'required' => ['expression'],
+            ],
+            function (array $input) use (&$handlerCalled): PromiseInterface {
+                $handlerCalled = true;
+
+                return Create::promiseFor(LLMMessageContents::fromArrayData(['result' => 4]));
+            }
+        );
+
+        $request = new LLMRequest(
+            model: new GPT41(GPT41::VERSION_2025_04_14),
+            conversation: new LLMConversation([LLMMessage::createFromUserString('What is 2+2?')]),
+            tools: [$calculatorTool]
+        );
+
+        // Model sends an integer where the schema requires a string
+        $response1 = $this->createToolUseResponse($request, 'tool-123', 'calculator', ['expression' => 42]);
+        $request2 = $response1->getRequest()->withMessage(
+            LLMMessage::createFromUser(new LLMMessageContents([
+                new LLMMessageToolResult('tool-123', LLMMessageContents::fromErrorString('ERROR: schema mismatch')),
+            ]))
+        );
+        $response2 = $this->createFinalResponse($request2, 'Sorry, I sent invalid input.');
+
+        $sentRequests = [];
+        $responseQueue = [$response1, $response2];
+        $mockClient = $this->createMock(LLMClient::class);
+        $mockClient->method('sendRequestAsync')
+            ->willReturnCallback(function (LLMRequest $sentRequest) use (&$responseQueue, &$sentRequests) {
+                $sentRequests[] = $sentRequest;
+
+                return Create::promiseFor(array_shift($responseQueue));
+            });
+
+        $agentClient = new LLMAgentClient();
+        $agentClient->run($mockClient, $request);
+
+        $this->assertFalse($handlerCalled, 'Tool handler must not run on schema validation failure');
+
+        $toolResultMessage = $sentRequests[1]->getLastMessage();
+        $contents = $toolResultMessage->getContents();
+        $this->assertCount(1, $contents);
+        $this->assertInstanceOf(LLMMessageToolResult::class, $contents[0]);
+        $this->assertTrue($contents[0]->getContent()->isError());
+        $this->assertStringContainsString(
+            'not matching expected schema',
+            $contents[0]->getContent()->getMessages()[0]->getText()
+        );
+    }
+
+    /**
+     * Test that a feedback callback returning anything but LLMMessage or null is rejected
+     */
+    public function testFeedbackCallbackMustReturnLLMMessageOrNull(): void {
+        $request = new LLMRequest(
+            model: new GPT41(GPT41::VERSION_2025_04_14),
+            conversation: new LLMConversation([LLMMessage::createFromUserString('Hello')]),
+        );
+
+        $response = $this->createFinalResponse($request, 'Hi there');
+        $mockClient = $this->createMockLLMClient([$response]);
+
+        $agentClient = new LLMAgentClient();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Feedback callback must return an instance of LLMMessage');
+
+        $agentClient->run($mockClient, $request, fn(LLMResponse $r) => 'try again');
+    }
+
+    /**
      * Create a mock LLM client that returns predefined responses
      *
      * @param array<LLMResponse> $responses
