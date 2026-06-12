@@ -62,34 +62,48 @@ class LLMAgentClient {
         $toolResponseContents = [];
 
         foreach ($response->getConversation()->getLastMessage()->getContents() as $content) {
-            if ($content instanceof LLMMessageToolUse) {
-                foreach ($request->getTools() as $tool) {
-                    if ($tool->getName() === $content->getName()) {
-                        $input = $content->getInput();
-                        $noContent = empty($input) && empty($tool->getInputSchema()['required']);
+            if (!$content instanceof LLMMessageToolUse) {
+                continue;
+            }
 
-                        if (!$noContent) {
-                            try {
-                                Schema::import(json_decode(json_encode($tool->getInputSchema())))->in(json_decode(json_encode($input)));
-                            } catch (Exception $e) {
-                                $toolResponseContents[] = Create::promiseFor(new LLMMessageToolResult(
-                                    $content->getId(),
-                                    LLMMessageContents::fromErrorString('ERROR: Input is not matching expected schema: ' . $e->getMessage())
-                                ));
-                                continue;
-                            }
-                        }
-
-                        $toolResponse = $tool->handle($input);
-                        if ($toolResponse instanceof LLMMessageContents) {
-                            $toolResponse = Create::promiseFor($toolResponse);
-                        }
-                        $toolResponseContents[] = $toolResponse->then(function (LLMMessageContents $response) use ($content) {
-                            return new LLMMessageToolResult($content->getId(), $response);
-                        });
-                    }
+            $tool = null;
+            foreach ($request->getTools() as $candidateTool) {
+                if ($candidateTool->getName() === $content->getName()) {
+                    $tool = $candidateTool;
+                    break;
                 }
             }
+
+            if ($tool === null) {
+                $toolResponseContents[] = Create::promiseFor(new LLMMessageToolResult(
+                    $content->getId(),
+                    LLMMessageContents::fromErrorString('ERROR: Tool "' . $content->getName() . '" is not available')
+                ));
+                continue;
+            }
+
+            $input = $content->getInput();
+            $noContent = empty($input) && empty($tool->getInputSchema()['required']);
+
+            if (!$noContent) {
+                try {
+                    Schema::import(json_decode(json_encode($tool->getInputSchema())))->in(json_decode(json_encode($input)));
+                } catch (Exception $e) {
+                    $toolResponseContents[] = Create::promiseFor(new LLMMessageToolResult(
+                        $content->getId(),
+                        LLMMessageContents::fromErrorString('ERROR: Input is not matching expected schema: ' . $e->getMessage())
+                    ));
+                    continue;
+                }
+            }
+
+            $toolResponse = $tool->handle($input);
+            if ($toolResponse instanceof LLMMessageContents) {
+                $toolResponse = Create::promiseFor($toolResponse);
+            }
+            $toolResponseContents[] = $toolResponse->then(function (LLMMessageContents $response) use ($content) {
+                return new LLMMessageToolResult($content->getId(), $response);
+            });
         }
 
         $newRequest = $response->getRequest()->withMessage(LLMMessage::createFromUser(new LLMMessageContents(Utils::unwrap($toolResponseContents))));
