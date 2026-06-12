@@ -63,7 +63,7 @@ class MarkdownFormatter {
             if ($message->isUser()) {
                 $markdown .= '## User:' . "\n";
             } elseif ($message->isSystem()) {
-                $markdown .= '## User:' . "\n";
+                $markdown .= '## System:' . "\n";
             } elseif ($message->isAssistant()) {
                 $markdown .= '## Assistant:' . "\n";
             } else {
@@ -93,7 +93,7 @@ class MarkdownFormatter {
             $markdown .= '----------------------';
             $markdown .= "\n\n";
 
-            $price = $response->getInputPriceUsd() + $response->getOutputPriceUsd();
+            $price = ($response->getInputPriceUsd() ?? 0.0) + ($response->getOutputPriceUsd() ?? 0.0);
             $markdown .= "##### Total stats\n\n";
             $markdown .= 'Finished in ' . number_format($response->getTotalTimeMs() / 1000, 3, '.') . 's' .
                 ', prompt tokens: ' . $response->getInputTokens() .

@@ -29,9 +29,13 @@ class LLMMessageContents implements JsonSerializable, Iterator, ArrayAccess, Cou
     }
 
     public static function fromJson(array $data): self {
+        // Current format wraps items to preserve the isError flag; legacy format was a plain list
+        $items = $data['items'] ?? $data;
+        $isError = $data['isError'] ?? false;
+
         /** @var LLMMessageContent[] $content */
         $content = [];
-        foreach ($data as $item) {
+        foreach ($items as $item) {
             $class = $item['class'];
             if (!is_subclass_of($class, LLMMessageContent::class)) {
                 throw new InvalidArgumentException("Class $class does not implement LLMMessageContent");
@@ -46,11 +50,14 @@ class LLMMessageContents implements JsonSerializable, Iterator, ArrayAccess, Cou
             $content[] = $result;
         }
 
-        return new self($content);
+        return new self($content, $isError);
     }
 
     public function jsonSerialize(): array {
-        return array_map(static fn(LLMMessageContent $content) => ['class' => $content::class, 'data' => $content], $this->messages);
+        return [
+            'isError' => $this->isError,
+            'items' => array_map(static fn(LLMMessageContent $content) => ['class' => $content::class, 'data' => $content], $this->messages),
+        ];
     }
 
     public static function fromString(string $content): self {

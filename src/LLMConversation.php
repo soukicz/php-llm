@@ -47,6 +47,10 @@ class LLMConversation implements JsonDeserializable {
     }
 
     public function getLastMessage(): LLMMessage {
+        if (empty($this->messages)) {
+            throw new \UnderflowException('Conversation has no messages');
+        }
+
         return $this->messages[array_key_last($this->messages)];
     }
 }
