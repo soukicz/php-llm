@@ -205,17 +205,30 @@ abstract class AbstractOpenAIClient extends OpenAIEncoder implements LLMBatchCli
 
     public function retrieveBatch(string $batchId): ?array {
         $response = json_decode($this->getHttpClient()->get($this->getBaseUrl().'/batches/' . $batchId)->getBody(), true, 512, JSON_THROW_ON_ERROR);
-        if ($response['status'] !== 'completed') {
+
+        // Only these statuses can still change - return null so the caller polls
+        // again later. Every other status (completed / failed / expired / cancelled)
+        // is terminal: the batch will never change again, so from here we must
+        // always return an array and never null. A caller that treats null as
+        // "not ready, retry later" would otherwise poll a dead batch forever - a
+        // batch that misses its 24h completion window ends up 'expired' and can
+        // never reach 'completed'.
+        if (in_array($response['status'], ['validating', 'in_progress', 'finalizing', 'cancelling'], true)) {
             return null;
         }
 
-        if ($response['output_file_id'] === null && $response['error_file_id']) {
-            if ($response['completed_at'] < time() - 3 * 24 * 60 * 60) {
-                return [];
-            }
-            $file = (string) $this->getHttpClient()->get($this->getBaseUrl().'/files/' . $response['error_file_id'] . '/content')->getBody();
+        if ($response['output_file_id'] === null) {
+            // No output at all. Surface a genuinely-failed *completed* batch loudly
+            // for a few days (so a real prompt/config error is noticed), then give
+            // up. Batches that failed / expired / cancelled will never produce
+            // output, so give up immediately - retrying a dead batch is futile.
+            if ($response['error_file_id'] && $response['status'] === 'completed' && $response['completed_at'] > time() - 3 * 24 * 60 * 60) {
+                $file = (string) $this->getHttpClient()->get($this->getBaseUrl().'/files/' . $response['error_file_id'] . '/content')->getBody();
 
-            throw new \RuntimeException('Batch failed: ' . substr($file, 0, 1000));
+                throw new \RuntimeException('Batch failed: ' . substr($file, 0, 1000));
+            }
+
+            return [];
         }
 
         $file = (string) $this->getHttpClient()->get($this->getBaseUrl().'/files/' . $response['output_file_id'] . '/content')->getBody();

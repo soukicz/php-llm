@@ -156,4 +156,92 @@ class OpenAIBatchTest extends TestCase {
 
         $this->assertSame([], $client->retrieveBatch('batch-xyz'));
     }
+
+    /**
+     * A batch that misses its 24h completion window ends up 'expired' and can never
+     * reach 'completed'. It must resolve to an array (not null), otherwise a caller
+     * that treats null as "not ready, retry later" polls the dead batch forever.
+     */
+    public function testRetrieveBatchGivesUpOnExpiredBatchWithoutOutput(): void {
+        $client = $this->createClientWithResponses([
+            new Response(200, [], json_encode([
+                'status' => 'expired',
+                'output_file_id' => null,
+                'error_file_id' => 'file-err',
+                'completed_at' => null,
+            ], JSON_THROW_ON_ERROR)),
+        ]);
+
+        $this->assertSame([], $client->retrieveBatch('batch-xyz'));
+    }
+
+    public function testRetrieveBatchGivesUpOnCancelledBatch(): void {
+        $client = $this->createClientWithResponses([
+            new Response(200, [], json_encode([
+                'status' => 'cancelled',
+                'output_file_id' => null,
+                'error_file_id' => null,
+                'completed_at' => null,
+            ], JSON_THROW_ON_ERROR)),
+        ]);
+
+        $this->assertSame([], $client->retrieveBatch('batch-xyz'));
+    }
+
+    public function testRetrieveBatchGivesUpOnFailedBatch(): void {
+        $client = $this->createClientWithResponses([
+            new Response(200, [], json_encode([
+                'status' => 'failed',
+                'output_file_id' => null,
+                'error_file_id' => 'file-err',
+                'completed_at' => null,
+            ], JSON_THROW_ON_ERROR)),
+        ]);
+
+        $this->assertSame([], $client->retrieveBatch('batch-xyz'));
+    }
+
+    /**
+     * An expired batch may still have processed some of its requests before the
+     * window closed - those partial results live in output_file_id and must be
+     * returned rather than discarded.
+     */
+    public function testRetrieveBatchReturnsPartialOutputOfExpiredBatch(): void {
+        $statusResponse = json_encode([
+            'status' => 'expired',
+            'output_file_id' => 'file-out',
+            'error_file_id' => 'file-err',
+            'completed_at' => null,
+        ], JSON_THROW_ON_ERROR);
+
+        $resultsJsonl = json_encode([
+            'custom_id' => 'first',
+            'response' => ['body' => ['choices' => [
+                ['message' => ['content' => 'Hello world']],
+            ]]],
+        ], JSON_THROW_ON_ERROR);
+
+        $client = $this->createClientWithResponses([
+            new Response(200, [], $statusResponse),
+            new Response(200, [], $resultsJsonl),
+        ]);
+
+        $this->assertSame(['first' => 'Hello world'], $client->retrieveBatch('batch-xyz'));
+    }
+
+    public function testRetrieveBatchReturnsNullWhileValidating(): void {
+        $client = $this->createClientWithResponses([
+            new Response(200, [], json_encode(['status' => 'validating'], JSON_THROW_ON_ERROR)),
+        ]);
+
+        $this->assertNull($client->retrieveBatch('batch-xyz'));
+    }
+
+    public function testRetrieveBatchReturnsNullWhileFinalizing(): void {
+        $client = $this->createClientWithResponses([
+            new Response(200, [], json_encode(['status' => 'finalizing'], JSON_THROW_ON_ERROR)),
+        ]);
+
+        $this->assertNull($client->retrieveBatch('batch-xyz'));
+    }
 }
