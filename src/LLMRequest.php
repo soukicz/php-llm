@@ -3,6 +3,7 @@
 namespace Soukicz\Llm;
 
 use Soukicz\Llm\Client\ModelInterface;
+use Soukicz\Llm\Config\ConversationCacheConfig;
 use Soukicz\Llm\Config\ReasoningConfig;
 use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\Config\StructuredOutputConfig;
@@ -27,6 +28,7 @@ class LLMRequest {
         private readonly array   $stopSequences = [],
         private readonly ReasoningConfig|ReasoningEffort|null $reasoningConfig = null,
         private readonly ?StructuredOutputConfig $structuredOutputConfig = null,
+        private readonly ?ConversationCacheConfig $conversationCacheConfig = null,
         private readonly ?StreamListenerInterface $streamListener = null,
         private int              $previousInputTokens = 0,
         private int              $previousOutputTokens = 0,
@@ -128,6 +130,10 @@ class LLMRequest {
 
     public function getStructuredOutputConfig(): ?StructuredOutputConfig {
         return $this->structuredOutputConfig;
+    }
+
+    public function getConversationCacheConfig(): ?ConversationCacheConfig {
+        return $this->conversationCacheConfig;
     }
 
     public function getStreamListener(): ?StreamListenerInterface {

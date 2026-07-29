@@ -13,6 +13,7 @@ use Soukicz\Llm\Client\LLMAgentClient;
 use Soukicz\Llm\Client\LLMClient;
 use Soukicz\Llm\Client\OpenAI\Model\GPT41;
 use Soukicz\Llm\Client\StopReason;
+use Soukicz\Llm\Config\ConversationCacheConfig;
 use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
@@ -340,6 +341,69 @@ class LLMAgentClientTest extends TestCase {
             'not matching expected schema',
             $contents[0]->getContent()->getMessages()[0]->getText()
         );
+    }
+
+    /**
+     * Test that the conversation cache config survives the tool loop - every follow-up
+     * request built by the agent client must still carry it so encoders can place
+     * moving cache breakpoints on each turn
+     */
+    public function testConversationCacheConfigIsKeptAcrossToolLoop(): void {
+        $calculatorTool = new CallbackToolDefinition(
+            'calculator',
+            'Basic calculator for math operations',
+            [
+                'type' => 'object',
+                'properties' => [
+                    'expression' => ['type' => 'string'],
+                ],
+                'required' => ['expression'],
+            ],
+            function (array $input): PromiseInterface {
+                return Create::promiseFor(LLMMessageContents::fromArrayData(['result' => 4]));
+            }
+        );
+
+        $cacheConfig = new ConversationCacheConfig();
+        $request = new LLMRequest(
+            model: new GPT41(GPT41::VERSION_2025_04_14),
+            conversation: new LLMConversation([LLMMessage::createFromUserString('What is 2+2?')]),
+            tools: [$calculatorTool],
+            conversationCacheConfig: $cacheConfig,
+        );
+
+        // Build responses from the request via withMessage() so the config is preserved
+        // the same way real decoders preserve it
+        $response1 = new LLMResponse(
+            $request->withMessage(LLMMessage::createFromAssistant(new LLMMessageContents([
+                new LLMMessageToolUse('tool-123', 'calculator', ['expression' => '2+2']),
+            ]))),
+            StopReason::TOOL_USE,
+            100, 50, 4000, 0.001, 0.002, 500
+        );
+
+        $sentRequests = [];
+        $mockClient = $this->createMock(LLMClient::class);
+        $mockClient->method('sendRequestAsync')
+            ->willReturnCallback(function (LLMRequest $sentRequest) use (&$sentRequests, $response1) {
+                $sentRequests[] = $sentRequest;
+                if (count($sentRequests) === 1) {
+                    return Create::promiseFor($response1);
+                }
+
+                return Create::promiseFor(new LLMResponse(
+                    $sentRequest->withMessage(LLMMessage::createFromAssistantString('The answer is 4')),
+                    StopReason::FINISHED,
+                    100, 50, 4000, 0.001, 0.002, 500
+                ));
+            });
+
+        $agentClient = new LLMAgentClient();
+        $agentClient->run($mockClient, $request);
+
+        $this->assertCount(2, $sentRequests);
+        $this->assertSame($cacheConfig, $sentRequests[0]->getConversationCacheConfig());
+        $this->assertSame($cacheConfig, $sentRequests[1]->getConversationCacheConfig());
     }
 
     /**

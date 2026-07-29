@@ -8,6 +8,7 @@ use Soukicz\Llm\Client\Anthropic\Tool\AnthropicNativeToolWithOptions;
 use Soukicz\Llm\Client\ModelEncoder;
 use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Client\StopReason;
+use Soukicz\Llm\Config\ConversationCacheConfig;
 use Soukicz\Llm\Config\ReasoningBudget;
 use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\LLMRequest;
@@ -25,6 +26,11 @@ use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 
 class AnthropicEncoder implements ModelEncoder {
+    /**
+     * Anthropic rejects requests with more than 4 cache_control breakpoints
+     */
+    private const MAX_CACHE_BREAKPOINTS = 4;
+
     /**
      * Normalize a JSON Schema for strict mode by adding "additionalProperties": false
      * to all object types and removing unsupported constraints (moving them to descriptions).
@@ -63,6 +69,63 @@ class AnthropicEncoder implements ModelEncoder {
         }
 
         return $schema;
+    }
+
+    /**
+     * Place moving cache breakpoints on the last two user messages so that in a multi-turn
+     * tool loop each request reads the previous turns from cache instead of re-billing the
+     * whole conversation at full input price. The breakpoint on the last message caches the
+     * current state; the one on the previous user message anchors the cache lookup when a
+     * single turn adds more content blocks than the provider's lookback window covers.
+     *
+     * Breakpoints are added at encode time only and never persisted into the conversation,
+     * so they move with the conversation instead of accumulating. Explicit breakpoints set
+     * by the caller (cached content flags) are always kept and counted against the limit.
+     *
+     * A configured TTL is applied to the caller's explicit breakpoints as well: Anthropic
+     * requires longer-TTL cache entries to appear before shorter-TTL ones, so a 5-minute
+     * explicit breakpoint followed by 1-hour moving breakpoints would be rejected.
+     */
+    private function addConversationCacheBreakpoints(array $encodedMessages, ConversationCacheConfig $config): array {
+        $cacheControl = ['type' => 'ephemeral'];
+        if ($config->getTtl() !== null) {
+            $cacheControl['ttl'] = $config->getTtl()->value;
+        }
+
+        $breakpointCount = 0;
+        foreach ($encodedMessages as $messageIndex => $encodedMessage) {
+            foreach ($encodedMessage['content'] as $contentIndex => $encodedContent) {
+                if (isset($encodedContent['cache_control'])) {
+                    $breakpointCount++;
+                    $encodedMessages[$messageIndex]['content'][$contentIndex]['cache_control'] = $cacheControl;
+                }
+            }
+        }
+
+        $markedMessages = 0;
+        for ($messageIndex = count($encodedMessages) - 1; $messageIndex >= 0 && $markedMessages < 2; $messageIndex--) {
+            if ($encodedMessages[$messageIndex]['role'] !== 'user') {
+                continue;
+            }
+            for ($contentIndex = count($encodedMessages[$messageIndex]['content']) - 1; $contentIndex >= 0; $contentIndex--) {
+                $type = $encodedMessages[$messageIndex]['content'][$contentIndex]['type'];
+                if ($type === 'thinking' || $type === 'redacted_thinking') {
+                    // thinking blocks cannot carry cache_control
+                    continue;
+                }
+                if (!isset($encodedMessages[$messageIndex]['content'][$contentIndex]['cache_control'])) {
+                    if ($breakpointCount >= self::MAX_CACHE_BREAKPOINTS) {
+                        return $encodedMessages;
+                    }
+                    $encodedMessages[$messageIndex]['content'][$contentIndex]['cache_control'] = $cacheControl;
+                    $breakpointCount++;
+                }
+                $markedMessages++;
+                break;
+            }
+        }
+
+        return $encodedMessages;
     }
 
     private function addCacheAttribute(LLMMessageContent $content, array $data): array {
@@ -188,6 +251,11 @@ class AnthropicEncoder implements ModelEncoder {
                 'role' => $role,
                 'content' => $contents,
             ];
+        }
+
+        $conversationCacheConfig = $request->getConversationCacheConfig();
+        if ($conversationCacheConfig !== null) {
+            $encodedMessages = $this->addConversationCacheBreakpoints($encodedMessages, $conversationCacheConfig);
         }
 
         $options = [

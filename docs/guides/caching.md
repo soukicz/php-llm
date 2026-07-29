@@ -2,6 +2,11 @@
 
 Reduce costs and latency with intelligent HTTP-level response caching. PHP LLM caches LLM responses automatically, making repeated requests nearly instant and free.
 
+This page covers two independent features:
+
+- **HTTP response caching** (below) — identical requests are served from a local cache and never reach the API.
+- **[Provider-side prompt caching](#provider-side-prompt-caching)** — the API bills the repeated part of a prompt at a reduced rate. Relevant for multi-turn tool loops.
+
 ## Overview
 
 All PHP LLM clients support caching at the HTTP request level. When enabled:
@@ -353,6 +358,49 @@ $response2 = $agentClient->run($client, $request);
 ```
 
 Note that the reported price is calculated from the token counts in the response, so a cached response still reports the original cost — but no API call is made and nothing is billed.
+
+## Provider-Side Prompt Caching
+
+Independent of the HTTP cache above, providers can cache the repeated prefix of a prompt server-side and bill it at a fraction of the input price (Anthropic: ~10% for cache reads).
+
+### Static content
+
+Mark stable content (instructions, documents) with the `cached` constructor flag — the Anthropic encoder emits a `cache_control` breakpoint for it:
+
+```php
+<?php
+use Soukicz\Llm\Message\LLMMessageText;
+
+new LLMMessageText('Long extraction instructions and document...', cached: true);
+```
+
+Put the flag on **user-message** content. A `cached` flag on the system message itself is ignored — the Anthropic encoder sends the system prompt as a plain string without cache support.
+
+### Multi-turn tool loops
+
+In an agent loop the conversation grows every turn (tool calls + tool results), and without further breakpoints this growing tail is re-billed at full input price on every turn — quadratically with the number of turns. Opt in to conversation caching to place a *moving* breakpoint at the end of the conversation on every request:
+
+```php
+<?php
+use Soukicz\Llm\Config\ConversationCacheConfig;
+
+$request = new LLMRequest(
+    model: $model,
+    conversation: $conversation,
+    tools: $tools,
+    conversationCacheConfig: new ConversationCacheConfig(),
+);
+```
+
+Each turn then reads all previous turns from cache and pays full price only for the newly added messages.
+
+Behavior details:
+
+- Breakpoints are added at encode time and are never persisted into the conversation, so they move with the conversation instead of accumulating.
+- The encoder marks the last two user messages and always respects Anthropic's limit of 4 breakpoints per request; explicit `cached` flags set by you take priority.
+- The default cache lifetime is 5 minutes; pass `new ConversationCacheConfig(ttl: CacheTtl::ONE_HOUR)` for slow loops (1-hour cache writes cost more). A configured TTL applies to every breakpoint in the request, including content you marked with `cached` — Anthropic requires longer-lived cache entries to come before shorter-lived ones, so TTLs cannot be mixed in that order.
+- OpenAI and Gemini cache prompts automatically, so the option is a no-op there.
+- Prompts shorter than the provider's minimum (e.g. 1024 tokens for Claude Sonnet) are silently not cached.
 
 ## See Also
 
