@@ -54,10 +54,11 @@ Many Anthropic and OpenAI models pin an explicit version constant:
 new AnthropicClaude45Haiku(AnthropicClaude45Haiku::VERSION_20251001)
 new GPT54(GPT54::VERSION_2026_03_05)
 ```
-The newest Anthropic models (e.g. Claude 4.6) and Google Gemini models do NOT require versions - just instantiate them directly:
+The newest Anthropic models (Claude 4.6 and later), the OpenAI GPT-5.6 family, and Google Gemini models do NOT require versions - just instantiate them directly:
 ```php
 <?php
-new AnthropicClaude46Sonnet()
+new AnthropicClaude5Sonnet()
+new GPT56Terra()
 new Gemini25Flash()
 ```
 
@@ -430,8 +431,8 @@ echo "Stop reason: " . $response->getStopReason()->value . "\n"; // FINISHED, TO
 
 ## Supported Providers
 
-- **Anthropic (Claude)** - Claude 3.5 through 4.6 series models
-- **OpenAI (GPT)** - GPT-4o, GPT-4.1, o3 and o4-mini (reasoning), and GPT-5 through GPT-5.4 series models
+- **Anthropic (Claude)** - Claude 3.5 through Claude 5 series models, including Claude Fable 5
+- **OpenAI (GPT)** - GPT-4o, GPT-4.1, o3 and o4-mini (reasoning), and GPT-5 through GPT-5.6 (Sol/Terra/Luna) series models
 - **Google Gemini** - Gemini 2.0 through 3.x series models
 - **OpenAI-Compatible** - OpenRouter, local servers (Ollama, llama-server), and more
 - **AWS Bedrock** - Via separate package ([`soukicz/llm-aws-bedrock`](https://github.com/soukicz/llm-aws-bedrock))

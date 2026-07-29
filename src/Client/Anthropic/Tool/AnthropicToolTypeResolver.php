@@ -12,6 +12,11 @@ use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Haiku;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude46Opus;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude46Sonnet;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude47Opus;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude48Opus;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Opus;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Sonnet;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Fable;
 
 /**
  * Resolves Anthropic native tool types based on the model being used.
@@ -23,7 +28,7 @@ class AnthropicToolTypeResolver {
      * @see https://platform.claude.com/docs/en/agents-and-tools/tool-use/text-editor-tool
      */
     public static function getTextEditorType(ModelInterface $model): string {
-        // Claude 4.x models use the latest text_editor version (July 2025 release)
+        // Claude 4.x and later models use the latest text_editor version (July 2025 release)
         if (
             $model instanceof AnthropicClaude4Sonnet ||
             $model instanceof AnthropicClaude4Opus ||
@@ -32,7 +37,12 @@ class AnthropicToolTypeResolver {
             $model instanceof AnthropicClaude45Opus ||
             $model instanceof AnthropicClaude45Haiku ||
             $model instanceof AnthropicClaude46Opus ||
-            $model instanceof AnthropicClaude46Sonnet
+            $model instanceof AnthropicClaude46Sonnet ||
+            $model instanceof AnthropicClaude47Opus ||
+            $model instanceof AnthropicClaude48Opus ||
+            $model instanceof AnthropicClaude5Opus ||
+            $model instanceof AnthropicClaude5Sonnet ||
+            $model instanceof AnthropicClaude5Fable
         ) {
             return 'text_editor_20250728';
         }

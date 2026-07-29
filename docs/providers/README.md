@@ -39,16 +39,18 @@ Most Anthropic models require a version constant; the newest models take no cons
 <?php
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude35Haiku;
-use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude46Sonnet;
-use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude46Opus;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Sonnet;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Opus;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Fable;
 
 // Versioned models require a version constant
 $model = new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929);
 $model = new AnthropicClaude35Haiku(AnthropicClaude35Haiku::VERSION_20241022);
 
-// Claude 4.6 models take no arguments
-$model = new AnthropicClaude46Sonnet();
-$model = new AnthropicClaude46Opus();
+// Claude 4.6 and later models take no arguments
+$model = new AnthropicClaude5Sonnet();
+$model = new AnthropicClaude5Opus();
+$model = new AnthropicClaude5Fable();
 ```
 
 **Available model classes:**
@@ -66,6 +68,11 @@ $model = new AnthropicClaude46Opus();
 | `AnthropicClaude45Haiku` | `new AnthropicClaude45Haiku(AnthropicClaude45Haiku::VERSION_20251001)` |
 | `AnthropicClaude46Sonnet` | `new AnthropicClaude46Sonnet()` |
 | `AnthropicClaude46Opus` | `new AnthropicClaude46Opus()` |
+| `AnthropicClaude47Opus` | `new AnthropicClaude47Opus()` |
+| `AnthropicClaude48Opus` | `new AnthropicClaude48Opus()` |
+| `AnthropicClaude5Sonnet` | `new AnthropicClaude5Sonnet()` |
+| `AnthropicClaude5Opus` | `new AnthropicClaude5Opus()` |
+| `AnthropicClaude5Fable` | `new AnthropicClaude5Fable()` |
 
 ### Batch Processing Support
 
@@ -102,19 +109,25 @@ $client = new OpenAIClient('sk-xxxxx', null, $cache);
 
 ### Model Classes
 
-All OpenAI models require a version constant:
+Most OpenAI models require a version constant; the GPT-5.6 family has no dated snapshots and takes no arguments:
 
 ```php
 <?php
+use Soukicz\Llm\Client\OpenAI\Model\GPT56Sol;
+use Soukicz\Llm\Client\OpenAI\Model\GPT56Terra;
+use Soukicz\Llm\Client\OpenAI\Model\GPT56Luna;
+use Soukicz\Llm\Client\OpenAI\Model\GPT55;
 use Soukicz\Llm\Client\OpenAI\Model\GPT54;
-use Soukicz\Llm\Client\OpenAI\Model\GPT52;
-use Soukicz\Llm\Client\OpenAI\Model\GPT5;
 use Soukicz\Llm\Client\OpenAI\Model\GPTo3;
 
-// All models require version parameter
+// GPT-5.6 models take no arguments
+$model = new GPT56Sol();
+$model = new GPT56Terra();
+$model = new GPT56Luna();
+
+// Older models require a version parameter
+$model = new GPT55(GPT55::VERSION_2026_04_23);
 $model = new GPT54(GPT54::VERSION_2026_03_05);
-$model = new GPT52(GPT52::VERSION_2025_12_11);
-$model = new GPT5(GPT5::VERSION_2025_08_07);
 $model = new GPTo3(GPTo3::VERSION_2025_04_16);
 ```
 
@@ -136,8 +149,12 @@ $model = new GPTo3(GPTo3::VERSION_2025_04_16);
 | `GPT54` | `new GPT54(GPT54::VERSION_2026_03_05)` |
 | `GPT54Mini` | `new GPT54Mini(GPT54Mini::VERSION_2026_03_17)` |
 | `GPT54Nano` | `new GPT54Nano(GPT54Nano::VERSION_2026_03_17)` |
+| `GPT55` | `new GPT55(GPT55::VERSION_2026_04_23)` |
+| `GPT56Sol` | `new GPT56Sol()` |
+| `GPT56Terra` | `new GPT56Terra()` |
+| `GPT56Luna` | `new GPT56Luna()` |
 
-**Note:** Each model class has version constants defined (e.g., `GPT5::VERSION_2025_08_07`). Check the class for available versions.
+**Note:** Versioned model classes have version constants defined (e.g., `GPT5::VERSION_2025_08_07`). Check the class for available versions.
 
 ### Reasoning Configuration
 
