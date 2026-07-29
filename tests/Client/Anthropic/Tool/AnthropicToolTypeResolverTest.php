@@ -52,6 +52,8 @@ class AnthropicToolTypeResolverTest extends TestCase {
     }
 
     public function testGetTextEditorTypeForOtherModels(): void {
+        // Unknown/other models default to the current version so newly added
+        // models work without touching the resolver
         $models = [
             new AnthropicClaude35Sonnet(AnthropicClaude35Sonnet::VERSION_20241022),
             new AnthropicClaude35Haiku(AnthropicClaude35Haiku::VERSION_20241022),
@@ -59,7 +61,7 @@ class AnthropicToolTypeResolverTest extends TestCase {
 
         foreach ($models as $model) {
             $this->assertEquals(
-                'text_editor_20250429',
+                'text_editor_20250728',
                 AnthropicToolTypeResolver::getTextEditorType($model),
                 'Failed for model: ' . $model->getCode()
             );

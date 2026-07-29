@@ -4,6 +4,7 @@ namespace Soukicz\Llm\Client\Anthropic;
 
 use InvalidArgumentException;
 use Soukicz\Llm\Client\Anthropic\Tool\AnthropicNativeTool;
+use Soukicz\Llm\Client\Anthropic\Tool\AnthropicNativeToolWithOptions;
 use Soukicz\Llm\Client\ModelEncoder;
 use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Client\StopReason;
@@ -248,10 +249,14 @@ class AnthropicEncoder implements ModelEncoder {
 
             foreach ($request->getTools() as $tool) {
                 if ($tool instanceof AnthropicNativeTool) {
-                    $options['tools'][] = [
+                    $definition = [
                         'type' => $tool->getAnthropicType($request->getModel()),
                         'name' => $tool->getAnthropicName($request->getModel()),
                     ];
+                    if ($tool instanceof AnthropicNativeToolWithOptions) {
+                        $definition += $tool->getAnthropicOptions($request->getModel());
+                    }
+                    $options['tools'][] = $definition;
                     continue;
                 }
                 $schema = self::normalizeSchemaForStrictMode($tool->getInputSchema());

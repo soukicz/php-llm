@@ -7,6 +7,12 @@ namespace Soukicz\Llm\Tests\Client\Anthropic;
 use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Client\Anthropic\AnthropicEncoder;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude35Sonnet;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Sonnet;
+use Soukicz\Llm\Client\Anthropic\Tool\AnthropicNativeTool;
+use Soukicz\Llm\Client\ModelInterface;
+use Soukicz\Llm\Tool\TextEditor\TextEditorStorageMemory;
+use Soukicz\Llm\Tool\TextEditor\TextEditorTool;
 use Soukicz\Llm\Config\ReasoningBudget;
 use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\LLMConversation;
@@ -71,6 +77,80 @@ class AnthropicEncoderToolsTest extends TestCase {
         // Verify tool_choice
         $this->assertArrayHasKey('tool_choice', $encoded);
         $this->assertEquals('auto', $encoded['tool_choice']['type']);
+    }
+
+    public function testNativeTextEditorToolDeclaration(): void {
+        $encoder = new AnthropicEncoder();
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('Fix my file'),
+        ]);
+
+        // max_characters is declared for text_editor_20250728 (Claude 4+)
+        $tool = new TextEditorTool(new TextEditorStorageMemory(), maxCharacters: 10000);
+        $encoded = $encoder->encodeRequest(new LLMRequest(
+            model: new AnthropicClaude5Sonnet(),
+            conversation: $conversation,
+            tools: [$tool]
+        ));
+        $this->assertEquals([
+            'type' => 'text_editor_20250728',
+            'name' => 'str_replace_based_edit_tool',
+            'max_characters' => 10000,
+        ], $encoded['tools'][0]);
+
+        // Claude 3.7 uses text_editor_20250124, which does not support max_characters
+        $encoded = $encoder->encodeRequest(new LLMRequest(
+            model: new AnthropicClaude37Sonnet(AnthropicClaude37Sonnet::VERSION_20250219),
+            conversation: $conversation,
+            tools: [$tool]
+        ));
+        $this->assertEquals([
+            'type' => 'text_editor_20250124',
+            'name' => 'str_replace_editor',
+        ], $encoded['tools'][0]);
+
+        // Without a configured limit the field is omitted entirely
+        $encoded = $encoder->encodeRequest(new LLMRequest(
+            model: new AnthropicClaude5Sonnet(),
+            conversation: $conversation,
+            tools: [new TextEditorTool(new TextEditorStorageMemory())]
+        ));
+        $this->assertEquals([
+            'type' => 'text_editor_20250728',
+            'name' => 'str_replace_based_edit_tool',
+        ], $encoded['tools'][0]);
+    }
+
+    public function testNativeToolWithoutOptionsInterfaceEncodesTypeAndNameOnly(): void {
+        // BC contract: external implementers of AnthropicNativeTool (without the
+        // AnthropicNativeToolWithOptions sub-interface) must encode unchanged
+        $nativeTool = new class implements AnthropicNativeTool {
+            public function getAnthropicType(ModelInterface $model): string {
+                return 'bash_20250124';
+            }
+
+            public function getAnthropicName(ModelInterface $model): string {
+                return 'bash';
+            }
+
+            public function handle(array $input): LLMMessageContents {
+                return LLMMessageContents::fromString('ok');
+            }
+        };
+
+        $encoder = new AnthropicEncoder();
+        $encoded = $encoder->encodeRequest(new LLMRequest(
+            model: new AnthropicClaude5Sonnet(),
+            conversation: new LLMConversation([
+                LLMMessage::createFromUserString('Run ls'),
+            ]),
+            tools: [$nativeTool]
+        ));
+
+        $this->assertEquals([
+            'type' => 'bash_20250124',
+            'name' => 'bash',
+        ], $encoded['tools'][0]);
     }
 
     public function testToolUseAndResults(): void {

@@ -4,22 +4,31 @@ namespace Soukicz\Llm\Tool\TextEditor;
 
 use InvalidArgumentException;
 use RuntimeException;
-use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude37Sonnet;
-use Soukicz\Llm\Client\Anthropic\Tool\AnthropicNativeTool;
+use Soukicz\Llm\Client\Anthropic\Tool\AnthropicNativeToolWithOptions;
 use Soukicz\Llm\Client\Anthropic\Tool\AnthropicToolTypeResolver;
 use Soukicz\Llm\Client\ModelInterface;
 use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Tool\ToolDefinition;
 
-class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
+class TextEditorTool implements AnthropicNativeToolWithOptions, ToolDefinition {
     private const SNIPPET_LINES = 4;
     private const MAX_RESPONSE_LEN = 16000;
     private const TRUNCATED_MESSAGE = "\n... [Response truncated due to length. Use view_range to see specific sections.]";
 
     private readonly TextEditorStorage $storage;
+    private readonly ?int $maxCharacters;
 
-    public function __construct(TextEditorStorage $storage) {
+    /**
+     * @param int|null $maxCharacters Truncation limit for tool output (file views and
+     * edit-confirmation snippets), declared to the API as max_characters on models
+     * supporting text_editor_20250728 and later; defaults to 16000 characters locally
+     */
+    public function __construct(TextEditorStorage $storage, ?int $maxCharacters = null) {
+        if ($maxCharacters !== null && $maxCharacters < 1) {
+            throw new InvalidArgumentException('maxCharacters must be a positive integer, got ' . $maxCharacters);
+        }
         $this->storage = $storage;
+        $this->maxCharacters = $maxCharacters;
     }
 
     public function getName(): string {
@@ -27,16 +36,21 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
     }
 
     public function getAnthropicName(ModelInterface $model): string {
-        // Claude 3.7 Sonnet uses str_replace_editor, Claude 4+ uses str_replace_based_edit_tool
-        if ($model instanceof AnthropicClaude37Sonnet) {
-            return 'str_replace_editor';
-        }
-
-        return 'str_replace_based_edit_tool';
+        return AnthropicToolTypeResolver::getTextEditorName($model);
     }
 
     public function getAnthropicType(ModelInterface $model): string {
         return AnthropicToolTypeResolver::getTextEditorType($model);
+    }
+
+    public function getAnthropicOptions(ModelInterface $model): array {
+        // max_characters is accepted by text_editor_20250728 and later versions,
+        // so exclude only the known-incompatible legacy version
+        if ($this->maxCharacters !== null && $this->getAnthropicType($model) !== 'text_editor_20250124') {
+            return ['max_characters' => $this->maxCharacters];
+        }
+
+        return [];
     }
 
     public function handle(array $input): LLMMessageContents {
@@ -49,7 +63,13 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
         }
 
         if ($input['command'] === 'insert') {
-            return $this->insertToFile($input['path'], $input['new_str'] ?? '', $input['insert_line'] ?? 0);
+            // text_editor_20250728 (Claude 4+) sends `insert_text`; older versions sent `new_str`
+            $insertText = $input['insert_text'] ?? $input['new_str'] ?? null;
+            if ($insertText === null) {
+                return LLMMessageContents::fromErrorString('ERROR: Missing `insert_text` parameter for insert command.');
+            }
+
+            return $this->insertToFile($input['path'], $insertText, $input['insert_line'] ?? 0);
         }
 
         if ($input['command'] === 'create') {
@@ -92,7 +112,11 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
                 ],
                 'new_str' => [
                     'type' => 'string',
-                    'description' => 'The new text to insert (for str_replace and insert commands)',
+                    'description' => 'The new text to insert in place of the old text (for str_replace command)',
+                ],
+                'insert_text' => [
+                    'type' => 'string',
+                    'description' => 'The text to insert (for insert command)',
                 ],
                 'file_text' => [
                     'type' => 'string',
@@ -108,10 +132,11 @@ class TextEditorTool implements AnthropicNativeTool, ToolDefinition {
     }
 
     /**
-     * Truncate content if it exceeds MAX_RESPONSE_LEN.
+     * Truncate content if it exceeds the configured limit (explicit argument,
+     * then the configured maxCharacters, then the 16000-character default).
      */
     private function maybeTruncate(string $content, ?int $truncateAfter = null): string {
-        $truncateAfter = $truncateAfter ?? self::MAX_RESPONSE_LEN;
+        $truncateAfter = $truncateAfter ?? $this->maxCharacters ?? self::MAX_RESPONSE_LEN;
 
         if ($truncateAfter === 0 || strlen($content) <= $truncateAfter) {
             return $content;

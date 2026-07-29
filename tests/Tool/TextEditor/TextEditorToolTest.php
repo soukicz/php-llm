@@ -333,6 +333,53 @@ class TextEditorToolTest extends TestCase {
         $this->assertEquals($expected, file_get_contents($this->testBaseDir . '/multiline.txt'));
     }
 
+    public function testInsertToFileWithInsertTextParameter(): void {
+        // text_editor_20250728 (Claude 4+) emits `insert_text` instead of the legacy `new_str`
+        $response = $this->tool->handle([
+            'command' => 'insert',
+            'path' => 'multiline.txt',
+            'insert_text' => 'Inserted Line',
+            'insert_line' => 2,
+        ]);
+
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $text = $response->getMessages()[0]->getText();
+        $this->assertStringContainsString('The file multiline.txt has been edited.', $text);
+        $this->assertStringContainsString('Inserted Line', $text);
+
+        $expected = "Line 1\nLine 2\nInserted Line\nLine 3\nLine 4\nLine 5";
+        $this->assertEquals($expected, file_get_contents($this->testBaseDir . '/multiline.txt'));
+    }
+
+    public function testInsertPrefersInsertTextOverNewStr(): void {
+        $this->tool->handle([
+            'command' => 'insert',
+            'path' => 'multiline.txt',
+            'insert_text' => 'Documented Param',
+            'new_str' => 'Legacy Param',
+            'insert_line' => 1,
+        ]);
+
+        $expected = "Line 1\nDocumented Param\nLine 2\nLine 3\nLine 4\nLine 5";
+        $this->assertEquals($expected, file_get_contents($this->testBaseDir . '/multiline.txt'));
+    }
+
+    public function testInsertWithoutTextReturnsError(): void {
+        // Missing payload must be reported as an error, not silently insert a blank line
+        $response = $this->tool->handle([
+            'command' => 'insert',
+            'path' => 'multiline.txt',
+            'insert_line' => 2,
+        ]);
+
+        $this->assertInstanceOf(LLMMessageContents::class, $response);
+        $this->assertTrue($response->isError());
+        $this->assertStringContainsString('insert_text', $response->getMessages()[0]->getText());
+
+        $expected = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5";
+        $this->assertEquals($expected, file_get_contents($this->testBaseDir . '/multiline.txt'));
+    }
+
     public function testInsertToFileAtBeginning(): void {
         $response = $this->tool->handle([
             'command' => 'insert',
@@ -439,8 +486,10 @@ class TextEditorToolTest extends TestCase {
     }
 
     public function testGetAnthropicTypeForOtherModels(): void {
+        // Unknown/other models default to the current version so newly added
+        // models work without touching the resolver
         $model = new AnthropicClaude35Sonnet(AnthropicClaude35Sonnet::VERSION_20241022);
-        $this->assertEquals('text_editor_20250429', $this->tool->getAnthropicType($model));
+        $this->assertEquals('text_editor_20250728', $this->tool->getAnthropicType($model));
     }
 
     public function testStorageMethods(): void {
@@ -460,6 +509,34 @@ class TextEditorToolTest extends TestCase {
         $this->assertContains('simple.txt', $contents);
         $this->assertContains('multiline.txt', $contents);
         $this->assertContains('subdir', $contents);
+    }
+
+    public function testViewTruncationWithConfiguredMaxCharacters(): void {
+        $largeContent = str_repeat("This is a line of content.\n", 100);
+        file_put_contents($this->testBaseDir . '/large.txt', $largeContent);
+
+        $tool = new TextEditorTool($this->storage, maxCharacters: 200);
+        $response = $tool->handle([
+            'command' => 'view',
+            'path' => 'large.txt',
+        ]);
+
+        $text = $response->getMessages()[0]->getText();
+        $this->assertStringContainsString('truncated', $text);
+        // Bound: 200 chars of content + ~56 line-number prefixes (8 lines x 7 chars)
+        // + ~52 header + ~82 truncation notice — anything above ~400 means the
+        // configured limit was not applied
+        $this->assertLessThan(450, strlen($text));
+    }
+
+    public function testMaxCharactersZeroIsRejected(): void {
+        $this->expectException(\InvalidArgumentException::class);
+        new TextEditorTool($this->storage, maxCharacters: 0);
+    }
+
+    public function testMaxCharactersNegativeIsRejected(): void {
+        $this->expectException(\InvalidArgumentException::class);
+        new TextEditorTool($this->storage, maxCharacters: -5);
     }
 
     public function testContentTruncation(): void {

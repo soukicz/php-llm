@@ -157,6 +157,11 @@ use Soukicz\Llm\Tool\TextEditor\TextEditorTool;
 $storage = new TextEditorStorageFilesystem('/path/to/working/directory');
 $textEditorTool = new TextEditorTool($storage);
 
+// Optionally cap tool output length — file views and edit-confirmation
+// snippets (declared to the API as max_characters on models supporting
+// text_editor_20250728; default is 16000 characters)
+$textEditorTool = new TextEditorTool($storage, maxCharacters: 10000);
+
 $request = new LLMRequest(
     model: new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929),
     conversation: new LLMConversation([
