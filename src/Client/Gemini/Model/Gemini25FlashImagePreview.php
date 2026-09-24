@@ -3,6 +3,8 @@
 namespace Soukicz\Llm\Client\Gemini\Model;
 
 /**
+ * @deprecated Shut down by Google on January 15, 2026. Use Gemini25FlashImage instead.
+ *
  * @see https://ai.google.dev/gemini-api/docs/pricing
  */
 class Gemini25FlashImagePreview extends GeminiModel implements GeminiImageModel {

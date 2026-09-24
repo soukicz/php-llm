@@ -188,14 +188,14 @@ $gpt54 = new GPT54(GPT54::VERSION_2026_03_05);
 <?php
 use Soukicz\Llm\Client\Gemini\Model\Gemini25Flash;
 use Soukicz\Llm\Client\Gemini\Model\Gemini25Pro;
-use Soukicz\Llm\Client\Gemini\Model\Gemini3ProPreview;
+use Soukicz\Llm\Client\Gemini\Model\Gemini38Flash;
 
 // Gemini 2.5 models: effort is sent as a thinking token budget
 $pro = new Gemini25Pro();
 $flash = new Gemini25Flash();
 
 // Gemini 3.x models: effort is sent as a thinking level
-$gemini3 = new Gemini3ProPreview();
+$gemini3 = new Gemini38Flash();
 ```
 
 ## Cost Considerations

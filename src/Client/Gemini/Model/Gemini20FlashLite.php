@@ -2,6 +2,9 @@
 
 namespace Soukicz\Llm\Client\Gemini\Model;
 
+/**
+ * @deprecated Shut down by Google on June 1, 2026. Use Gemini31FlashLite instead.
+ */
 class Gemini20FlashLite extends GeminiModel {
     public function getCode(): string {
         return 'gemini-2.0-flash-lite';

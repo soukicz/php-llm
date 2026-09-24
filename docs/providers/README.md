@@ -40,8 +40,8 @@ Most Anthropic models require a version constant; the newest models take no cons
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude35Haiku;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Sonnet;
-use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Opus;
-use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Fable;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude55Opus;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude51Fable;
 
 // Versioned models require a version constant
 $model = new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929);
@@ -49,8 +49,8 @@ $model = new AnthropicClaude35Haiku(AnthropicClaude35Haiku::VERSION_20241022);
 
 // Claude 4.6 and later models take no arguments
 $model = new AnthropicClaude5Sonnet();
-$model = new AnthropicClaude5Opus();
-$model = new AnthropicClaude5Fable();
+$model = new AnthropicClaude55Opus();
+$model = new AnthropicClaude51Fable();
 ```
 
 **Available model classes:**
@@ -73,6 +73,8 @@ $model = new AnthropicClaude5Fable();
 | `AnthropicClaude5Sonnet` | `new AnthropicClaude5Sonnet()` |
 | `AnthropicClaude5Opus` | `new AnthropicClaude5Opus()` |
 | `AnthropicClaude5Fable` | `new AnthropicClaude5Fable()` |
+| `AnthropicClaude55Opus` | `new AnthropicClaude55Opus()` |
+| `AnthropicClaude51Fable` | `new AnthropicClaude51Fable()` |
 
 ### Batch Processing Support
 
@@ -109,21 +111,23 @@ $client = new OpenAIClient('sk-xxxxx', null, $cache);
 
 ### Model Classes
 
-Most OpenAI models require a version constant; the GPT-5.6 family has no dated snapshots and takes no arguments:
+Most OpenAI models require a version constant; the GPT-5.6 and GPT-6 families have no dated snapshots and take no arguments:
 
 ```php
 <?php
+use Soukicz\Llm\Client\OpenAI\Model\GPT6Astra;
+use Soukicz\Llm\Client\OpenAI\Model\GPT6Sol;
+use Soukicz\Llm\Client\OpenAI\Model\GPT6Luna;
 use Soukicz\Llm\Client\OpenAI\Model\GPT56Sol;
-use Soukicz\Llm\Client\OpenAI\Model\GPT56Terra;
-use Soukicz\Llm\Client\OpenAI\Model\GPT56Luna;
 use Soukicz\Llm\Client\OpenAI\Model\GPT55;
 use Soukicz\Llm\Client\OpenAI\Model\GPT54;
 use Soukicz\Llm\Client\OpenAI\Model\GPTo3;
 
-// GPT-5.6 models take no arguments
+// GPT-6 and GPT-5.6 models take no arguments
+$model = new GPT6Astra();
+$model = new GPT6Sol();
+$model = new GPT6Luna();
 $model = new GPT56Sol();
-$model = new GPT56Terra();
-$model = new GPT56Luna();
 
 // Older models require a version parameter
 $model = new GPT55(GPT55::VERSION_2026_04_23);
@@ -153,6 +157,9 @@ $model = new GPTo3(GPTo3::VERSION_2025_04_16);
 | `GPT56Sol` | `new GPT56Sol()` |
 | `GPT56Terra` | `new GPT56Terra()` |
 | `GPT56Luna` | `new GPT56Luna()` |
+| `GPT6Astra` | `new GPT6Astra()` |
+| `GPT6Sol` | `new GPT6Sol()` |
+| `GPT6Luna` | `new GPT6Luna()` |
 
 **Note:** Versioned model classes have version constants defined (e.g., `GPT5::VERSION_2025_08_07`). Check the class for available versions.
 
@@ -216,33 +223,39 @@ $client = new GeminiClient(
 
 ```php
 <?php
-use Soukicz\Llm\Client\Gemini\Model\Gemini25Pro;
-use Soukicz\Llm\Client\Gemini\Model\Gemini25Flash;
-use Soukicz\Llm\Client\Gemini\Model\Gemini3ProPreview;
+use Soukicz\Llm\Client\Gemini\Model\Gemini38Flash;
+use Soukicz\Llm\Client\Gemini\Model\Gemini35FlashLite;
+use Soukicz\Llm\Client\Gemini\Model\Gemini31ProPreview;
 
 // Most models don't require constructor arguments
-$model = new Gemini25Pro();
-$model = new Gemini25Flash();
-$model = new Gemini3ProPreview();
+$model = new Gemini38Flash();
+$model = new Gemini35FlashLite();
+$model = new Gemini31ProPreview();
 ```
 
 **Available model classes:**
 
 | Class | Constructor |
 |-------|-------------|
-| `Gemini20Flash` | `new Gemini20Flash()` |
-| `Gemini20FlashLite` | `new Gemini20FlashLite()` |
 | `Gemini25Flash` | `new Gemini25Flash()` |
 | `Gemini25FlashLite` | `new Gemini25FlashLite()` |
 | `Gemini25Pro` | `new Gemini25Pro()` |
-| `Gemini25ProPreview` | `new Gemini25ProPreview(Gemini25ProPreview::VERSION_03_25)` |
-| `Gemini3ProPreview` | `new Gemini3ProPreview()` |
-| `Gemini25FlashImage` | `new Gemini25FlashImage()` — [image generation](https://ai.google.dev/gemini-api/docs/image-generation) |
-| `Gemini25FlashImagePreview` | `new Gemini25FlashImagePreview()` — [image generation](https://ai.google.dev/gemini-api/docs/image-generation) |
-| `Gemini3ProImagePreview` | `new Gemini3ProImagePreview()` — [image generation](https://ai.google.dev/gemini-api/docs/image-generation) |
-| `Gemini31FlashImagePreview` | `new Gemini31FlashImagePreview()` — [image generation](https://ai.google.dev/gemini-api/docs/image-generation) |
+| `Gemini3FlashPreview` | `new Gemini3FlashPreview()` |
+| `Gemini31FlashLite` | `new Gemini31FlashLite()` |
+| `Gemini31ProPreview` | `new Gemini31ProPreview()` |
+| `Gemini35Flash` | `new Gemini35Flash()` |
+| `Gemini35FlashLite` | `new Gemini35FlashLite()` |
+| `Gemini36Flash` | `new Gemini36Flash()` |
+| `Gemini37Flash` | `new Gemini37Flash()` |
+| `Gemini38Flash` | `new Gemini38Flash()` |
+| `Gemini25FlashImage` | `new Gemini25FlashImage()` — [image generation](https://ai.google.dev/gemini-api/docs/image-generation) (shuts down October 2, 2026) |
+| `Gemini3ProImage` | `new Gemini3ProImage()` — [image generation](https://ai.google.dev/gemini-api/docs/image-generation) |
+| `Gemini31FlashImage` | `new Gemini31FlashImage()` — [image generation](https://ai.google.dev/gemini-api/docs/image-generation) |
+| `Gemini31FlashLiteImage` | `new Gemini31FlashLiteImage()` — [image generation](https://ai.google.dev/gemini-api/docs/image-generation) |
 
-Image generation models accept optional constructor arguments for output control, e.g. `new Gemini25FlashImage(imageAspectRatio: '16:9', imageSize: '2K')`.
+Deprecated classes for models Google has already shut down (kept for backward compatibility): `Gemini20Flash`, `Gemini20FlashLite`, `Gemini25ProPreview`, `Gemini3ProPreview`, `Gemini25FlashImagePreview`, `Gemini3ProImagePreview`, `Gemini31FlashImagePreview`.
+
+Image generation models accept optional constructor arguments for output control, e.g. `new Gemini31FlashImage(imageAspectRatio: '16:9', imageSize: '2K')`.
 
 Gemini models accept PDF inputs (sent as inline `application/pdf` data) and image inputs through the same `LLMRequest` API as the other providers.
 

@@ -8,25 +8,24 @@ class AnthropicClaude5Sonnet extends AnthropicModel {
     }
 
     /**
-     * Standard pricing, effective September 1, 2026. Introductory pricing of
-     * $2 / $10 per MTok (cache write $2.50, cache read $0.20) applies through
-     * August 31, 2026.
+     * The $2 / $10 introductory pricing became the standard price; the
+     * previously announced increase to $3 / $15 on September 1, 2026 did not happen.
      *
      * @see https://platform.claude.com/docs/en/about-claude/pricing
      */
     public function getInputPricePerMillionTokens(): float {
-        return 3.0;
+        return 2.0;
     }
 
     public function getOutputPricePerMillionTokens(): float {
-        return 15.0;
+        return 10.0;
     }
 
     public function getCachedInputPricePerMillionTokens(): float {
-        return 3.75;
+        return 2.5;
     }
 
     public function getCachedOutputPricePerMillionTokens(): float {
-        return 0.3;
+        return 0.2;
     }
 }

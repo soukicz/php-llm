@@ -54,12 +54,12 @@ Many Anthropic and OpenAI models pin an explicit version constant:
 new AnthropicClaude45Haiku(AnthropicClaude45Haiku::VERSION_20251001)
 new GPT54(GPT54::VERSION_2026_03_05)
 ```
-The newest Anthropic models (Claude 4.6 and later), the OpenAI GPT-5.6 family, and Google Gemini models do NOT require versions - just instantiate them directly:
+The newest Anthropic models (Claude 4.6 and later), the OpenAI GPT-5.6 and GPT-6 families, and Google Gemini models do NOT require versions - just instantiate them directly:
 ```php
 <?php
 new AnthropicClaude5Sonnet()
-new GPT56Terra()
-new Gemini25Flash()
+new GPT6Sol()
+new Gemini38Flash()
 ```
 
 ### Conversations & State

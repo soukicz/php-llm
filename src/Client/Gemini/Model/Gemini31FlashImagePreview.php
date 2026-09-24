@@ -3,6 +3,8 @@
 namespace Soukicz\Llm\Client\Gemini\Model;
 
 /**
+ * @deprecated Shut down by Google on June 25, 2026. Use Gemini31FlashImage instead.
+ *
  * @see https://ai.google.dev/gemini-api/docs/pricing
  * @see https://ai.google.dev/gemini-api/docs/image-generation
  */

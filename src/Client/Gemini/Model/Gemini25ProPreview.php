@@ -2,6 +2,9 @@
 
 namespace Soukicz\Llm\Client\Gemini\Model;
 
+/**
+ * @deprecated Shut down by Google on December 2, 2025. Use Gemini31ProPreview instead.
+ */
 class Gemini25ProPreview extends GeminiModel {
     public const VERSION_03_25 = '03-25';
 
