@@ -252,6 +252,7 @@ $model = new Gemini31ProPreview();
 | `Gemini3ProImage` | `new Gemini3ProImage()` — [image generation](https://ai.google.dev/gemini-api/docs/image-generation) |
 | `Gemini31FlashImage` | `new Gemini31FlashImage()` — [image generation](https://ai.google.dev/gemini-api/docs/image-generation) |
 | `Gemini31FlashLiteImage` | `new Gemini31FlashLiteImage()` — [image generation](https://ai.google.dev/gemini-api/docs/image-generation) |
+| `GeminiNanoBanana21` | `new GeminiNanoBanana21()` — [image generation](https://ai.google.dev/gemini-api/docs/image-generation) (Nano Banana 2.1) |
 
 Deprecated classes for models Google has already shut down (kept for backward compatibility): `Gemini20Flash`, `Gemini20FlashLite`, `Gemini25ProPreview`, `Gemini3ProPreview`, `Gemini25FlashImagePreview`, `Gemini3ProImagePreview`, `Gemini31FlashImagePreview`.
 

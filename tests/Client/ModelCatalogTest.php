@@ -21,6 +21,7 @@ use Soukicz\Llm\Client\Gemini\Model\Gemini37Flash;
 use Soukicz\Llm\Client\Gemini\Model\Gemini38Flash;
 use Soukicz\Llm\Client\Gemini\Model\Gemini3FlashPreview;
 use Soukicz\Llm\Client\Gemini\Model\Gemini3ProImage;
+use Soukicz\Llm\Client\Gemini\Model\GeminiNanoBanana21;
 use Soukicz\Llm\Client\ModelInterface;
 use Soukicz\Llm\Client\OpenAI\Model\GPT55;
 use Soukicz\Llm\Client\OpenAI\Model\GPT56Luna;
@@ -63,6 +64,7 @@ class ModelCatalogTest extends TestCase {
             'gemini-3.1-flash-image' => [new Gemini31FlashImage(), 'gemini-3.1-flash-image', 0.5, 60.0, 0.5, 60.0],
             'gemini-3.1-flash-lite-image' => [new Gemini31FlashLiteImage(), 'gemini-3.1-flash-lite-image', 0.25, 30.0, 0.25, 30.0],
             'gemini-3-pro-image' => [new Gemini3ProImage(), 'gemini-3-pro-image', 2.0, 120.0, 2.0, 120.0],
+            'gemini-nano-banana-2.1' => [new GeminiNanoBanana21(), 'gemini-nano-banana-2.1', 1.5, 30.0, 1.5, 30.0],
         ];
     }
 
