@@ -509,6 +509,128 @@ class LLMAgentClientTest extends TestCase {
         );
     }
 
+    /**
+     * A tool that throws must not abort the run: the model gets an error result and the loop goes on
+     */
+    public function testThrowingToolBecomesErrorResultAndRunContinues(): void {
+        $failing = new CallbackToolDefinition(
+            'lookup',
+            'Lookup',
+            ['type' => 'object', 'properties' => ['q' => ['type' => 'string']], 'required' => ['q']],
+            function (array $input): LLMMessageContents {
+                throw new \DomainException('catalog offline');
+            }
+        );
 
+        $request = new LLMRequest(
+            model: new GPT41(GPT41::VERSION_2025_04_14),
+            conversation: new LLMConversation([LLMMessage::createFromUserString('Find shoes')]),
+            tools: [$failing]
+        );
 
+        $sentRequests = [];
+        $queue = [$this->createToolUseResponse($request, 'tool-1', 'lookup', ['q' => 'shoes'])];
+        $mockClient = $this->createMock(LLMClient::class);
+        $mockClient->method('sendRequestAsync')
+            ->willReturnCallback(function (LLMRequest $sent) use (&$queue, &$sentRequests) {
+                $sentRequests[] = $sent;
+
+                return Create::promiseFor($queue !== [] ? array_shift($queue) : $this->createFinalResponse($sent, 'The catalog is offline.'));
+            });
+
+        $final = (new LLMAgentClient())->run($mockClient, $request);
+
+        $this->assertSame('The catalog is offline.', $final->getLastText());
+        $this->assertCount(2, $sentRequests);
+        $result = $sentRequests[1]->getLastMessage()->getContents()[0];
+        $this->assertInstanceOf(LLMMessageToolResult::class, $result);
+        $this->assertTrue($result->getContent()->isError());
+        $this->assertSame('ERROR: DomainException: catalog offline', $result->getContent()->getMessages()[0]->getText());
+    }
+
+    /**
+     * A rejected promise is an error result too, and the other tools of the same response still run
+     */
+    public function testRejectedToolPromiseBecomesErrorResult(): void {
+        $schema = ['type' => 'object', 'properties' => ['q' => ['type' => 'string']], 'required' => ['q']];
+        $slow = new CallbackToolDefinition('slow', 'Slow', $schema, fn(array $input): PromiseInterface => Create::rejectionFor(new RuntimeException('timeout')));
+        $fast = new CallbackToolDefinition('fast', 'Fast', $schema, fn(array $input): LLMMessageContents => LLMMessageContents::fromString('ok'));
+
+        $request = new LLMRequest(
+            model: new GPT41(GPT41::VERSION_2025_04_14),
+            conversation: new LLMConversation([LLMMessage::createFromUserString('Go')]),
+            tools: [$slow, $fast]
+        );
+        $toolUse = new LLMResponse(
+            $request->withMessage(LLMMessage::createFromAssistant(new LLMMessageContents([
+                new LLMMessageToolUse('t-slow', 'slow', ['q' => 'a']),
+                new LLMMessageToolUse('t-fast', 'fast', ['q' => 'b']),
+            ]))),
+            StopReason::TOOL_USE,
+            100, 50, 4000, 0.001, 0.002, 500
+        );
+
+        $sentRequests = [];
+        $mockClient = $this->createMock(LLMClient::class);
+        $mockClient->method('sendRequestAsync')
+            ->willReturnCallback(function (LLMRequest $sent) use (&$sentRequests, $toolUse) {
+                $sentRequests[] = $sent;
+
+                return Create::promiseFor(count($sentRequests) === 1 ? $toolUse : $this->createFinalResponse($sent, 'done'));
+            });
+
+        (new LLMAgentClient())->run($mockClient, $request);
+
+        $results = $sentRequests[1]->getLastMessage()->getContents();
+        $this->assertCount(2, $results);
+        $this->assertTrue($results[0]->getContent()->isError());
+        $this->assertSame('ERROR: RuntimeException: timeout', $results[0]->getContent()->getMessages()[0]->getText());
+        $this->assertFalse($results[1]->getContent()->isError());
+    }
+
+    /**
+     * Review focus 2: a promise resolving to something that is not LLMMessageContents is an error result,
+     * not a TypeError that kills the run
+     */
+    public function testToolResolvingToTheWrongTypeBecomesAnErrorResult(): void {
+        $broken = new class implements \Soukicz\Llm\Tool\ToolDefinition {
+            public function getName(): string {
+                return 'broken';
+            }
+
+            public function getDescription(): string {
+                return 'Broken';
+            }
+
+            public function getInputSchema(): array {
+                return ['type' => 'object', 'properties' => new \stdClass()];
+            }
+
+            public function handle(array $input): PromiseInterface|LLMMessageContents {
+                return Create::promiseFor('plain string');
+            }
+        };
+
+        $request = new LLMRequest(
+            model: new GPT41(GPT41::VERSION_2025_04_14),
+            conversation: new LLMConversation([LLMMessage::createFromUserString('Go')]),
+            tools: [$broken]
+        );
+
+        $sentRequests = [];
+        $queue = [$this->createToolUseResponse($request, 'tool-1', 'broken', [])];
+        $mockClient = $this->createMock(LLMClient::class);
+        $mockClient->method('sendRequestAsync')
+            ->willReturnCallback(function (LLMRequest $sent) use (&$queue, &$sentRequests) {
+                $sentRequests[] = $sent;
+
+                return Create::promiseFor($queue !== [] ? array_shift($queue) : $this->createFinalResponse($sent, 'done'));
+            });
+
+        (new LLMAgentClient())->run($mockClient, $request);
+
+        $result = $sentRequests[1]->getLastMessage()->getContents()[0];
+        $this->assertTrue($result->getContent()->isError());
+        $this->assertSame('ERROR: tool returned string, expected LLMMessageContents', $result->getContent()->getMessages()[0]->getText());
+    }
 }

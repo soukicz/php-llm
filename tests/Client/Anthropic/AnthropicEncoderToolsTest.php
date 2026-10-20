@@ -307,4 +307,30 @@ class AnthropicEncoderToolsTest extends TestCase {
         $this->assertEquals('adaptive', $encoded['thinking']['type']);
         $this->assertEquals('max', $encoded['output_config']['effort']);
     }
+
+    public function testToolResultErrorFlagComesFromTheResultItself(): void {
+        $encoder = new AnthropicEncoder();
+
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('What is 2+2 and 2/0?'),
+            LLMMessage::createFromAssistant(new LLMMessageContents([
+                new LLMMessageToolUse('tool-ok', 'calculator', ['expression' => '2+2']),
+                new LLMMessageToolUse('tool-bad', 'calculator', ['expression' => '2/0']),
+            ])),
+            // the wrapping user message is NOT an error; only the second result is
+            LLMMessage::createFromUser(new LLMMessageContents([
+                new LLMMessageToolResult('tool-ok', LLMMessageContents::fromArrayData(['result' => 4])),
+                new LLMMessageToolResult('tool-bad', LLMMessageContents::fromErrorString('ERROR: division by zero')),
+            ])),
+        ]);
+
+        $encoded = $encoder->encodeRequest(new LLMRequest(
+            model: new AnthropicClaude35Sonnet(AnthropicClaude35Sonnet::VERSION_20241022),
+            conversation: $conversation,
+        ));
+
+        $results = $encoded['messages'][2]['content'];
+        $this->assertArrayNotHasKey('is_error', $results[0]);
+        $this->assertTrue($results[1]['is_error']);
+    }
 }

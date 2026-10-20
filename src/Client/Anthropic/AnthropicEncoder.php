@@ -239,7 +239,7 @@ class AnthropicEncoder implements ModelEncoder {
                         'tool_use_id' => $messageContent->getId(),
                         'content' => $contentParts,
                     ];
-                    if ($message->getContents()->isError()) {
+                    if ($toolResultContent->isError()) {
                         $toolContent['is_error'] = true;
                     }
                     $contents[] = $this->addCacheAttribute($messageContent, $toolContent);
