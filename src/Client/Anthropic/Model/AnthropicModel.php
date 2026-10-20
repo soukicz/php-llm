@@ -6,6 +6,13 @@ use Soukicz\Llm\Client\ModelInterface;
 
 abstract class AnthropicModel implements ModelInterface {
     /**
+     * Whether the model accepts temperature / top_p / top_k. Models that reject them (400) never get them sent.
+     */
+    public function supportsSamplingParameters(): bool {
+        return true;
+    }
+
+    /**
      * 5-minute cache write price; the same value as the legacy getCachedInputPricePerMillionTokens()
      */
     public function getCacheWrite5mPricePerMillionTokens(): float {

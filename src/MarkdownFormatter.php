@@ -66,7 +66,7 @@ class MarkdownFormatter {
         }
 
         $markdown = ' - **Model:** ' . $request->getModel()->getCode() . "\n";
-        $markdown .= ' - **Temperature:** ' . $request->getTemperature() . "\n";
+        $markdown .= ' - **Temperature:** ' . ($request->getTemperature() ?? 'provider default') . "\n";
         $markdown .= ' - **Max tokens:** ' . $request->getMaxTokens() . "\n";
 
         foreach ($request->getConversation()->getMessages() as $message) {

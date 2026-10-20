@@ -113,10 +113,12 @@ class GeminiEncoder implements ModelEncoder {
         $requestData = [
             'contents' => $contents,
             'generationConfig' => [
-                'temperature' => $request->getTemperature(),
                 'maxOutputTokens' => $request->getMaxTokens(),
             ],
         ];
+        if ($request->getTemperature() !== null) {
+            $requestData['generationConfig']['temperature'] = $request->getTemperature();
+        }
         if (!empty($this->safetySettings)) {
             $requestData['safetySettings'] = $this->safetySettings;
         }
