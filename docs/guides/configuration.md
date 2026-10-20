@@ -261,7 +261,7 @@ See [Reasoning Models Guide](reasoning.md) for more details.
 
 ### thinkingDisplay
 
-Anthropic only. `ThinkingDisplay::SUMMARIZED` returns a readable summary of the reasoning, and `OMITTED` returns empty thinking text (the default on current models). `UPDATES` returns the model's short progress notes between tool calls as thinking text; it needs the `thinking-display-updates-2026-08-18` beta, which the client adds by itself. Display controls visibility only: thinking is billed the same.
+Anthropic only. `ThinkingDisplay::SUMMARIZED` returns a readable summary of the reasoning, and `OMITTED` returns empty thinking text (the default on current models). `UPDATES` returns the model's short progress notes between tool calls as thinking text; it needs the `thinking-display-updates-2026-08-18` beta, which the client adds by itself. Only Fable 5 / 5.1, Opus 5.5 and Sonnet 5.5 accept it; on other models `UPDATES` is dropped and the default display applies. Display controls visibility only: thinking is billed the same.
 
 ### contextManagement
 

@@ -29,6 +29,14 @@ abstract class AnthropicModel implements ModelInterface {
     }
 
     /**
+     * Whether `thinking.display: "updates"` (and its beta) is accepted. Other models would answer with a 400,
+     * so the encoder falls back to the default display for them.
+     */
+    public function supportsThinkingUpdates(): bool {
+        return false;
+    }
+
+    /**
      * 5-minute cache write price; the same value as the legacy getCachedInputPricePerMillionTokens()
      */
     public function getCacheWrite5mPricePerMillionTokens(): float {
