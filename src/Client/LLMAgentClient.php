@@ -7,119 +7,145 @@ use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Promise\Utils;
 use InvalidArgumentException;
+use Soukicz\Llm\Agent\AgentRunGuard;
+use Soukicz\Llm\Agent\AgentRunInterruptedException;
+use Soukicz\Llm\Agent\AgentRunOptions;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Log\LLMLogger;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageContents;
-use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
+use Soukicz\Llm\Tool\ToolDefinition;
 use Swaggest\JsonSchema\Schema;
 
 class LLMAgentClient {
     public function __construct(private readonly ?LLMLogger $logger = null) {
     }
 
-    public function run(LLMClient $client, LLMRequest $request, ?callable $feedbackCallback = null): LLMResponse {
-        return $this->runAsync($client, $request, $feedbackCallback)->wait();
+    /**
+     * @throws AgentRunInterruptedException when a limit of $options is hit, the run is cancelled or the model refuses
+     */
+    public function run(LLMClient $client, LLMRequest $request, ?callable $feedbackCallback = null, ?AgentRunOptions $options = null): LLMResponse {
+        return $this->runAsync($client, $request, $feedbackCallback, $options)->wait();
     }
 
     /**
-     * @return PromiseInterface<LLMResponse>
+     * @return PromiseInterface<LLMResponse> rejected with AgentRunInterruptedException on a limit, cancel or refusal
      */
-    public function runAsync(LLMClient $client, LLMRequest $request, ?callable $feedbackCallback = null): PromiseInterface {
+    public function runAsync(LLMClient $client, LLMRequest $request, ?callable $feedbackCallback = null, ?AgentRunOptions $options = null): PromiseInterface {
+        $guard = new AgentRunGuard($options ?? new AgentRunOptions());
         $this->logger?->requestStarted($request);
 
-        return $this->sendAndProcessRequest($client, $request, $feedbackCallback);
+        return $this->sendAndProcessRequest($client, $request, $feedbackCallback, $guard);
     }
 
     /**
-     * Helper method that handles the full request-response flow including tool use
-     *
      * @return PromiseInterface<LLMResponse>
      */
-    private function sendAndProcessRequest(LLMClient $client, LLMRequest $request, ?callable $feedbackCallback): PromiseInterface {
-        return $client->sendRequestAsync($request)->then(function (LLMResponse $response) use ($client, $request, $feedbackCallback) {
-            $this->logger?->requestFinished($response);
+    private function sendAndProcessRequest(LLMClient $client, LLMRequest $request, ?callable $feedbackCallback, AgentRunGuard $guard): PromiseInterface {
+        try {
+            $guard->beforeModelCall($request);
+        } catch (AgentRunInterruptedException $e) {
+            return Create::rejectionFor($e);
+        }
 
-            // First check for and handle any tool use - this has highest priority
-            if ($response->getStopReason() === StopReason::TOOL_USE) {
-                return $this->processToolUseResponse($response, $client, $request, $feedbackCallback);
+        return $client->sendRequestAsync($request)->then(function (LLMResponse $response) use ($client, $feedbackCallback, $guard) {
+            $this->logger?->requestFinished($response);
+            $guard->afterModelResponse($response);
+
+            if ($response->getStopReason() === StopReason::PAUSE_TURN) {
+                // a paused server-side tool loop resumes when the same conversation is sent again
+                $this->logger?->requestStarted($response->getRequest());
+
+                return $this->sendAndProcessRequest($client, $response->getRequest(), $feedbackCallback, $guard);
             }
 
-            // If no tool use, then process other response types (feedback)
-            return $this->postProcessResponse($response, $client, $feedbackCallback);
+            if ($response->getStopReason() === StopReason::TOOL_USE) {
+                return $this->processToolUseResponse($response, $client, $feedbackCallback, $guard);
+            }
+
+            return $this->postProcessResponse($response, $client, $feedbackCallback, $guard);
         });
     }
 
     /**
-     * Process a response that contains tool use requests
-     *
      * @return PromiseInterface<LLMResponse>
      */
-    private function processToolUseResponse(LLMResponse $response, LLMClient $client, LLMRequest $request, ?callable $feedbackCallback): PromiseInterface {
-        $toolResponseContents = [];
-
+    private function processToolUseResponse(LLMResponse $response, LLMClient $client, ?callable $feedbackCallback, AgentRunGuard $guard): PromiseInterface {
+        $toolResults = [];
         foreach ($response->getConversation()->getLastMessage()->getContents() as $content) {
             if (!$content instanceof LLMMessageToolUse) {
                 continue;
             }
-
-            $tool = null;
-            foreach ($request->getTools() as $candidateTool) {
-                if ($candidateTool->getName() === $content->getName()) {
-                    $tool = $candidateTool;
-                    break;
-                }
-            }
-
-            if ($tool === null) {
-                $toolResponseContents[] = Create::promiseFor(new LLMMessageToolResult(
-                    $content->getId(),
-                    LLMMessageContents::fromErrorString('ERROR: Tool "' . $content->getName() . '" is not available')
-                ));
-                continue;
-            }
-
-            $input = $content->getInput();
-            $noContent = empty($input) && empty($tool->getInputSchema()['required']);
-
-            if (!$noContent) {
-                try {
-                    Schema::import(json_decode(json_encode($tool->getInputSchema())))->in(json_decode(json_encode($input)));
-                } catch (Exception $e) {
-                    $toolResponseContents[] = Create::promiseFor(new LLMMessageToolResult(
-                        $content->getId(),
-                        LLMMessageContents::fromErrorString('ERROR: Input is not matching expected schema: ' . $e->getMessage())
-                    ));
-                    continue;
-                }
-            }
-
-            try {
-                $toolResponse = $tool->handle($input);
-            } catch (\Throwable $e) {
-                $toolResponse = self::toolErrorContents($e);
-            }
-            if ($toolResponse instanceof LLMMessageContents) {
-                $toolResponse = Create::promiseFor($toolResponse);
-            }
-            $toolUseId = $content->getId();
-            $toolResponseContents[] = $toolResponse
-                ->then(static fn(mixed $value): LLMMessageContents => self::toolResultContents($value))
-                ->otherwise(static fn(mixed $reason): LLMMessageContents => self::toolErrorContents($reason))
-                ->then(static fn(LLMMessageContents $result): LLMMessageToolResult => new LLMMessageToolResult($toolUseId, $result));
+            $guard->beforeToolCall($response, $toolResults);
+            $toolResults[] = $this->callTool($response->getRequest()->getTools(), $content, $guard);
         }
 
-        $newRequest = $response->getRequest()->withMessage(LLMMessage::createFromUser(new LLMMessageContents(Utils::unwrap($toolResponseContents))));
+        $newRequest = $response->getRequest()->withMessage(LLMMessage::createFromUser(new LLMMessageContents(Utils::unwrap($toolResults))));
         $this->logger?->requestStarted($newRequest);
 
-        // Use sendAndProcessRequest to ensure full processing of the response, including potential nested tool uses
-        return $this->sendAndProcessRequest($client, $newRequest, $feedbackCallback);
+        return $this->sendAndProcessRequest($client, $newRequest, $feedbackCallback, $guard);
     }
 
-    private function postProcessResponse(LLMResponse $llmResponse, LLMClient $LLMClient, ?callable $feedbackCallback): PromiseInterface {
+    /**
+     * Runs one tool call; never rejects - every failure becomes an error result for the model
+     *
+     * @param ToolDefinition[] $tools
+     * @return PromiseInterface<LLMMessageToolResult>
+     */
+    private function callTool(array $tools, LLMMessageToolUse $toolUse, AgentRunGuard $guard): PromiseInterface {
+        $name = $toolUse->getName();
+        $input = $toolUse->getInput();
+        $guard->toolCallStarted($name, $input);
+        $startedAt = hrtime(true);
+        $finish = static function (LLMMessageContents $result) use ($guard, $toolUse, $name, $input, $startedAt): LLMMessageToolResult {
+            $guard->toolCallFinished($name, $input, $result, intdiv(hrtime(true) - $startedAt, 1_000_000));
+
+            return new LLMMessageToolResult($toolUse->getId(), $result);
+        };
+
+        $tool = null;
+        foreach ($tools as $candidate) {
+            if ($candidate->getName() === $name) {
+                $tool = $candidate;
+                break;
+            }
+        }
+        if ($tool === null) {
+            return Create::promiseFor($finish(LLMMessageContents::fromErrorString('ERROR: Tool "' . $name . '" is not available')));
+        }
+
+        $noContent = empty($input) && empty($tool->getInputSchema()['required']);
+        if (!$noContent) {
+            try {
+                Schema::import(json_decode(json_encode($tool->getInputSchema())))->in(json_decode(json_encode($input)));
+            } catch (Exception $e) {
+                return Create::promiseFor($finish(LLMMessageContents::fromErrorString('ERROR: Input is not matching expected schema: ' . $e->getMessage())));
+            }
+        }
+
+        try {
+            $handled = $tool->handle($input);
+        } catch (\Throwable $e) {
+            $handled = self::toolErrorContents($e);
+        }
+        if ($handled instanceof LLMMessageContents) {
+            // finish synchronous tools immediately so listener events and durations stay per tool
+            return Create::promiseFor($finish($handled));
+        }
+
+        return $handled
+            ->then(static fn(mixed $value): LLMMessageContents => self::toolResultContents($value))
+            ->otherwise(static fn(mixed $reason): LLMMessageContents => self::toolErrorContents($reason))
+            ->then($finish);
+    }
+
+    /**
+     * @return PromiseInterface<LLMResponse>
+     */
+    private function postProcessResponse(LLMResponse $llmResponse, LLMClient $LLMClient, ?callable $feedbackCallback, AgentRunGuard $guard): PromiseInterface {
         $request = $llmResponse->getRequest();
 
         if ($feedbackCallback) {
@@ -130,7 +156,7 @@ class LLMAgentClient {
                 }
                 $request = $request->withMessage($feedback);
 
-                return $this->sendAndProcessRequest($LLMClient, $request, $feedbackCallback);
+                return $this->sendAndProcessRequest($LLMClient, $request, $feedbackCallback, $guard);
             }
         }
 
