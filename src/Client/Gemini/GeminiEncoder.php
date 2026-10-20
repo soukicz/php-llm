@@ -163,7 +163,7 @@ class GeminiEncoder implements ModelEncoder {
                             ReasoningEffort::MINIMAL => 512,
                             ReasoningEffort::LOW => 1024,
                             ReasoningEffort::MEDIUM => 8192,
-                            ReasoningEffort::HIGH, ReasoningEffort::EXTRA_HIGH => 24576,
+                            ReasoningEffort::HIGH, ReasoningEffort::XHIGH, ReasoningEffort::EXTRA_HIGH, ReasoningEffort::MAX => 24576,
                         },
                     ];
                 } else {
@@ -172,7 +172,7 @@ class GeminiEncoder implements ModelEncoder {
                             ReasoningEffort::MINIMAL => 'minimal',
                             ReasoningEffort::LOW => 'low',
                             ReasoningEffort::MEDIUM => 'medium',
-                            ReasoningEffort::HIGH, ReasoningEffort::EXTRA_HIGH => 'high',
+                            ReasoningEffort::HIGH, ReasoningEffort::XHIGH, ReasoningEffort::EXTRA_HIGH, ReasoningEffort::MAX => 'high',
                         },
                     ];
                 }

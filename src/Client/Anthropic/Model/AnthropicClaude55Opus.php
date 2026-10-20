@@ -7,6 +7,10 @@ class AnthropicClaude55Opus extends AnthropicModel {
         return 'claude-opus-5-5';
     }
 
+    public function hasAdaptiveThinkingByDefault(): bool {
+        return true;
+    }
+
     /**
      * Sampling parameters return a 400 on this model
      *
