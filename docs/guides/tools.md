@@ -255,7 +255,7 @@ The `inputSchema` follows JSON Schema specification. Common patterns:
 
 ## Errors, progress and limits
 
-A tool that throws, rejects its promise or returns the wrong type becomes an error result for the model, and the run goes on. Results built with `LLMMessageContents::fromErrorString()` are flagged as errors to the provider. For progress events, iteration, cost and time limits, and cancellation, see [Agent Runs](agent-runs.md).
+A tool that throws, rejects its promise or returns the wrong type becomes an error result for the model, and the run goes on. Results built with `LLMMessageContents::fromErrorString()` are flagged as errors (`is_error`) when sent to Claude; OpenAI and Gemini have no such flag, so the error text is sent as an ordinary result. For progress events, iteration, cost and time limits, and cancellation, see [Agent Runs](agent-runs.md).
 
 ## See Also
 

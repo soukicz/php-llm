@@ -169,7 +169,7 @@ $model = new GPTo3(GPTo3::VERSION_2025_04_16);
 
 ### Reasoning Configuration
 
-Use the `reasoningConfig` parameter of `LLMRequest`. The `ReasoningEffort` enum (`NONE`, `MINIMAL`, `LOW`, `MEDIUM`, `HIGH`, `EXTRA_HIGH`) works on OpenAI, Anthropic, and Gemini:
+Use the `reasoningConfig` parameter of `LLMRequest`. The `ReasoningEffort` enum (`NONE`, `MINIMAL`, `LOW`, `MEDIUM`, `HIGH`, `XHIGH`, `EXTRA_HIGH`, `MAX`) works on OpenAI, Anthropic, and Gemini:
 
 ```php
 <?php

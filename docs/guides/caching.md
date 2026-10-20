@@ -411,7 +411,7 @@ Create the system message with `cached: true` to put a cache breakpoint right af
 LLMMessage::createFromSystemString($stableInstructions, cached: true);
 ```
 
-System messages added later in the conversation (for example per-turn state) do not edit the cached prefix. Models that support it (Opus 4.8+, Sonnet 5.5, Haiku 5.5, Fable) get them as mid-conversation `role: system` messages. On other models their text is appended to the neighbouring user message.
+System messages added later in the conversation (for example per-turn state) do not edit the cached prefix. Models that support it (Opus 4.8+, Sonnet 5.5, Haiku 5.5, Fable) get them as mid-conversation `role: system` messages. On other models their text is appended to the neighbouring user message. Supported models fall back to the same appending when the position does not allow a native system message (it must follow a user message and be last or be followed by an assistant message).
 
 ### Cost of cache writes
 
