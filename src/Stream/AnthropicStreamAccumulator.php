@@ -78,6 +78,7 @@ class AnthropicStreamAccumulator {
         $content = [];
         $usage = [];
         $stopReason = null;
+        $stopDetails = null;
 
         // Per-block accumulators
         $blockTexts = [];
@@ -193,6 +194,16 @@ class AnthropicStreamAccumulator {
                                 'input' => $inputJson !== '' ? json_decode($inputJson, true, 512, JSON_THROW_ON_ERROR) : [],
                             ];
                             break;
+
+                        default:
+                            // redacted_thinking, server tool blocks and future types: keep the block as started,
+                            // with any streamed input
+                            $block = $meta;
+                            if ($blockToolJsons[$index] !== '') {
+                                $block['input'] = json_decode($blockToolJsons[$index], true, 512, JSON_THROW_ON_ERROR);
+                            }
+                            $content[$index] = $block;
+                            break;
                     }
 
                     $listener->onStreamEvent(new StreamEvent(
@@ -204,6 +215,9 @@ class AnthropicStreamAccumulator {
                 case 'message_delta':
                     if (isset($data['delta']['stop_reason'])) {
                         $stopReason = $data['delta']['stop_reason'];
+                    }
+                    if (isset($data['delta']['stop_details'])) {
+                        $stopDetails = $data['delta']['stop_details'];
                     }
                     if (isset($data['usage'])) {
                         $usage = array_merge($usage, $data['usage']);
@@ -230,6 +244,7 @@ class AnthropicStreamAccumulator {
         return [
             'content' => array_values($content),
             'stop_reason' => $stopReason,
+            'stop_details' => $stopDetails,
             'usage' => $usage,
         ];
     }

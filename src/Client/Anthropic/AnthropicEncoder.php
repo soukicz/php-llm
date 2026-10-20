@@ -20,8 +20,10 @@ use Soukicz\Llm\Message\LLMMessageArrayData;
 use Soukicz\Llm\Message\LLMMessageContent;
 use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageImage;
+use Soukicz\Llm\Message\LLMMessageOpaque;
 use Soukicz\Llm\Message\LLMMessagePdf;
 use Soukicz\Llm\Message\LLMMessageReasoning;
+use Soukicz\Llm\Message\LLMMessageRedactedReasoning;
 use Soukicz\Llm\Message\LLMMessageStructuredData;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
@@ -186,6 +188,24 @@ class AnthropicEncoder implements ModelEncoder {
             ]);
         }
 
+        if ($messageContent instanceof LLMMessageRedactedReasoning) {
+            return [
+                'type' => 'redacted_thinking',
+                'data' => $messageContent->getData(),
+            ];
+        }
+        if ($messageContent instanceof LLMMessageOpaque) {
+            if ($messageContent->getProvider() !== 'anthropic') {
+                throw new InvalidArgumentException('Opaque content from provider "' . $messageContent->getProvider() . '" cannot be sent to Anthropic');
+            }
+            $block = $messageContent->getBlock();
+            // json_decode(..., true) turns an empty JSON object into []; the API expects an object back
+            if (array_key_exists('input', $block) && $block['input'] === []) {
+                $block['input'] = new \stdClass();
+            }
+
+            return $block;
+        }
         throw new InvalidArgumentException('Unsupported message content type: ' . get_class($messageContent));
     }
 
@@ -363,8 +383,10 @@ class AnthropicEncoder implements ModelEncoder {
                 $responseContents[] = new LLMMessageReasoning($content['thinking'], $content['signature']);
             } elseif ($content['type'] === 'tool_use') {
                 $responseContents[] = new LLMMessageToolUse($content['id'], $content['name'], $content['input']);
+            } elseif ($content['type'] === 'redacted_thinking') {
+                $responseContents[] = new LLMMessageRedactedReasoning($content['data']);
             } else {
-                throw new \InvalidArgumentException('Unsupported message type');
+                $responseContents[] = new LLMMessageOpaque('anthropic', $content);
             }
         }
         $request = $request->withMessage(LLMMessage::createFromAssistant(new LLMMessageContents($responseContents)));
@@ -408,8 +430,10 @@ class AnthropicEncoder implements ModelEncoder {
 
         $stopReason = match ($response['stop_reason']) {
             'end_turn', 'stop_sequence' => StopReason::FINISHED,
-            'max_tokens' => StopReason::LENGTH,
+            'max_tokens', 'model_context_window_exceeded' => StopReason::LENGTH,
             'tool_use' => StopReason::TOOL_USE,
+            'refusal' => StopReason::REFUSAL,
+            'pause_turn' => StopReason::PAUSE_TURN,
             default => throw new \InvalidArgumentException('Unsupported stop reason "' . $response['stop_reason'] . '"'),
         };
 
@@ -424,6 +448,7 @@ class AnthropicEncoder implements ModelEncoder {
             $request->getPreviousTimeMs(),
             $request->getPreviousUsage(),
             $stepUsage,
+            $response['stop_details'] ?? null,
         );
     }
 }

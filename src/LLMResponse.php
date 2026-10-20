@@ -19,6 +19,7 @@ class LLMResponse {
         private int $totalTimeMs,
         private readonly ?TokenUsage $usage = null,
         private readonly ?TokenUsage $stepUsage = null,
+        private readonly ?array $stopDetails = null,
     ) {
     }
 
@@ -78,6 +79,13 @@ class LLMResponse {
 
     public function getTotalTimeMs(): int {
         return $this->totalTimeMs;
+    }
+
+    /**
+     * Provider details of the stop (Anthropic `stop_details`: {type, category, explanation} on a refusal), null otherwise
+     */
+    public function getStopDetails(): ?array {
+        return $this->stopDetails;
     }
 
     /**

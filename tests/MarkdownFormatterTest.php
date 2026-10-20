@@ -13,6 +13,8 @@ use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\MarkdownFormatter;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageContents;
+use Soukicz\Llm\Message\LLMMessageOpaque;
+use Soukicz\Llm\Message\LLMMessageRedactedReasoning;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 
@@ -75,5 +77,23 @@ class MarkdownFormatterTest extends TestCase {
         $markdown = $this->formatter->responseToMarkdown($response);
 
         $this->assertStringContainsString('price: $0.000', $markdown);
+    }
+
+    public function testRendersRedactedAndOpaqueBlocks(): void {
+        $request = new LLMRequest(
+            model: new AnthropicClaude45Haiku(AnthropicClaude45Haiku::VERSION_20251001),
+            conversation: new LLMConversation([
+                LLMMessage::createFromUserString('Hi'),
+                LLMMessage::createFromAssistant(new LLMMessageContents([
+                    new LLMMessageRedactedReasoning('abc'),
+                    new LLMMessageOpaque('anthropic', ['type' => 'server_tool_use']),
+                ])),
+            ]),
+        );
+
+        $markdown = $this->formatter->responseToMarkdown($request);
+
+        $this->assertStringContainsString('**Redacted reasoning**', $markdown);
+        $this->assertStringContainsString('`server_tool_use`', $markdown);
     }
 }
