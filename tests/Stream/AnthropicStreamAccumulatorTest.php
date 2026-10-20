@@ -323,4 +323,25 @@ class AnthropicStreamAccumulatorTest extends TestCase {
 
         return $sse;
     }
+
+    public function testKeepsUnknownBlocksAndStopDetails(): void {
+        $sse = $this->buildSse([
+            ['event' => 'message_start', 'data' => ['type' => 'message_start', 'message' => ['usage' => ['input_tokens' => 5]]]],
+            ['event' => 'content_block_start', 'data' => ['type' => 'content_block_start', 'index' => 0, 'content_block' => ['type' => 'redacted_thinking', 'data' => 'abc']]],
+            ['event' => 'content_block_stop', 'data' => ['type' => 'content_block_stop', 'index' => 0]],
+            ['event' => 'content_block_start', 'data' => ['type' => 'content_block_start', 'index' => 1, 'content_block' => ['type' => 'server_tool_use', 'id' => 'srv_1', 'name' => 'web_search', 'input' => []]]],
+            ['event' => 'content_block_delta', 'data' => ['type' => 'content_block_delta', 'index' => 1, 'delta' => ['type' => 'input_json_delta', 'partial_json' => '{"query":"shoes"}']]],
+            ['event' => 'content_block_stop', 'data' => ['type' => 'content_block_stop', 'index' => 1]],
+            ['event' => 'message_delta', 'data' => ['type' => 'message_delta', 'delta' => ['stop_reason' => 'refusal', 'stop_details' => ['type' => 'refusal', 'category' => 'bio', 'explanation' => null]], 'usage' => ['output_tokens' => 1]]],
+            ['event' => 'message_stop', 'data' => ['type' => 'message_stop']],
+        ]);
+
+        $result = AnthropicStreamAccumulator::consume(Utils::streamFor($sse), new CallableStreamListener(static function (StreamEvent $event): void {
+        }));
+
+        $this->assertSame(['type' => 'redacted_thinking', 'data' => 'abc'], $result['content'][0]);
+        $this->assertSame(['type' => 'server_tool_use', 'id' => 'srv_1', 'name' => 'web_search', 'input' => ['query' => 'shoes']], $result['content'][1]);
+        $this->assertSame('refusal', $result['stop_reason']);
+        $this->assertSame('bio', $result['stop_details']['category']);
+    }
 }

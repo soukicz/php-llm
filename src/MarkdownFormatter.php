@@ -6,8 +6,10 @@ use RuntimeException;
 use Soukicz\Llm\Message\LLMMessageArrayData;
 use Soukicz\Llm\Message\LLMMessageContent;
 use Soukicz\Llm\Message\LLMMessageImage;
+use Soukicz\Llm\Message\LLMMessageOpaque;
 use Soukicz\Llm\Message\LLMMessagePdf;
 use Soukicz\Llm\Message\LLMMessageReasoning;
+use Soukicz\Llm\Message\LLMMessageRedactedReasoning;
 use Soukicz\Llm\Message\LLMMessageStructuredData;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
@@ -41,6 +43,14 @@ class MarkdownFormatter {
 
         if ($content instanceof LLMMessageStructuredData) {
             return "**Structured output:**\n\n```json\n" . json_encode($content->getData(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n```\n";
+        }
+
+        if ($content instanceof LLMMessageRedactedReasoning) {
+            return '**Redacted reasoning**';
+        }
+
+        if ($content instanceof LLMMessageOpaque) {
+            return '**' . $content->getProvider() . ' block:** `' . $content->getType() . '`';
         }
 
         throw new RuntimeException('Unknown message content type');
