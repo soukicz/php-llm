@@ -16,6 +16,8 @@ use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageOpaque;
+use Soukicz\Llm\Message\LLMMessagePdf;
+use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
 use Soukicz\Llm\Tests\Client\ScriptedLLMClient;
@@ -222,5 +224,19 @@ class AgentRunTest extends TestCase {
         $this->assertCount(2, $client->sent);
         $this->assertTrue($client->sent[1]->getLastMessage()->isAssistant());
         $this->assertEquals(new TokenUsage(input: 200, output: 100), $response->getUsage());
+    }
+
+    public function testToolMayReturnAPdfThatReachesTheNextModelCall(): void {
+        $uploads = new CallbackToolDefinition('uploads', 'Uploads', ['type' => 'object', 'properties' => ['fileId' => ['type' => 'string']], 'required' => ['fileId']],
+            fn(array $input): LLMMessageContents => new LLMMessageContents([new LLMMessageText('manual.pdf'), new LLMMessagePdf('base64', 'JVBERi0x')]));
+        $client = new ScriptedLLMClient(
+            ScriptedLLMClient::toolUse('t1', 'uploads', ['fileId' => 'abc']),
+            ScriptedLLMClient::text('Read it.'),
+        );
+
+        (new LLMAgentClient())->run($client, $this->request([$uploads]));
+
+        $encoded = (new AnthropicEncoder())->encodeRequest($client->sent[1]);
+        $this->assertSame('document', $encoded['messages'][2]['content'][0]['content'][1]['type']);
     }
 }
