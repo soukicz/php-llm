@@ -23,12 +23,14 @@ use Soukicz\Llm\Client\Gemini\Model\Gemini37Flash;
 use Soukicz\Llm\Client\Gemini\Model\Gemini38Flash;
 use Soukicz\Llm\Client\Gemini\Model\Gemini3FlashPreview;
 use Soukicz\Llm\Client\Gemini\Model\Gemini3ProImage;
+use Soukicz\Llm\Client\Gemini\Model\Gemini4Argon;
 use Soukicz\Llm\Client\Gemini\Model\GeminiNanoBanana21;
 use Soukicz\Llm\Client\ModelInterface;
 use Soukicz\Llm\Client\OpenAI\Model\GPT55;
 use Soukicz\Llm\Client\OpenAI\Model\GPT56Luna;
 use Soukicz\Llm\Client\OpenAI\Model\GPT56Sol;
 use Soukicz\Llm\Client\OpenAI\Model\GPT56Terra;
+use Soukicz\Llm\Client\OpenAI\Model\GPT61Sol;
 use Soukicz\Llm\Client\OpenAI\Model\GPT6Astra;
 use Soukicz\Llm\Client\OpenAI\Model\GPT6Luna;
 use Soukicz\Llm\Client\OpenAI\Model\GPT6Sol;
@@ -46,9 +48,9 @@ class ModelCatalogTest extends TestCase {
             'claude-sonnet-5' => [new AnthropicClaude5Sonnet(), 'claude-sonnet-5', 2.0, 10.0, 2.5, 0.2],
             'claude-fable-5' => [new AnthropicClaude5Fable(), 'claude-fable-5', 10.0, 50.0, 12.5, 1.0],
             'claude-opus-5-5' => [new AnthropicClaude55Opus(), 'claude-opus-5-5', 4.0, 20.0, 5.0, 0.2],
-            'claude-sonnet-5-5' => [new AnthropicClaude55Sonnet(), 'claude-sonnet-5-5', 2.0, 10.0, 2.5, 0.2],
-            'claude-haiku-5-5' => [new AnthropicClaude55Haiku(), 'claude-haiku-5-5', 0.1, 0.5, 0.125, 0.01],
             'claude-fable-5-1' => [new AnthropicClaude51Fable(), 'claude-fable-5-1', 10.0, 50.0, 12.5, 0.25],
+            'claude-sonnet-5-5' => [new AnthropicClaude55Sonnet(), 'claude-sonnet-5-5', 2.0, 10.0, 2.5, 0.1],
+            'claude-haiku-5-5' => [new AnthropicClaude55Haiku(), 'claude-haiku-5-5', 0.1, 0.5, 0.125, 0.01],
             'gpt-5.5' => [new GPT55(GPT55::VERSION_2026_04_23), 'gpt-5.5-2026-04-23', 5.0, 30.0, 0.5, 0.0],
             'gpt-5.6-sol' => [new GPT56Sol(), 'gpt-5.6-sol', 4.0, 20.0, 0.4, 0.0],
             'gpt-5.6-terra' => [new GPT56Terra(), 'gpt-5.6-terra', 2.0, 12.0, 0.2, 0.0],
@@ -56,7 +58,9 @@ class ModelCatalogTest extends TestCase {
             'gpt-6-astra' => [new GPT6Astra(), 'gpt-6-astra', 10.0, 50.0, 1.0, 0.0],
             'gpt-6-sol' => [new GPT6Sol(), 'gpt-6-sol', 2.0, 10.0, 0.2, 0.0],
             'gpt-6-luna' => [new GPT6Luna(), 'gpt-6-luna', 0.1, 0.5, 0.01, 0.0],
+            'gpt-6.1-sol' => [new GPT61Sol(), 'gpt-6.1-sol', 2.0, 10.0, 0.1, 0.0],
             // Gemini reports cached prices equal to the uncached ones
+            'gemini-4-argon' => [new Gemini4Argon(), 'gemini-4-argon', 2.0, 10.0, 2.0, 10.0],
             'gemini-3-flash-preview' => [new Gemini3FlashPreview(), 'gemini-3-flash-preview', 0.5, 3.0, 0.5, 3.0],
             'gemini-3.1-pro-preview' => [new Gemini31ProPreview(), 'gemini-3.1-pro-preview', 2.0, 12.0, 2.0, 12.0],
             'gemini-3.1-flash-lite' => [new Gemini31FlashLite(), 'gemini-3.1-flash-lite', 0.25, 1.5, 0.25, 1.5],

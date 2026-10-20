@@ -7,6 +7,7 @@ namespace Soukicz\Llm\Tests\Client\Anthropic;
 use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Client\Anthropic\AnthropicEncoder;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude55Haiku;
 use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Client\StopReason;
 use Soukicz\Llm\LLMConversation;
@@ -123,5 +124,22 @@ class AnthropicDecoderPricingTest extends TestCase {
         $this->assertEquals(new TokenUsage(input: 150, output: 15, cacheRead: 3000), $second->getUsage());
         // Sonnet 4.5: $3 input, $0.30 cache read, $15 output
         $this->assertEqualsWithDelta((150 * 3.0 + 3000 * 0.30 + 15 * 15.0) / 1_000_000, $second->getTotalCostUsd(), 1e-12);
+    }
+
+    public function testHaiku55UsesTheLongPromptRateCardAbove100kPromptTokens(): void {
+        $request = new LLMRequest(
+            model: new AnthropicClaude55Haiku(),
+            conversation: new LLMConversation([LLMMessage::createFromUserString('Hello')]),
+        );
+        $decode = fn(int $input): LLMResponse => $this->encoder->decodeResponse($request, new ModelResponse([
+            'content' => [['type' => 'text', 'text' => 'ok']],
+            'usage' => ['input_tokens' => $input, 'output_tokens' => 1_000, 'cache_read_input_tokens' => 50_000],
+            'stop_reason' => 'end_turn',
+        ], 10));
+
+        // exactly 100,000 prompt tokens is not "over 100,000": short-prompt prices
+        $this->assertEqualsWithDelta((50_000 * 0.10 + 50_000 * 0.01 + 1_000 * 0.50) / 1_000_000, $decode(50_000)->getTotalCostUsd(), 1e-12);
+        // one token more and the whole request pays the long-prompt prices, cache reads included
+        $this->assertEqualsWithDelta((50_001 * 0.50 + 50_000 * 0.05 + 1_000 * 2.50) / 1_000_000, $decode(50_001)->getTotalCostUsd(), 1e-12);
     }
 }
