@@ -162,6 +162,8 @@ OpenAI requires images to be encoded as base64 data URIs. The library handles th
 ### Anthropic PDF Support
 Anthropic's Claude models have excellent PDF parsing capabilities and can handle complex document layouts, tables, and multi-column text.
 
+PDFs can also be returned from a tool: put an `LLMMessagePdf` into the tool's `LLMMessageContents`, and it is sent as a `document` block inside the `tool_result`.
+
 ### File Size Limits
 Be aware of file size limits:
 - Images are typically limited to 5-20MB depending on provider

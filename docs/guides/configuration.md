@@ -6,15 +6,18 @@ Configure your AI agent requests with various parameters to control behavior, ou
 
 ```php
 <?php
+use Soukicz\Llm\Config\ClearToolUses;
+use Soukicz\Llm\Config\ContextManagement;
 use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\Config\StructuredOutputConfig;
+use Soukicz\Llm\Config\ThinkingDisplay;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Stream\CallableStreamListener;
 
 $request = new LLMRequest(
     model: $model,                              // Required: Model instance
     conversation: $conversation,                // Required: LLMConversation
-    temperature: 0.7,                           // Optional: 0.0 to 1.0 (default 0.0)
+    temperature: 0.7,                           // Optional: float or null (default 0.0); null = provider default
     maxTokens: 4096,                            // Optional: Maximum response tokens (default 4096)
     tools: $tools,                              // Optional: Array of tool definitions
     stopSequences: ['###', 'END'],              // Optional: Stop generation strings
@@ -22,6 +25,10 @@ $request = new LLMRequest(
     structuredOutputConfig: new StructuredOutputConfig($schema), // Optional: JSON Schema output
     streamListener: new CallableStreamListener( // Optional: Real-time progress updates
         fn($event) => print($event->delta)
+    ),
+    thinkingDisplay: ThinkingDisplay::UPDATES,  // Optional (Anthropic): what thinking blocks contain
+    contextManagement: new ContextManagement(   // Optional (Anthropic): server-side context editing
+        clearToolUses: new ClearToolUses(triggerInputTokens: 60000, keepToolUses: 3),
     ),
 );
 ```
@@ -70,11 +77,15 @@ $conversation = new LLMConversation([
 
 ### temperature
 
-Controls randomness in responses (0.0 to 1.0):
+Controls randomness in responses (0.0 to 1.0), or `null` to send no temperature at all:
 
 - **0.0** - Deterministic, focused responses (the library default)
 - **0.5** - Balanced
 - **1.0** - Creative, varied responses
+- **null** - Omit the parameter and use the provider default
+
+Claude Opus 4.7 and newer, Sonnet 5 and newer, Haiku 5.5 and Fable reject sampling parameters. The Anthropic
+encoder never sends `temperature` to them (`AnthropicModel::supportsSamplingParameters()`), whatever you pass.
 
 ```php
 <?php
@@ -247,6 +258,25 @@ $request = new LLMRequest(
 ```
 
 See [Reasoning Models Guide](reasoning.md) for more details.
+
+### thinkingDisplay
+
+Anthropic only. `ThinkingDisplay::SUMMARIZED` returns a readable summary of the reasoning, and `OMITTED` returns empty thinking text (the default on current models). `UPDATES` returns the model's short progress notes between tool calls as thinking text; it needs the `thinking-display-updates-2026-08-18` beta, which the client adds by itself. Display controls visibility only: thinking is billed the same.
+
+### contextManagement
+
+Anthropic only. Clears old tool results on the server once the prompt grows, without editing your stored conversation, which keeps replayed thinking blocks valid. The client adds the `context-management-2025-06-27` beta.
+
+```php
+<?php
+new ContextManagement(clearToolUses: new ClearToolUses(
+    triggerInputTokens: 60000,            // start clearing above this prompt size (API default 100,000)
+    keepToolUses: 3,                      // keep the newest pairs (API default 3)
+    clearToolInputs: false,               // also clear tool_use inputs
+    excludeTools: ['str_replace_based_edit_tool'],
+    clearAtLeastInputTokens: 5000,        // skip clearings that free less
+));
+```
 
 ## Client Configuration
 

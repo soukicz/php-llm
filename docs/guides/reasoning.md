@@ -45,7 +45,9 @@ $request = new LLMRequest(
 - `ReasoningEffort::LOW` - Fast, less thorough reasoning
 - `ReasoningEffort::MEDIUM` - Balanced reasoning
 - `ReasoningEffort::HIGH` - Thorough, slower reasoning
-- `ReasoningEffort::EXTRA_HIGH` - Maximum reasoning effort
+- `ReasoningEffort::XHIGH` - Between high and max (good default for agentic work on current Claude models)
+- `ReasoningEffort::EXTRA_HIGH` - Kept for compatibility (Anthropic `max`, OpenAI `xhigh`)
+- `ReasoningEffort::MAX` - Maximum reasoning effort
 
 There is no default level — omitting `reasoningConfig` leaves the decision to the provider.
 
@@ -53,12 +55,16 @@ There is no default level — omitting `reasoningConfig` leaves the decision to 
 
 | Effort | Anthropic (adaptive thinking + effort) | OpenAI (`reasoning_effort`) | Gemini 3.x (`thinkingLevel`) | Gemini 2.x (`thinkingBudget`) |
 |---|---|---|---|---|
-| `NONE` | thinking disabled | `none` | `thinkingBudget: 0` | `0` |
+| `NONE` | models that think by default (Opus 5+, Sonnet 5+, Haiku 5.5, Fable): `effort: low`, no `thinking`; others: thinking off | `none` | `thinkingBudget: 0` | `0` |
 | `MINIMAL` | `low` | `minimal` | `minimal` | `512` |
 | `LOW` | `low` | `low` | `low` | `1024` |
 | `MEDIUM` | `medium` | `medium` | `medium` | `8192` |
 | `HIGH` | `high` | `high` | `high` | `24576` |
+| `XHIGH` | `xhigh` | `xhigh` | `high` | `24576` |
 | `EXTRA_HIGH` | `max` | `xhigh` | `high` | `24576` |
+| `MAX` | `max` | `xhigh` | `high` | `24576` |
+
+When an effort is set, the Anthropic encoder always sends it. Claude Opus 5.5 defaults to `medium` when it is omitted.
 
 Gemini 2.x models do not accept `thinkingLevel` — the library automatically translates the effort level to a `thinkingBudget` token budget for them.
 

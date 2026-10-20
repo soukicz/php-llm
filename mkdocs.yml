@@ -48,6 +48,7 @@ nav:
   - Guides:
       - Configuration: guides/configuration.md
       - Tools: guides/tools.md
+      - Agent Runs: guides/agent-runs.md
       - Caching: guides/caching.md
       - Batch Processing: guides/batch-processing.md
       - Multimodal: guides/multimodal.md

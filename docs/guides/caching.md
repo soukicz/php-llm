@@ -402,6 +402,21 @@ Behavior details:
 - OpenAI and Gemini cache prompts automatically, so the option is a no-op there.
 - Prompts shorter than the provider's minimum (e.g. 1024 tokens for Claude Sonnet) are silently not cached.
 
+### System prompt
+
+Create the system message with `cached: true` to put a cache breakpoint right after it. With a `ConversationCacheConfig` TTL, the same TTL is used there too, because longer TTLs must come first:
+
+```php
+<?php
+LLMMessage::createFromSystemString($stableInstructions, cached: true);
+```
+
+System messages added later in the conversation (for example per-turn state) do not edit the cached prefix. Models that support it (Opus 4.8+, Sonnet 5.5, Haiku 5.5, Fable) get them as mid-conversation `role: system` messages. On other models their text is appended to the neighbouring user message.
+
+### Cost of cache writes
+
+`LLMResponse::getUsage()` separates 5-minute writes, 1-hour writes and reads. 1-hour writes are billed at 2× the base input price, and 5-minute writes at 1.25×.
+
 ## See Also
 
 - [Configuration Guide](configuration.md) - Client configuration
