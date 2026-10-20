@@ -16,6 +16,8 @@ use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageOpaque;
+use Soukicz\Llm\Message\LLMMessageReasoning;
+use Soukicz\Llm\Message\LLMMessageRedactedReasoning;
 use Soukicz\Llm\Message\LLMMessagePdf;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
@@ -185,6 +187,55 @@ class AgentRunTest extends TestCase {
             $this->assertSame(['t1', 't2'], $toolUseIds);
             $this->assertSame($toolUseIds, $toolResultIds);
         }
+    }
+
+    public function testInterruptedConversationReplaysAfterJsonRoundTrip(): void {
+        $calls = 0;
+        $cancel = false;
+        $tool = $this->calculator($calls, function () use (&$cancel): void {
+            $cancel = true;
+        });
+        $opaque = ['type' => 'web_search_tool_result', 'tool_use_id' => 'srv1', 'content' => [['type' => 'web_search_result', 'url' => 'https://example.com']]];
+        $client = new ScriptedLLMClient(
+            ScriptedLLMClient::reply(new LLMMessageContents([
+                new LLMMessageReasoning('thinking it over', 'sig-1'),
+                new LLMMessageRedactedReasoning('opaque-redacted-data'),
+                new LLMMessageOpaque('anthropic', ['type' => 'server_tool_use', 'id' => 'srv1', 'name' => 'web_search', 'input' => []]),
+                new LLMMessageOpaque('anthropic', $opaque),
+                new LLMMessageToolUse('t1', 'calculator', ['expression' => '1']),
+                new LLMMessageToolUse('t2', 'calculator', ['expression' => '2']),
+            ]), StopReason::TOOL_USE),
+            ScriptedLLMClient::text('never'),
+        );
+
+        try {
+            (new LLMAgentClient())->run($client, $this->request([$tool]), null, new AgentRunOptions(shouldCancel: static function () use (&$cancel): bool {
+                return $cancel;
+            }));
+            $this->fail('Expected AgentRunInterruptedException');
+        } catch (AgentRunInterruptedException $e) {
+            $this->assertSame(1, $calls);
+            $restored = LLMConversation::fromJson(json_decode(json_encode($e->getConversation(), JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR));
+        }
+
+        $encoded = (new AnthropicEncoder())->encodeRequest(new LLMRequest(
+            model: new AnthropicClaude55Opus(),
+            conversation: $restored->withMessage(LLMMessage::createFromUserString('continue')),
+        ));
+
+        $this->assertSame(['user', 'assistant', 'user', 'user'], array_column($encoded['messages'], 'role'));
+        $assistant = $encoded['messages'][1]['content'];
+        $this->assertSame(['thinking', 'redacted_thinking', 'server_tool_use', 'web_search_tool_result', 'tool_use', 'tool_use'], array_column($assistant, 'type'));
+        $this->assertSame('sig-1', $assistant[0]['signature']);
+        $this->assertSame('opaque-redacted-data', $assistant[1]['data']);
+        $this->assertEquals((object) [], $assistant[2]['input']);
+        $this->assertSame($opaque, $assistant[3]);
+        $toolUseIds = array_column(array_filter($assistant, static fn(array $b): bool => $b['type'] === 'tool_use'), 'id');
+        $results = array_values(array_filter($encoded['messages'][2]['content'], static fn(array $b): bool => $b['type'] === 'tool_result'));
+        $this->assertSame(['t1', 't2'], $toolUseIds);
+        $this->assertSame($toolUseIds, array_column($results, 'tool_use_id'));
+        $this->assertArrayNotHasKey('is_error', $results[0]);
+        $this->assertTrue($results[1]['is_error']);
     }
 
     public function testRefusalEndsTheRunWithoutTheRefusedTurn(): void {
