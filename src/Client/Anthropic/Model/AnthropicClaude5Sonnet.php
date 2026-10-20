@@ -8,6 +8,15 @@ class AnthropicClaude5Sonnet extends AnthropicModel {
     }
 
     /**
+     * Sampling parameters return a 400 on this model
+     *
+     * @see https://platform.claude.com/docs/en/about-claude/models/overview
+     */
+    public function supportsSamplingParameters(): bool {
+        return false;
+    }
+
+    /**
      * The $2 / $10 introductory pricing became the standard price; the
      * previously announced increase to $3 / $15 on September 1, 2026 did not happen.
      *

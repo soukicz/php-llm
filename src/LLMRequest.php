@@ -23,7 +23,7 @@ class LLMRequest {
     public function __construct(
         private readonly ModelInterface  $model,
         private LLMConversation  $conversation,
-        private readonly float   $temperature = 0.0,
+        private readonly ?float  $temperature = 0.0,
         private readonly int     $maxTokens = 4096,
         private readonly array   $tools = [],
         private readonly array   $stopSequences = [],
@@ -50,7 +50,10 @@ class LLMRequest {
         return $this->model;
     }
 
-    public function getTemperature(): float {
+    /**
+     * null = do not send a temperature (provider default)
+     */
+    public function getTemperature(): ?float {
         return $this->temperature;
     }
 

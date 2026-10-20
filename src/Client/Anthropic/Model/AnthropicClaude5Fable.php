@@ -7,6 +7,15 @@ class AnthropicClaude5Fable extends AnthropicModel {
         return 'claude-fable-5';
     }
 
+    /**
+     * Sampling parameters return a 400 on this model
+     *
+     * @see https://platform.claude.com/docs/en/about-claude/models/overview
+     */
+    public function supportsSamplingParameters(): bool {
+        return false;
+    }
+
     public function getInputPricePerMillionTokens(): float {
         return 10.0;
     }

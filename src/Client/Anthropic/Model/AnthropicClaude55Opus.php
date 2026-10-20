@@ -8,6 +8,15 @@ class AnthropicClaude55Opus extends AnthropicModel {
     }
 
     /**
+     * Sampling parameters return a 400 on this model
+     *
+     * @see https://platform.claude.com/docs/en/about-claude/models/overview
+     */
+    public function supportsSamplingParameters(): bool {
+        return false;
+    }
+
+    /**
      * Cache reads are billed at 0.05x the base input price.
      *
      * @see https://platform.claude.com/docs/en/about-claude/pricing

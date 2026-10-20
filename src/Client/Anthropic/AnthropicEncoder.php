@@ -283,10 +283,13 @@ class AnthropicEncoder implements ModelEncoder {
 
         $options = [
             'max_tokens' => $request->getMaxTokens(),
-            'temperature' => $request->getTemperature(),
             'messages' => $encodedMessages,
             'model' => $request->getModel()->getCode(),
         ];
+        $model = $request->getModel();
+        if ($request->getTemperature() !== null && (!$model instanceof AnthropicModel || $model->supportsSamplingParameters())) {
+            $options['temperature'] = $request->getTemperature();
+        }
 
         $outputConfig = [];
 

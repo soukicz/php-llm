@@ -7,6 +7,15 @@ class AnthropicClaude48Opus extends AnthropicModel {
         return 'claude-opus-4-8';
     }
 
+    /**
+     * Sampling parameters return a 400 on this model
+     *
+     * @see https://platform.claude.com/docs/en/about-claude/models/overview
+     */
+    public function supportsSamplingParameters(): bool {
+        return false;
+    }
+
     public function getInputPricePerMillionTokens(): float {
         return 5.0;
     }

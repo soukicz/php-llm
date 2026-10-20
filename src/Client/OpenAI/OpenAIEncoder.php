@@ -143,8 +143,10 @@ class OpenAIEncoder implements ModelEncoder {
             'model' => $request->getModel()->getCode(),
             'messages' => $encodedMessages,
             'max_completion_tokens' => $request->getMaxTokens(),
-            'temperature' => $request->getTemperature(),
         ];
+        if ($request->getTemperature() !== null) {
+            $requestData['temperature'] = $request->getTemperature();
+        }
 
         $reasoningConfig = $request->getReasoningConfig();
         if ($reasoningConfig) {
