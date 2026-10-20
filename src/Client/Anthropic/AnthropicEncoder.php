@@ -341,6 +341,11 @@ class AnthropicEncoder implements ModelEncoder {
             $options['output_config'] = $outputConfig;
         }
 
+        $contextEdits = $request->getContextManagement()?->toAnthropicEdits() ?? [];
+        if ($contextEdits !== []) {
+            $options['context_management'] = ['edits' => $contextEdits];
+        }
+
         if ($systemPrompt !== null) {
             $options['system'] = $systemPrompt;
         }
@@ -390,6 +395,9 @@ class AnthropicEncoder implements ModelEncoder {
         $betas = [];
         if ($request->getThinkingDisplay() === ThinkingDisplay::UPDATES) {
             $betas[] = 'thinking-display-updates-2026-08-18';
+        }
+        if (($request->getContextManagement()?->toAnthropicEdits() ?? []) !== []) {
+            $betas[] = 'context-management-2025-06-27';
         }
 
         return $betas;
