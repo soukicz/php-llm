@@ -97,13 +97,19 @@ class LLMAgentClient {
                 }
             }
 
-            $toolResponse = $tool->handle($input);
+            try {
+                $toolResponse = $tool->handle($input);
+            } catch (\Throwable $e) {
+                $toolResponse = self::toolErrorContents($e);
+            }
             if ($toolResponse instanceof LLMMessageContents) {
                 $toolResponse = Create::promiseFor($toolResponse);
             }
-            $toolResponseContents[] = $toolResponse->then(function (LLMMessageContents $response) use ($content) {
-                return new LLMMessageToolResult($content->getId(), $response);
-            });
+            $toolUseId = $content->getId();
+            $toolResponseContents[] = $toolResponse
+                ->then(static fn(mixed $value): LLMMessageContents => self::toolResultContents($value))
+                ->otherwise(static fn(mixed $reason): LLMMessageContents => self::toolErrorContents($reason))
+                ->then(static fn(LLMMessageContents $result): LLMMessageToolResult => new LLMMessageToolResult($toolUseId, $result));
         }
 
         $newRequest = $response->getRequest()->withMessage(LLMMessage::createFromUser(new LLMMessageContents(Utils::unwrap($toolResponseContents))));
@@ -131,4 +137,19 @@ class LLMAgentClient {
         return Create::promiseFor($llmResponse);
     }
 
+    private static function toolResultContents(mixed $value): LLMMessageContents {
+        if ($value instanceof LLMMessageContents) {
+            return $value;
+        }
+
+        return LLMMessageContents::fromErrorString('ERROR: tool returned ' . get_debug_type($value) . ', expected LLMMessageContents');
+    }
+
+    private static function toolErrorContents(mixed $reason): LLMMessageContents {
+        if ($reason instanceof \Throwable) {
+            return LLMMessageContents::fromErrorString('ERROR: ' . $reason::class . ': ' . $reason->getMessage());
+        }
+
+        return LLMMessageContents::fromErrorString('ERROR: tool failed: ' . (is_scalar($reason) ? (string) $reason : get_debug_type($reason)));
+    }
 }
