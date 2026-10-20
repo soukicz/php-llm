@@ -48,22 +48,26 @@ class AnthropicClient extends AnthropicEncoder implements LLMBatchClient {
         return $this->cachedHttpClient;
     }
 
-    private function getHeaders(): array {
+    /**
+     * @param string[] $requestBetas
+     */
+    private function getHeaders(array $requestBetas = []): array {
         $headers = [
             'accept-encoding' => 'gzip',
             'anthropic-version' => '2023-06-01',
             'x-api-key' => $this->apiKey,
         ];
-        if (!empty($this->betaFeatures)) {
-            $headers['anthropic-beta'] = implode(',', $this->betaFeatures);
+        $betas = array_values(array_unique([...$this->betaFeatures, ...$requestBetas]));
+        if ($betas !== []) {
+            $headers['anthropic-beta'] = implode(',', $betas);
         }
 
         return $headers;
     }
 
-    private function invokeModel(array $data): PromiseInterface {
+    private function invokeModel(array $data, array $betas): PromiseInterface {
         return $this->getCachedHttpClient()->postAsync('https://api.anthropic.com/v1/messages', [
-            'headers' => $this->getHeaders(),
+            'headers' => $this->getHeaders($betas),
             'json' => $data,
         ])->then(function (ResponseInterface $response) {
             return new ModelResponse(json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR), (int) $response->getHeaderLine('X-Request-Duration-ms'));
@@ -78,7 +82,7 @@ class AnthropicClient extends AnthropicEncoder implements LLMBatchClient {
         });
     }
 
-    private function invokeModelStreaming(array $data, StreamListenerInterface $streamListener): PromiseInterface {
+    private function invokeModelStreaming(array $data, StreamListenerInterface $streamListener, array $betas): PromiseInterface {
         // Build cache key from non-streaming request (before adding stream:true)
         $cacheKeyRequest = new Request('POST', 'https://api.anthropic.com/v1/messages', [], json_encode($data, JSON_THROW_ON_ERROR));
 
@@ -97,7 +101,7 @@ class AnthropicClient extends AnthropicEncoder implements LLMBatchClient {
         $data['stream'] = true;
         $requestStart = microtime(true);
 
-        $headers = $this->getHeaders();
+        $headers = $this->getHeaders($betas);
         // Avoid gzip compression on SSE streams
         $headers['accept-encoding'] = 'identity';
 
@@ -131,9 +135,10 @@ class AnthropicClient extends AnthropicEncoder implements LLMBatchClient {
         $encoded = $this->encodeRequest($request);
         $streamListener = $request->getStreamListener();
 
+        $betas = $this->getRequestBetas($request);
         $modelPromise = $streamListener !== null
-            ? $this->invokeModelStreaming($encoded, $streamListener)
-            : $this->invokeModel($encoded);
+            ? $this->invokeModelStreaming($encoded, $streamListener, $betas)
+            : $this->invokeModel($encoded, $betas);
 
         return $modelPromise->then(function (ModelResponse $modelResponse) use ($request): LLMResponse|PromiseInterface {
             $encodedResponseOrRequest = $this->decodeResponse($request, $modelResponse);
@@ -151,15 +156,17 @@ class AnthropicClient extends AnthropicEncoder implements LLMBatchClient {
      */
     public function createBatch(array $requests): string {
         $params = [];
+        $betas = [];
         foreach ($requests as $customId => $request) {
             $params[] = [
                 'custom_id' => $customId,
                 'params' => $this->encodeRequest($request),
             ];
+            $betas = [...$betas, ...$this->getRequestBetas($request)];
         }
 
         $response = $this->getHttpClient()->post('https://api.anthropic.com/v1/messages/batches', [
-            'headers' => $this->getHeaders(),
+            'headers' => $this->getHeaders($betas),
             'json' => [
                 'requests' => $params,
             ],

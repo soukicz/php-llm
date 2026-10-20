@@ -7,6 +7,7 @@ use Soukicz\Llm\Config\ConversationCacheConfig;
 use Soukicz\Llm\Config\ReasoningConfig;
 use Soukicz\Llm\Config\ReasoningEffort;
 use Soukicz\Llm\Config\StructuredOutputConfig;
+use Soukicz\Llm\Config\ThinkingDisplay;
 use Soukicz\Llm\Message\LLMMessage;
 use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageText;
@@ -36,7 +37,8 @@ class LLMRequest {
         private int              $previousMaximumOutputTokens = 0,
         private float            $previousInputCostUSD = 0.0,
         private float            $previousOutputCostUSD = 0.0,
-        private int              $previousTimeMs = 0
+        private int              $previousTimeMs = 0,
+        private readonly ?ThinkingDisplay $thinkingDisplay = null,
     ) {
     }
 
@@ -160,4 +162,7 @@ class LLMRequest {
         return $this->streamListener;
     }
 
+    public function getThinkingDisplay(): ?ThinkingDisplay {
+        return $this->thinkingDisplay;
+    }
 }
