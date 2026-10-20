@@ -40,6 +40,10 @@ class AnthropicClaude55Sonnet extends AnthropicModel {
         return true;
     }
 
+    public function supportsThinkingUpdates(): bool {
+        return true;
+    }
+
     public function supportsMidConversationSystemMessages(): bool {
         return true;
     }

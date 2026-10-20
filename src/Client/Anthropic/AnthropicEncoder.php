@@ -393,7 +393,7 @@ class AnthropicEncoder implements ModelEncoder {
             }
         }
 
-        $thinkingDisplay = $request->getThinkingDisplay();
+        $thinkingDisplay = self::effectiveThinkingDisplay($request);
         if ($thinkingDisplay !== null) {
             if (isset($options['thinking'])) {
                 $options['thinking']['display'] = $thinkingDisplay->value;
@@ -466,7 +466,7 @@ class AnthropicEncoder implements ModelEncoder {
      */
     public function getRequestBetas(LLMRequest $request): array {
         $betas = [];
-        if ($request->getThinkingDisplay() === ThinkingDisplay::UPDATES) {
+        if (self::effectiveThinkingDisplay($request) === ThinkingDisplay::UPDATES) {
             $betas[] = 'thinking-display-updates-2026-08-18';
         }
         if (($request->getContextManagement()?->toAnthropicEdits() ?? []) !== []) {
@@ -474,6 +474,19 @@ class AnthropicEncoder implements ModelEncoder {
         }
 
         return $betas;
+    }
+
+    /**
+     * The requested display, minus `updates` on a model that does not accept it (the API rejects it with a 400)
+     */
+    private static function effectiveThinkingDisplay(LLMRequest $request): ?ThinkingDisplay {
+        $display = $request->getThinkingDisplay();
+        $model = $request->getModel();
+        if ($display === ThinkingDisplay::UPDATES && $model instanceof AnthropicModel && !$model->supportsThinkingUpdates()) {
+            return null;
+        }
+
+        return $display;
     }
 
     private static function anthropicEffort(ReasoningEffort $effort): string {
