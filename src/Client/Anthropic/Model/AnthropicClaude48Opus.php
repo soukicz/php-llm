@@ -7,6 +7,10 @@ class AnthropicClaude48Opus extends AnthropicModel {
         return 'claude-opus-4-8';
     }
 
+    public function supportsMidConversationSystemMessages(): bool {
+        return true;
+    }
+
     /**
      * Sampling parameters return a 400 on this model
      *

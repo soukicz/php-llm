@@ -7,6 +7,10 @@ class AnthropicClaude55Opus extends AnthropicModel {
         return 'claude-opus-5-5';
     }
 
+    public function supportsMidConversationSystemMessages(): bool {
+        return true;
+    }
+
     public function hasAdaptiveThinkingByDefault(): bool {
         return true;
     }

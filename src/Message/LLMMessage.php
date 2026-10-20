@@ -50,8 +50,11 @@ class LLMMessage implements JsonDeserializable {
         return new self(self::TYPE_SYSTEM, $content);
     }
 
-    public static function createFromSystemString(string $content): LLMMessage {
-        return new self(self::TYPE_SYSTEM, new LLMMessageContents([new LLMMessageText($content)]));
+    /**
+     * @param bool $cached put a prompt-cache breakpoint after this system prompt (Anthropic)
+     */
+    public static function createFromSystemString(string $content, bool $cached = false): LLMMessage {
+        return new self(self::TYPE_SYSTEM, new LLMMessageContents([new LLMMessageText($content, $cached)]));
     }
 
 

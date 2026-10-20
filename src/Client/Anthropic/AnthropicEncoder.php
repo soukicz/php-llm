@@ -8,6 +8,7 @@ use Soukicz\Llm\Client\Anthropic\Model\AnthropicPrices;
 use Soukicz\Llm\Client\Anthropic\Tool\AnthropicNativeTool;
 use Soukicz\Llm\Client\Anthropic\Tool\AnthropicNativeToolWithOptions;
 use Soukicz\Llm\Client\ModelEncoder;
+use Soukicz\Llm\Client\ModelInterface;
 use Soukicz\Llm\Client\ModelResponse;
 use Soukicz\Llm\Client\StopReason;
 use Soukicz\Llm\Config\ConversationCacheConfig;
@@ -92,14 +93,18 @@ class AnthropicEncoder implements ModelEncoder {
      * requires longer-TTL cache entries to appear before shorter-TTL ones, so a 5-minute
      * explicit breakpoint followed by 1-hour moving breakpoints would be rejected.
      */
-    private function addConversationCacheBreakpoints(array $encodedMessages, ConversationCacheConfig $config): array {
+    private function addConversationCacheBreakpoints(array $encodedMessages, ConversationCacheConfig $config, int $breakpointsInUse = 0): array {
         $cacheControl = ['type' => 'ephemeral'];
         if ($config->getTtl() !== null) {
             $cacheControl['ttl'] = $config->getTtl()->value;
         }
 
-        $breakpointCount = 0;
+        $breakpointCount = $breakpointsInUse;
         foreach ($encodedMessages as $messageIndex => $encodedMessage) {
+            if (!is_array($encodedMessage['content'])) {
+                // mid-conversation system message sent as a plain string
+                continue;
+            }
             foreach ($encodedMessage['content'] as $contentIndex => $encodedContent) {
                 if (isset($encodedContent['cache_control'])) {
                     $breakpointCount++;
@@ -132,6 +137,63 @@ class AnthropicEncoder implements ModelEncoder {
         }
 
         return $encodedMessages;
+    }
+
+    private function encodeSystemContent(LLMMessage $message): array {
+        if (count($message->getContents()) !== 1) {
+            throw new \InvalidArgumentException('System message supports only one content block');
+        }
+        $content = $message->getContents()[0];
+        if (!$content instanceof LLMMessageText) {
+            throw new \InvalidArgumentException('Unsupported system message type');
+        }
+
+        return $this->addCacheAttribute($content, ['type' => 'text', 'text' => $content->getText()]);
+    }
+
+    /**
+     * Sends a later system message as `role: system` where the model and its position allow it (after a user
+     * message, last or before an assistant message); otherwise appends its text to the previous user message,
+     * or to the next one - appending keeps tool_result blocks first.
+     */
+    private function placeMidConversationSystemMessages(array $encodedMessages, ModelInterface $model): array {
+        $native = $model instanceof AnthropicModel && $model->supportsMidConversationSystemMessages();
+        $result = [];
+        $pending = [];
+        $count = count($encodedMessages);
+        for ($i = 0; $i < $count; $i++) {
+            $message = $encodedMessages[$i];
+            if ($message['role'] !== 'system') {
+                if ($pending !== [] && $message['role'] === 'user') {
+                    $message['content'] = [...$message['content'], ...$pending];
+                    $pending = [];
+                }
+                $result[] = $message;
+                continue;
+            }
+
+            $previousIndex = array_key_last($result);
+            $previousRole = $previousIndex === null ? null : $result[$previousIndex]['role'];
+            $nextRole = $encodedMessages[$i + 1]['role'] ?? null;
+            if ($native && $previousRole === 'user' && ($nextRole === null || $nextRole === 'assistant')) {
+                $content = $message['content'];
+                $result[] = [
+                    'role' => 'system',
+                    'content' => count($content) === 1 && !isset($content[0]['cache_control']) ? $content[0]['text'] : $content,
+                ];
+                continue;
+            }
+            if ($previousRole === 'user') {
+                $result[$previousIndex]['content'] = [...$result[$previousIndex]['content'], ...$message['content']];
+                continue;
+            }
+            $pending = [...$pending, ...$message['content']];
+        }
+        if ($pending !== []) {
+            throw new \InvalidArgumentException('A system message after the conversation start needs a user message next to it');
+        }
+
+        return $result;
     }
 
     private function addCacheAttribute(LLMMessageContent $content, array $data): array {
@@ -211,27 +273,31 @@ class AnthropicEncoder implements ModelEncoder {
     }
 
     public function encodeRequest(LLMRequest $request): array {
-        $systemPrompt = null;
+        $systemBlocks = null;
         $encodedMessages = [];
-        foreach ($request->getConversation()->getMessages() as $message) {
+        $messages = $request->getConversation()->getMessages();
+        $systemMessageCount = count(array_filter($messages, static fn(LLMMessage $message): bool => $message->isSystem()));
+        $seenNonSystem = false;
+        foreach ($messages as $message) {
+            if ($message->isSystem()) {
+                $systemBlock = $this->encodeSystemContent($message);
+                // the opening system message (or the only one anywhere, as before) is the top-level system prompt
+                if ($systemBlocks === null && (!$seenNonSystem || $systemMessageCount === 1)) {
+                    $systemBlocks = [$systemBlock];
+                    continue;
+                }
+                if (!$seenNonSystem) {
+                    throw new \InvalidArgumentException('Multiple system messages');
+                }
+                $encodedMessages[] = ['role' => 'system', 'content' => [$systemBlock]];
+                continue;
+            }
+            $seenNonSystem = true;
+
             if ($message->isUser()) {
                 $role = 'user';
             } elseif ($message->isAssistant()) {
                 $role = 'assistant';
-            } elseif ($message->isSystem()) {
-                if ($systemPrompt !== null) {
-                    throw new \InvalidArgumentException('Multiple system messages');
-                }
-                if (count($message->getContents()) !== 1) {
-                    throw new \InvalidArgumentException('System message supports only one content block');
-                }
-                $content = $message->getContents()[0];
-                if ($content instanceof LLMMessageText) {
-                    $systemPrompt = $content->getText();
-                } else {
-                    throw new \InvalidArgumentException('Unsupported system message type');
-                }
-                continue;
             } else {
                 throw new \InvalidArgumentException('Unsupported message role');
             }
@@ -277,9 +343,16 @@ class AnthropicEncoder implements ModelEncoder {
             ];
         }
 
+        $encodedMessages = $this->placeMidConversationSystemMessages($encodedMessages, $request->getModel());
+
         $conversationCacheConfig = $request->getConversationCacheConfig();
+        $systemBreakpoints = $systemBlocks !== null && isset($systemBlocks[0]['cache_control']) ? 1 : 0;
         if ($conversationCacheConfig !== null) {
-            $encodedMessages = $this->addConversationCacheBreakpoints($encodedMessages, $conversationCacheConfig);
+            if ($systemBreakpoints === 1 && $conversationCacheConfig->getTtl() !== null) {
+                // longer TTLs must come first; the system prompt precedes every message
+                $systemBlocks[0]['cache_control']['ttl'] = $conversationCacheConfig->getTtl()->value;
+            }
+            $encodedMessages = $this->addConversationCacheBreakpoints($encodedMessages, $conversationCacheConfig, $systemBreakpoints);
         }
 
         $options = [
@@ -346,8 +419,8 @@ class AnthropicEncoder implements ModelEncoder {
             $options['context_management'] = ['edits' => $contextEdits];
         }
 
-        if ($systemPrompt !== null) {
-            $options['system'] = $systemPrompt;
+        if ($systemBlocks !== null) {
+            $options['system'] = isset($systemBlocks[0]['cache_control']) ? $systemBlocks : $systemBlocks[0]['text'];
         }
         if (!empty($request->getStopSequences())) {
             $options['stop_sequences'] = $request->getStopSequences();
