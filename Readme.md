@@ -179,6 +179,8 @@ $response = $agentClient->run($client, new LLMRequest(
 
 **→ [Tools Documentation](docs/guides/tools.md)**
 
+**→ [Agent Runs: progress, limits and cancellation](docs/guides/agent-runs.md)**
+
 ### ✅ Feedback Loops
 
 Build self-correcting agents that validate and improve their outputs:
@@ -271,7 +273,7 @@ use Soukicz\Llm\Client\OpenAI\Model\GPT54;
 $request = new LLMRequest(
     model: new GPT54(GPT54::VERSION_2026_03_05),
     conversation: $conversation,
-    reasoningConfig: ReasoningEffort::HIGH // NONE, MINIMAL, LOW, MEDIUM, HIGH, or EXTRA_HIGH
+    reasoningConfig: ReasoningEffort::HIGH // NONE, MINIMAL, LOW, MEDIUM, HIGH, XHIGH, EXTRA_HIGH or MAX
 );
 
 // Or use token-based budget control (Anthropic only)

@@ -253,6 +253,10 @@ The `inputSchema` follows JSON Schema specification. Common patterns:
 - ✅ **Google Gemini** - Full function calling support
 - ⚠️ **OpenAI-compatible** - Depends on the underlying model
 
+## Errors, progress and limits
+
+A tool that throws, rejects its promise or returns the wrong type becomes an error result for the model, and the run goes on. Results built with `LLMMessageContents::fromErrorString()` are flagged as errors to the provider. For progress events, iteration, cost and time limits, and cancellation, see [Agent Runs](agent-runs.md).
+
 ## See Also
 
 - [Feedback Loops](feedback-loops.md) - Validate tool outputs
