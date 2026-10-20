@@ -14,6 +14,8 @@ use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageImage;
 use Soukicz\Llm\Message\LLMMessagePdf;
 use Soukicz\Llm\Message\LLMMessageText;
+use Soukicz\Llm\Message\LLMMessageToolResult;
+use Soukicz\Llm\Message\LLMMessageToolUse;
 
 class AnthropicEncoderMediaTest extends TestCase {
     public function testImageContent(): void {
@@ -81,5 +83,32 @@ class AnthropicEncoderMediaTest extends TestCase {
 
         // Confirm no cache control since caching is not enabled
         $this->assertArrayNotHasKey('cache_control', $encoded['messages'][0]['content'][1]);
+    }
+
+    public function testPdfInsideToolResult(): void {
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUserString('Read the brand manual'),
+            LLMMessage::createFromAssistant(new LLMMessageContents([new LLMMessageToolUse('t1', 'uploads', ['fileId' => 'abc'])])),
+            LLMMessage::createFromUser(new LLMMessageContents([
+                new LLMMessageToolResult('t1', new LLMMessageContents([
+                    new LLMMessageText('brand-manual.pdf'),
+                    new LLMMessagePdf('base64', 'JVBERi0x'),
+                ])),
+            ])),
+        ]);
+
+        $encoded = (new AnthropicEncoder())->encodeRequest(new LLMRequest(
+            model: new AnthropicClaude35Sonnet(AnthropicClaude35Sonnet::VERSION_20241022),
+            conversation: $conversation,
+        ));
+
+        $toolResult = $encoded['messages'][2]['content'][0];
+        $this->assertSame('tool_result', $toolResult['type']);
+        $this->assertSame(['type' => 'text', 'text' => 'brand-manual.pdf'], $toolResult['content'][0]);
+        $this->assertSame([
+            'type' => 'document',
+            'source' => ['type' => 'base64', 'media_type' => 'application/pdf', 'data' => 'JVBERi0x'],
+        ], $toolResult['content'][1]);
+        $this->assertArrayNotHasKey('is_error', $toolResult);
     }
 }

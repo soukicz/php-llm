@@ -161,4 +161,24 @@ class LLMConversationTest extends TestCase {
         $this->assertSame('Hello', $contents[0]->getText());
         $this->assertFalse($contents->isError());
     }
+
+    public function testPdfInsideToolResultSurvivesRoundTrip(): void {
+        $conversation = new LLMConversation([
+            LLMMessage::createFromUser(new LLMMessageContents([
+                new LLMMessageToolResult('t1', new LLMMessageContents([new LLMMessagePdf('base64', 'JVBERi0x')])),
+            ])),
+        ]);
+
+        $restored = LLMConversation::fromJson(json_decode(json_encode($conversation, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR));
+
+        $pdf = $restored->getMessages()[0]->getContents()[0]->getContent()->getMessages()[0];
+        $this->assertInstanceOf(LLMMessagePdf::class, $pdf);
+        $this->assertSame('JVBERi0x', $pdf->getData());
+    }
+
+    public function testPdfFromJsonWithoutCachedFlag(): void {
+        $pdf = LLMMessagePdf::fromJson(['encoding' => 'base64', 'data' => 'JVBERi0x']);
+
+        $this->assertFalse($pdf->isCached());
+    }
 }

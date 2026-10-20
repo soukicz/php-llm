@@ -28,6 +28,6 @@ class LLMMessagePdf implements LLMMessageContent {
     }
 
     public static function fromJson(array $data): self {
-        return new self($data['encoding'], $data['data'], $data['cached']);
+        return new self($data['encoding'], $data['data'], $data['cached'] ?? false);
     }
 }
