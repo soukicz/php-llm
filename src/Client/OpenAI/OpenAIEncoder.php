@@ -19,6 +19,7 @@ use Soukicz\Llm\Message\LLMMessageStructuredData;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
+use Soukicz\Llm\Usage\TokenUsage;
 
 class OpenAIEncoder implements ModelEncoder {
     /**
@@ -198,6 +199,7 @@ class OpenAIEncoder implements ModelEncoder {
         $response = $modelResponse->getData();
         $model = $request->getModel();
 
+        $stepUsage = new TokenUsage();
         if (isset($response['usage'])) {
             $promptTokens = $response['usage']['prompt_tokens'];
             $completionTokens = $response['usage']['completion_tokens'];
@@ -207,7 +209,13 @@ class OpenAIEncoder implements ModelEncoder {
                 + $cachedTokens * ($model->getCachedInputPricePerMillionTokens() / 1_000_000);
             $outputPrice = $completionTokens * ($model->getOutputPricePerMillionTokens() / 1_000_000);
 
-            $request = $request->withCost($promptTokens, $completionTokens, $inputPrice, $outputPrice);
+            $stepUsage = new TokenUsage(
+                input: $promptTokens - $cachedTokens,
+                output: $completionTokens,
+                cacheRead: $cachedTokens,
+                reasoning: $response['usage']['completion_tokens_details']['reasoning_tokens'] ?? 0,
+            );
+            $request = $request->withCost($promptTokens, $completionTokens, $inputPrice, $outputPrice)->withUsage($stepUsage);
         }
 
         $request = $request->withTime((int) $modelResponse->getResponseTimeMs());
@@ -258,7 +266,9 @@ class OpenAIEncoder implements ModelEncoder {
             $request->getPreviousMaximumOutputTokens(),
             $request->getPreviousInputCostUSD(),
             $request->getPreviousOutputCostUSD(),
-            $request->getPreviousTimeMs()
+            $request->getPreviousTimeMs(),
+            $request->getPreviousUsage(),
+            $stepUsage,
         );
     }
 }

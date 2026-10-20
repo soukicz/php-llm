@@ -5,9 +5,21 @@ namespace Soukicz\Llm;
 use Soukicz\Llm\Client\StopReason;
 use Soukicz\Llm\Message\LLMMessageStructuredData;
 use Soukicz\Llm\Message\LLMMessageText;
+use Soukicz\Llm\Usage\TokenUsage;
 
 class LLMResponse {
-    public function __construct(private readonly LLMRequest $request, private readonly StopReason $stopReason, private readonly int $inputTokens, private readonly int $outputTokens, private readonly int $maximumOutputTokens, private readonly ?float $inputPriceUsd, private readonly ?float $outputPriceUsd, private int $totalTimeMs) {
+    public function __construct(
+        private readonly LLMRequest $request,
+        private readonly StopReason $stopReason,
+        private readonly int $inputTokens,
+        private readonly int $outputTokens,
+        private readonly int $maximumOutputTokens,
+        private readonly ?float $inputPriceUsd,
+        private readonly ?float $outputPriceUsd,
+        private int $totalTimeMs,
+        private readonly ?TokenUsage $usage = null,
+        private readonly ?TokenUsage $stepUsage = null,
+    ) {
     }
 
     public function getConversation(): LLMConversation {
@@ -66,6 +78,27 @@ class LLMResponse {
 
     public function getTotalTimeMs(): int {
         return $this->totalTimeMs;
+    }
+
+    /**
+     * Cumulative usage of the whole run (every model call of an agent loop)
+     */
+    public function getUsage(): TokenUsage {
+        return $this->usage ?? new TokenUsage(input: $this->inputTokens, output: $this->outputTokens);
+    }
+
+    /**
+     * Usage of the model call that produced this response only
+     */
+    public function getStepUsage(): TokenUsage {
+        return $this->stepUsage ?? $this->getUsage();
+    }
+
+    /**
+     * Cumulative cost in USD, cache writes and reads included (they are part of the input price)
+     */
+    public function getTotalCostUsd(): float {
+        return ($this->inputPriceUsd ?? 0.0) + ($this->outputPriceUsd ?? 0.0);
     }
 
 }

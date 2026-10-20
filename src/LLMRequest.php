@@ -12,6 +12,7 @@ use Soukicz\Llm\Message\LLMMessageContents;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Stream\StreamListenerInterface;
 use Soukicz\Llm\Tool\ToolDefinition;
+use Soukicz\Llm\Usage\TokenUsage;
 
 class LLMRequest {
 
@@ -38,6 +39,8 @@ class LLMRequest {
         private int              $previousTimeMs = 0
     ) {
     }
+
+    private ?TokenUsage $previousUsage = null;
 
     public function getConversation(): LLMConversation {
         return $this->conversation;
@@ -114,6 +117,20 @@ class LLMRequest {
     public function withTime(int $timeMs): self {
         $clone = clone $this;
         $clone->previousTimeMs += $timeMs;
+
+        return $clone;
+    }
+
+    /**
+     * Cumulative usage of every model call made for this request so far (agent loops included)
+     */
+    public function getPreviousUsage(): TokenUsage {
+        return $this->previousUsage ?? new TokenUsage();
+    }
+
+    public function withUsage(TokenUsage $stepUsage): self {
+        $clone = clone $this;
+        $clone->previousUsage = $this->getPreviousUsage()->add($stepUsage);
 
         return $clone;
     }
