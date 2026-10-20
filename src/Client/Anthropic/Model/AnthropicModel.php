@@ -6,6 +6,14 @@ use Soukicz\Llm\Client\ModelInterface;
 
 abstract class AnthropicModel implements ModelInterface {
     /**
+     * Whether the model runs adaptive thinking when the request has no `thinking` parameter
+     * (thinking cannot be turned off by omission; effort is the only control)
+     */
+    public function hasAdaptiveThinkingByDefault(): bool {
+        return false;
+    }
+
+    /**
      * Whether the model accepts temperature / top_p / top_k. Models that reject them (400) never get them sent.
      */
     public function supportsSamplingParameters(): bool {

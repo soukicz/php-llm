@@ -7,6 +7,10 @@ class AnthropicClaude5Sonnet extends AnthropicModel {
         return 'claude-sonnet-5';
     }
 
+    public function hasAdaptiveThinkingByDefault(): bool {
+        return true;
+    }
+
     /**
      * Sampling parameters return a 400 on this model
      *

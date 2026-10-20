@@ -301,16 +301,18 @@ class AnthropicEncoder implements ModelEncoder {
                     'budget_tokens' => $reasoningConfig->getMaxTokens(),
                 ];
             } elseif ($reasoningConfig instanceof ReasoningEffort) {
-                if ($reasoningConfig !== ReasoningEffort::NONE) {
+                if ($reasoningConfig === ReasoningEffort::NONE) {
+                    $model = $request->getModel();
+                    if ($model instanceof AnthropicModel && $model->hasAdaptiveThinkingByDefault()) {
+                        // thinking runs anyway on these models; without an explicit effort they use their
+                        // default (medium on Opus 5.5), so the lowest effort is the closest to "none"
+                        $outputConfig['effort'] = 'low';
+                    }
+                } else {
                     $options['thinking'] = [
                         'type' => 'adaptive',
                     ];
-                    $outputConfig['effort'] = match ($reasoningConfig) {
-                        ReasoningEffort::MINIMAL, ReasoningEffort::LOW => 'low',
-                        ReasoningEffort::MEDIUM => 'medium',
-                        ReasoningEffort::HIGH => 'high',
-                        ReasoningEffort::EXTRA_HIGH => 'max',
-                    };
+                    $outputConfig['effort'] = self::anthropicEffort($reasoningConfig);
                 }
             } else {
                 throw new \InvalidArgumentException('Unsupported reasoning config type');
@@ -367,6 +369,16 @@ class AnthropicEncoder implements ModelEncoder {
         }
 
         return $options;
+    }
+
+    private static function anthropicEffort(ReasoningEffort $effort): string {
+        return match ($effort) {
+            ReasoningEffort::NONE, ReasoningEffort::MINIMAL, ReasoningEffort::LOW => 'low',
+            ReasoningEffort::MEDIUM => 'medium',
+            ReasoningEffort::HIGH => 'high',
+            ReasoningEffort::XHIGH => 'xhigh',
+            ReasoningEffort::EXTRA_HIGH, ReasoningEffort::MAX => 'max',
+        };
     }
 
     public function decodeResponse(LLMRequest $request, ModelResponse $modelResponse): LLMRequest|LLMResponse {

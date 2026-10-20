@@ -157,7 +157,7 @@ class OpenAIEncoder implements ModelEncoder {
                     ReasoningEffort::MINIMAL => 'minimal',
                     ReasoningEffort::MEDIUM => 'medium',
                     ReasoningEffort::HIGH => 'high',
-                    ReasoningEffort::EXTRA_HIGH => 'xhigh',
+                    ReasoningEffort::XHIGH, ReasoningEffort::EXTRA_HIGH, ReasoningEffort::MAX => 'xhigh',
                 };
             } else {
                 throw new InvalidArgumentException('Unsupported reasoning config type');
