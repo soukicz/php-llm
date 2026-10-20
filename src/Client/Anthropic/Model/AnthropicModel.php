@@ -6,6 +6,14 @@ use Soukicz\Llm\Client\ModelInterface;
 
 abstract class AnthropicModel implements ModelInterface {
     /**
+     * Whether `role: system` messages are accepted inside `messages` (after a user message). Without it later
+     * system messages are merged into the neighbouring user message.
+     */
+    public function supportsMidConversationSystemMessages(): bool {
+        return false;
+    }
+
+    /**
      * Whether the model runs adaptive thinking when the request has no `thinking` parameter
      * (thinking cannot be turned off by omission; effort is the only control)
      */

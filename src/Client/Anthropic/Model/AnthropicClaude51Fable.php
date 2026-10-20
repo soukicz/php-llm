@@ -7,6 +7,10 @@ class AnthropicClaude51Fable extends AnthropicModel {
         return 'claude-fable-5-1';
     }
 
+    public function supportsMidConversationSystemMessages(): bool {
+        return true;
+    }
+
     public function hasAdaptiveThinkingByDefault(): bool {
         return true;
     }
