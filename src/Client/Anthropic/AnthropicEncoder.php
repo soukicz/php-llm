@@ -13,6 +13,7 @@ use Soukicz\Llm\Client\StopReason;
 use Soukicz\Llm\Config\ConversationCacheConfig;
 use Soukicz\Llm\Config\ReasoningBudget;
 use Soukicz\Llm\Config\ReasoningEffort;
+use Soukicz\Llm\Config\ThinkingDisplay;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Message\LLMMessage;
@@ -319,6 +320,15 @@ class AnthropicEncoder implements ModelEncoder {
             }
         }
 
+        $thinkingDisplay = $request->getThinkingDisplay();
+        if ($thinkingDisplay !== null) {
+            if (isset($options['thinking'])) {
+                $options['thinking']['display'] = $thinkingDisplay->value;
+            } elseif ($model instanceof AnthropicModel && $model->hasAdaptiveThinkingByDefault()) {
+                $options['thinking'] = ['type' => 'adaptive', 'display' => $thinkingDisplay->value];
+            }
+        }
+
         $structuredOutputConfig = $request->getStructuredOutputConfig();
         if ($structuredOutputConfig !== null) {
             $outputConfig['format'] = [
@@ -369,6 +379,20 @@ class AnthropicEncoder implements ModelEncoder {
         }
 
         return $options;
+    }
+
+    /**
+     * Beta features (anthropic-beta header values) this request needs on top of the client's own
+     *
+     * @return string[]
+     */
+    public function getRequestBetas(LLMRequest $request): array {
+        $betas = [];
+        if ($request->getThinkingDisplay() === ThinkingDisplay::UPDATES) {
+            $betas[] = 'thinking-display-updates-2026-08-18';
+        }
+
+        return $betas;
     }
 
     private static function anthropicEffort(ReasoningEffort $effort): string {
