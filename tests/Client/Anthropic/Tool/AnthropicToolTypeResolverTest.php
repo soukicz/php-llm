@@ -16,7 +16,9 @@ use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude46Sonnet;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude47Opus;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude48Opus;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude51Fable;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude55Haiku;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude55Opus;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude55Sonnet;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Opus;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Sonnet;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Fable;
@@ -38,6 +40,8 @@ class AnthropicToolTypeResolverTest extends TestCase {
             new AnthropicClaude5Sonnet(),
             new AnthropicClaude5Fable(),
             new AnthropicClaude55Opus(),
+            new AnthropicClaude55Sonnet(),
+            new AnthropicClaude55Haiku(),
             new AnthropicClaude51Fable(),
         ];
 

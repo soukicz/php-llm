@@ -39,7 +39,8 @@ Most Anthropic models require a version constant; the newest models take no cons
 <?php
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude45Sonnet;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude35Haiku;
-use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Sonnet;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude55Sonnet;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude55Haiku;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude55Opus;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude51Fable;
 
@@ -48,7 +49,8 @@ $model = new AnthropicClaude45Sonnet(AnthropicClaude45Sonnet::VERSION_20250929);
 $model = new AnthropicClaude35Haiku(AnthropicClaude35Haiku::VERSION_20241022);
 
 // Claude 4.6 and later models take no arguments
-$model = new AnthropicClaude5Sonnet();
+$model = new AnthropicClaude55Sonnet();
+$model = new AnthropicClaude55Haiku();
 $model = new AnthropicClaude55Opus();
 $model = new AnthropicClaude51Fable();
 ```
@@ -74,6 +76,8 @@ $model = new AnthropicClaude51Fable();
 | `AnthropicClaude5Opus` | `new AnthropicClaude5Opus()` |
 | `AnthropicClaude5Fable` | `new AnthropicClaude5Fable()` |
 | `AnthropicClaude55Opus` | `new AnthropicClaude55Opus()` |
+| `AnthropicClaude55Sonnet` | `new AnthropicClaude55Sonnet()` |
+| `AnthropicClaude55Haiku` | `new AnthropicClaude55Haiku()` |
 | `AnthropicClaude51Fable` | `new AnthropicClaude51Fable()` |
 
 ### Batch Processing Support

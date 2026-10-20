@@ -6,7 +6,9 @@ use PHPUnit\Framework\TestCase;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude47Opus;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude48Opus;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude51Fable;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude55Haiku;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude55Opus;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude55Sonnet;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Fable;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Opus;
 use Soukicz\Llm\Client\Anthropic\Model\AnthropicClaude5Sonnet;
@@ -44,6 +46,8 @@ class ModelCatalogTest extends TestCase {
             'claude-sonnet-5' => [new AnthropicClaude5Sonnet(), 'claude-sonnet-5', 2.0, 10.0, 2.5, 0.2],
             'claude-fable-5' => [new AnthropicClaude5Fable(), 'claude-fable-5', 10.0, 50.0, 12.5, 1.0],
             'claude-opus-5-5' => [new AnthropicClaude55Opus(), 'claude-opus-5-5', 4.0, 20.0, 5.0, 0.2],
+            'claude-sonnet-5-5' => [new AnthropicClaude55Sonnet(), 'claude-sonnet-5-5', 2.0, 10.0, 2.5, 0.2],
+            'claude-haiku-5-5' => [new AnthropicClaude55Haiku(), 'claude-haiku-5-5', 0.1, 0.5, 0.125, 0.01],
             'claude-fable-5-1' => [new AnthropicClaude51Fable(), 'claude-fable-5-1', 10.0, 50.0, 12.5, 0.25],
             'gpt-5.5' => [new GPT55(GPT55::VERSION_2026_04_23), 'gpt-5.5-2026-04-23', 5.0, 30.0, 0.5, 0.0],
             'gpt-5.6-sol' => [new GPT56Sol(), 'gpt-5.6-sol', 4.0, 20.0, 0.4, 0.0],
