@@ -64,7 +64,7 @@ There is no default level — omitting `reasoningConfig` leaves the decision to 
 | `EXTRA_HIGH` | `max` | `xhigh` | `high` | `24576` |
 | `MAX` | `max` | `xhigh` | `high` | `24576` |
 
-When an effort is set, the Anthropic encoder always sends it. Claude Opus 5.5 defaults to `medium` when it is omitted.
+When an effort is set, the Anthropic encoder sends it, except `NONE` on models that do not think by default, where thinking is simply left off. A request-level `thinkingDisplay` makes the encoder send `thinking: adaptive` with that display on models that think by default, even for `NONE`; on other models it applies only when thinking is on. Claude Opus 5.5 defaults to `medium` when it is omitted.
 
 Gemini 2.x models do not accept `thinkingLevel` — the library automatically translates the effort level to a `thinkingBudget` token budget for them.
 

@@ -1,7 +1,7 @@
 # Agent Runs: Progress, Limits and Cancellation
 
 `LLMAgentClient::run()` loops while the model calls tools. Pass `AgentRunOptions` as the fourth argument to watch
-the run and to stop it safely. Without options a run behaves as before.
+the run and to stop it safely. Without options a run still differs from older versions in four ways: a refusal throws `AgentRunInterruptedException` (reason `refusal`) instead of returning the refused text, a `pause_turn` stop continues the run, a tool that throws, rejects or returns the wrong type becomes an error result for the model instead of aborting the run, and error results are sent to Claude with `is_error`.
 
 ```php
 <?php
@@ -69,4 +69,4 @@ Each one becomes an error result such as `ERROR: RuntimeException: timeout`, and
 
 ## Usage and cost
 
-`LLMResponse::getUsage()` returns a `Soukicz\Llm\Usage\TokenUsage` for the whole run, and `getStepUsage()` for one API call. Both carry `input` (uncached), `output`, `cacheWrite5m`, `cacheWrite1h`, `cacheRead` and `reasoning`. `getTotalCostUsd()` includes cache writes at their TTL price and cache reads. For OpenAI and Gemini, `cacheRead` and `reasoning` come from the provider's own counters.
+`LLMResponse::getUsage()` returns a `Soukicz\Llm\Usage\TokenUsage` for the whole run, and `getStepUsage()` for one API call. Both carry `input` (uncached), `output`, `cacheWrite5m`, `cacheWrite1h`, `cacheRead` and `reasoning`. `getTotalCostUsd()` includes cache writes at their TTL price and cache reads. OpenAI fills `cacheRead` and `reasoning` from the provider's own counters; Gemini fills `reasoning` only, so its `cacheRead` stays 0.
