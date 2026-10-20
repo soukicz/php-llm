@@ -3,6 +3,7 @@
 namespace Soukicz\Llm;
 
 use Soukicz\Llm\Client\ModelInterface;
+use Soukicz\Llm\Config\ContextManagement;
 use Soukicz\Llm\Config\ConversationCacheConfig;
 use Soukicz\Llm\Config\ReasoningConfig;
 use Soukicz\Llm\Config\ReasoningEffort;
@@ -39,6 +40,7 @@ class LLMRequest {
         private float            $previousOutputCostUSD = 0.0,
         private int              $previousTimeMs = 0,
         private readonly ?ThinkingDisplay $thinkingDisplay = null,
+        private readonly ?ContextManagement $contextManagement = null,
     ) {
     }
 
@@ -164,5 +166,9 @@ class LLMRequest {
 
     public function getThinkingDisplay(): ?ThinkingDisplay {
         return $this->thinkingDisplay;
+    }
+
+    public function getContextManagement(): ?ContextManagement {
+        return $this->contextManagement;
     }
 }
