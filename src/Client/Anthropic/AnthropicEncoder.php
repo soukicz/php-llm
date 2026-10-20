@@ -3,6 +3,8 @@
 namespace Soukicz\Llm\Client\Anthropic;
 
 use InvalidArgumentException;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicModel;
+use Soukicz\Llm\Client\Anthropic\Model\AnthropicPrices;
 use Soukicz\Llm\Client\Anthropic\Tool\AnthropicNativeTool;
 use Soukicz\Llm\Client\Anthropic\Tool\AnthropicNativeToolWithOptions;
 use Soukicz\Llm\Client\ModelEncoder;
@@ -24,6 +26,7 @@ use Soukicz\Llm\Message\LLMMessageStructuredData;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
+use Soukicz\Llm\Usage\TokenUsage;
 
 class AnthropicEncoder implements ModelEncoder {
     /**
@@ -366,23 +369,41 @@ class AnthropicEncoder implements ModelEncoder {
         }
         $request = $request->withMessage(LLMMessage::createFromAssistant(new LLMMessageContents($responseContents)));
 
-        $cacheInputTokens = $response['usage']['cache_creation_input_tokens'] ?? 0;
-        $cacheReadInputTokens = $response['usage']['cache_read_input_tokens'] ?? 0;
+        $usage = $response['usage'] ?? [];
+        $cacheWriteTotal = $usage['cache_creation_input_tokens'] ?? 0;
+        $cacheWrite1h = $usage['cache_creation']['ephemeral_1h_input_tokens'] ?? 0;
+        $cacheWrite5m = $usage['cache_creation']['ephemeral_5m_input_tokens'] ?? ($cacheWriteTotal - $cacheWrite1h);
+        $stepUsage = new TokenUsage(
+            input: $usage['input_tokens'] ?? 0,
+            output: $usage['output_tokens'] ?? 0,
+            cacheWrite5m: $cacheWrite5m,
+            cacheWrite1h: $cacheWrite1h,
+            cacheRead: $usage['cache_read_input_tokens'] ?? 0,
+        );
 
-        $inputPrice = $response['usage']['input_tokens'] * ($request->getModel()->getInputPricePerMillionTokens() / 1000 / 1000);
-        $outputPrice = $response['usage']['output_tokens'] * ($request->getModel()->getOutputPricePerMillionTokens() / 1000 / 1000);
+        $model = $request->getModel();
+        $prices = $model instanceof AnthropicModel
+            ? $model->getPrices($stepUsage->promptTokens())
+            : new AnthropicPrices(
+                $model->getInputPricePerMillionTokens(),
+                $model->getOutputPricePerMillionTokens(),
+                $model->getCachedInputPricePerMillionTokens(),
+                $model->getCachedInputPricePerMillionTokens(),
+                $model->getCachedOutputPricePerMillionTokens(),
+            );
 
-        $inputPrice += $cacheInputTokens * ($request->getModel()->getCachedInputPricePerMillionTokens() / 1000 / 1000);
-        // Cache reads are input tokens, so their cost belongs to the input bucket
-        $inputPrice += $cacheReadInputTokens * ($request->getModel()->getCachedOutputPricePerMillionTokens() / 1000 / 1000);
+        // cache writes and reads are input-side costs
+        $inputPrice = (
+            $stepUsage->input * $prices->input
+            + $stepUsage->cacheWrite5m * $prices->cacheWrite5m
+            + $stepUsage->cacheWrite1h * $prices->cacheWrite1h
+            + $stepUsage->cacheRead * $prices->cacheRead
+        ) / 1_000_000;
+        $outputPrice = $stepUsage->output * $prices->output / 1_000_000;
 
         $request = $request
-            ->withCost(
-                $response['usage']['input_tokens'],
-                $response['usage']['output_tokens'],
-                $inputPrice,
-                $outputPrice
-            )
+            ->withCost($stepUsage->input, $stepUsage->output, $inputPrice, $outputPrice)
+            ->withUsage($stepUsage)
             ->withTime($responseTimeMs);
 
         $stopReason = match ($response['stop_reason']) {
@@ -401,6 +422,8 @@ class AnthropicEncoder implements ModelEncoder {
             $request->getPreviousInputCostUSD(),
             $request->getPreviousOutputCostUSD(),
             $request->getPreviousTimeMs(),
+            $request->getPreviousUsage(),
+            $stepUsage,
         );
     }
 }

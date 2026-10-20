@@ -19,6 +19,7 @@ use Soukicz\Llm\Message\LLMMessageStructuredData;
 use Soukicz\Llm\Message\LLMMessageText;
 use Soukicz\Llm\Message\LLMMessageToolResult;
 use Soukicz\Llm\Message\LLMMessageToolUse;
+use Soukicz\Llm\Usage\TokenUsage;
 
 class GeminiEncoder implements ModelEncoder {
 
@@ -246,6 +247,7 @@ class GeminiEncoder implements ModelEncoder {
             $stopReason = StopReason::TOOL_USE;
         }
 
+        $stepUsage = new TokenUsage();
         if (isset($response['usageMetadata'])) {
             $promptTokenCount = $response['usageMetadata']['promptTokenCount'];
             $outputTokenCount = $response['usageMetadata']['candidatesTokenCount'] ?? 0;
@@ -253,12 +255,12 @@ class GeminiEncoder implements ModelEncoder {
             $inputPrice = $promptTokenCount * ($model->getInputPricePerMillionTokens() / 1_000_000);
             $outputPrice = $outputTokenCount * ($model->getOutputPricePerMillionTokens() / 1_000_000);
 
-            $request = $request->withCost(
-                $promptTokenCount,
-                $outputTokenCount,
-                $inputPrice,
-                $outputPrice
+            $stepUsage = new TokenUsage(
+                input: $promptTokenCount,
+                output: $outputTokenCount,
+                reasoning: $response['usageMetadata']['thoughtsTokenCount'] ?? 0,
             );
+            $request = $request->withCost($promptTokenCount, $outputTokenCount, $inputPrice, $outputPrice)->withUsage($stepUsage);
         }
 
         return new LLMResponse(
@@ -269,7 +271,9 @@ class GeminiEncoder implements ModelEncoder {
             $request->getPreviousMaximumOutputTokens(),
             $request->getPreviousInputCostUSD(),
             $request->getPreviousOutputCostUSD(),
-            $request->getPreviousTimeMs()
+            $request->getPreviousTimeMs(),
+            $request->getPreviousUsage(),
+            $stepUsage,
         );
     }
 

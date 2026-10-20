@@ -13,6 +13,7 @@ use Soukicz\Llm\LLMConversation;
 use Soukicz\Llm\LLMRequest;
 use Soukicz\Llm\LLMResponse;
 use Soukicz\Llm\Message\LLMMessage;
+use Soukicz\Llm\Usage\TokenUsage;
 
 class OpenAIDecoderPricingTest extends TestCase {
     private OpenAIEncoder $encoder;
@@ -72,5 +73,17 @@ class OpenAIDecoderPricingTest extends TestCase {
         $this->assertEqualsWithDelta(1.5, $response->getOutputPriceUsd(), 1e-9);
         // Token counts still report the full prompt size
         $this->assertSame(1_000_000, $response->getInputTokens());
+    }
+
+    public function testStepUsageSeparatesCachedAndReasoningTokens(): void {
+        $response = $this->decode([
+            'prompt_tokens' => 1000,
+            'completion_tokens' => 300,
+            'prompt_tokens_details' => ['cached_tokens' => 400],
+            'completion_tokens_details' => ['reasoning_tokens' => 120],
+        ]);
+
+        $this->assertEquals(new TokenUsage(input: 600, output: 300, cacheRead: 400, reasoning: 120), $response->getStepUsage());
+        $this->assertEquals($response->getStepUsage(), $response->getUsage());
     }
 }
