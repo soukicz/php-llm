@@ -4,4 +4,6 @@ parameters:
 		- src
 	ignoreErrors:
 		-
+			# Guzzle Promises 2 (Guzzle 7) has no generic PromiseInterface; with Promises 3 (Guzzle 8) it does
 			identifier: generics.notGeneric
+			reportUnmatched: false

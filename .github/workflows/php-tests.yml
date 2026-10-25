@@ -63,6 +63,30 @@ jobs:
       - name: Run tests
         run: XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-text --testsuite default
 
+  test-guzzle-7:
+    name: Tests and PHPStan with Guzzle 7 (PHP 8.3)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, json, zlib
+          coverage: none
+
+      - name: Install dependencies (newest Guzzle 7)
+        run: composer update --prefer-dist --no-progress --with-all-dependencies --with "guzzlehttp/guzzle:^7.9"
+
+      - name: Run tests
+        run: vendor/bin/phpunit --testsuite default
+
+      - name: Run PHPStan
+        run: vendor/bin/phpstan analyse src
+
   test-lowest-dependencies:
     name: Test with lowest dependencies (PHP 8.3)
     runs-on: ubuntu-latest
