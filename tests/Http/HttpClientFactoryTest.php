@@ -7,12 +7,16 @@ namespace Soukicz\Llm\Tests\Http;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\NetworkException;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\NetworkTimeoutException;
 use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\RequestInterface;
 use Soukicz\Llm\Cache\CacheInterface;
 use Soukicz\Llm\Http\HttpClientFactory;
 use Soukicz\Llm\Tests\Cache\InMemoryCache;
@@ -129,6 +133,83 @@ class HttpClientFactoryTest extends TestCase {
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame('ok', (string) $response->getBody());
+    }
+
+    /**
+     * A timeout before any response arrives must be retried like a refused connection.
+     * Guzzle 7 reports it as ConnectException, Guzzle 8 as NetworkTimeoutException
+     * (a NetworkException that is not a ConnectException)
+     */
+    public function testRetriesNetworkTimeoutsWithoutResponse(): void {
+        $client = $this->createClient();
+        $this->recordDelays($client, $delays);
+        $request = new Request('GET', 'https://example.com/api');
+        $timeout = class_exists(NetworkTimeoutException::class)
+            ? new NetworkTimeoutException('cURL error 28: Operation timed out', $request)
+            : new ConnectException('cURL error 28: Operation timed out', $request);
+        $this->mockHandler->append($timeout, new Response(200, [], 'ok'));
+
+        $response = $client->get('https://example.com/api');
+
+        $this->assertSame('ok', (string) $response->getBody());
+        $this->assertSame(0, $this->mockHandler->count());
+    }
+
+    /**
+     * A receive error after the request was sent is not retried: the provider may already have run
+     * (and billed) it. Guzzle 7 reports it as RequestException, Guzzle 8 as NetworkException
+     */
+    public function testDoesNotRetryReceiveErrorsAfterTheRequestWasSent(): void {
+        $client = $this->createClient();
+        $this->recordDelays($client, $delays);
+        $request = new Request('POST', 'https://example.com/api');
+        $recvError = class_exists(NetworkException::class)
+            ? new NetworkException('cURL error 56: Recv failure: Connection reset by peer', $request)
+            : new RequestException('cURL error 56: Recv failure: Connection reset by peer', $request);
+        $this->mockHandler->append($recvError, new Response(200));
+
+        try {
+            $client->post('https://example.com/api');
+            $this->fail('Expected the receive error');
+        } catch (RequestException|NetworkException $e) {
+            $this->assertSame($recvError, $e);
+        }
+        $this->assertSame(1, $this->mockHandler->count(), 'The request must not be sent again');
+    }
+
+    public function testRetryDelayDoublesWithoutRetryAfterHeader(): void {
+        $client = $this->createClient();
+        $this->recordDelays($client, $delays);
+        $this->mockHandler->append(
+            new Response(500),
+            new Response(502),
+            new Response(503),
+            new Response(200),
+        );
+
+        $client->get('https://example.com/api');
+
+        $this->assertSame([null, 1000, 2000, 4000], $delays);
+    }
+
+    /**
+     * Records the delay the retry middleware asks for on each attempt and drops it, so the
+     * MockHandler does not sleep. Pushed last, so it runs between the retry middleware and the transport
+     *
+     * @param list<int|null>|null $delays
+     */
+    private function recordDelays(Client $client, ?array &$delays): void {
+        $delays = [];
+        /** @var HandlerStack $stack */
+        $stack = $client->getConfig('handler');
+        $stack->push(static function (callable $handler) use (&$delays): callable {
+            return static function (RequestInterface $request, array $options) use ($handler, &$delays) {
+                $delays[] = $options['delay'] ?? null;
+                unset($options['delay']);
+
+                return $handler($request, $options);
+            };
+        });
     }
 
     public function testSuccessfulResponsesAreCachedAndReplayed(): void {
