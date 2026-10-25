@@ -8,13 +8,14 @@ use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Promise\Create;
 use GuzzleHttp\Promise\PromiseInterface;
-use GuzzleHttp\RetryMiddleware;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Soukicz\Llm\Cache\CacheInterface;
 
 class HttpClientFactory {
     private const MAX_RETRIES = 3;
+    /** Guzzle 8 only; a string so the class may be missing on Guzzle 7 */
+    private const NETWORK_TIMEOUT_EXCEPTION = 'GuzzleHttp\\Exception\\NetworkTimeoutException';
 
     public static function createClient(?callable $customMiddleware = null, ?CacheInterface $cache = null, array $headers = []): Client {
         $options = [
@@ -71,7 +72,12 @@ class HttpClientFactory {
             if ($retries >= self::MAX_RETRIES) {
                 return false;
             }
-            if ($exception instanceof ConnectException) {
+            // Retry only failures without a response that cannot have been processed or that Guzzle 7
+            // already retried: a failed connection (DNS, TCP, TLS - nothing was sent) and a timeout before
+            // the response. Guzzle 8 reports that timeout as NetworkTimeoutException, which is not a
+            // ConnectException. Send/receive errors after the request went out stay unretried, as on Guzzle 7:
+            // the provider may already have run (and billed) the request
+            if ($exception instanceof ConnectException || is_a($exception, self::NETWORK_TIMEOUT_EXCEPTION)) {
                 return true;
             }
 
@@ -82,7 +88,8 @@ class HttpClientFactory {
 
         $delay = static function (int $retries, ?ResponseInterface $response = null): int {
             if ($response === null || !$response->hasHeader('Retry-After')) {
-                return RetryMiddleware::exponentialDelay($retries);
+                // 1 s, 2 s, 4 s; RetryMiddleware::exponentialDelay() is deprecated in Guzzle 7.11 and removed in 8
+                return (int) 2 ** ($retries - 1) * 1000;
             }
 
             $retryAfter = $response->getHeaderLine('Retry-After');
